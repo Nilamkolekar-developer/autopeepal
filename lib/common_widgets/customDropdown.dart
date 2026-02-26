@@ -210,7 +210,7 @@ class CustomDropdownTextField1 extends StatelessWidget {
               hintText: hint,
               hintStyle: TextStyles.hintStyle1,
               filled: true,
-              fillColor: Colors.grey.shade200,
+              fillColor: Colors.white,
               contentPadding:
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
               border: OutlineInputBorder(
