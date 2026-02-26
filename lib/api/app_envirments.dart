@@ -31,6 +31,4 @@ class AppEnvironment {
 
     return "http://43.204.117.226:3000/api/v1";
   }
-
-  
 }

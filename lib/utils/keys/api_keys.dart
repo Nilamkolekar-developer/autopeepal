@@ -34,6 +34,8 @@ class APIKeys {
   static String activationFlag = "ActivationFlag";
   static String ipAddress = "IPAddress";
   static String regByExternalAuth = "RegByExternalAuth";
+  static String username = "username";
+  static String password = "password";
 
   static String Password = "Password";
   static String isAdmin = "isAdmin";

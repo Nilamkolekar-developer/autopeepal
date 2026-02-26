@@ -156,16 +156,16 @@ class LoginScreen extends StatelessWidget {
                   borderRadius: BorderRadiusGeometry.circular(6)),
             ),
             onPressed: () {
-              if (controller.rememberMe.value) {
-                controller.saveCredentials();
-              } else {
-                controller.clearSavedCredentials();
-              }
-
-              Get.toNamed(Routes.dashboardScreen);
+              // if (controller.rememberMe.value) {
+              //   controller.saveCredentials();
+              // } else {
+              //   controller.clearSavedCredentials();
+              // }
+controller.loginMethod();
+              //Get.toNamed(Routes.dashboardScreen);
             },
             child: const Text(
-              'SIGN IN',
+              'LOG IN',
               style: TextStyle(
                 fontSize: 14,
                 fontFamily: "Roboto-Regular",
