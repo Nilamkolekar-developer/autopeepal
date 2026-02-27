@@ -758,6 +758,7 @@ class Result {
         'automated_session': automatedSession,
       };
 }
+
 class PostJobCardSession {
   String? status;
   String? jobCard;
@@ -847,6 +848,7 @@ class DtcR {
     };
   }
 }
+
 class ClearDtcRecord {
   String? session;
   String? status;
@@ -866,4 +868,151 @@ class ClearDtcRecord {
       'status': status,
     };
   }
+}
+
+// ---------------- pid_write_record ----------------
+class PidWriteRecordItem {
+  String? pidCode;
+  String? valueBefore;
+  String? valueAfter;
+  String? status;
+
+  PidWriteRecordItem(
+      {this.pidCode, this.valueBefore, this.valueAfter, this.status});
+
+  factory PidWriteRecordItem.fromJson(Map<String, dynamic> json) =>
+      PidWriteRecordItem(
+        pidCode: json['pid_code'],
+        valueBefore: json['value_before'],
+        valueAfter: json['value_after'],
+        status: json['status'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'pid_code': pidCode,
+        'value_before': valueBefore,
+        'value_after': valueAfter,
+        'status': status,
+      };
+}
+
+// ---------------- PidWriteRecord ----------------
+class PidWriteRecord {
+  List<PidWriteRecordItem> pidWriteRecords;
+
+  PidWriteRecord({List<PidWriteRecordItem>? pidWriteRecords})
+      : pidWriteRecords = pidWriteRecords ?? [];
+
+  factory PidWriteRecord.fromJson(Map<String, dynamic> json) => PidWriteRecord(
+        pidWriteRecords: (json['pid_write_records'] as List<dynamic>?)
+                ?.map((e) => PidWriteRecordItem.fromJson(e))
+                .toList() ??
+            [],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'pid_write_records': pidWriteRecords.map((e) => e.toJson()).toList(),
+      };
+}
+
+// ---------------- flash_record ----------------
+class FlashRecord {
+  String? flashDuration;
+  String? status;
+  String? cvnBeforeFlash;
+  String? cvnAfterFlash;
+
+  FlashRecord(
+      {this.flashDuration,
+      this.status,
+      this.cvnBeforeFlash,
+      this.cvnAfterFlash});
+
+  factory FlashRecord.fromJson(Map<String, dynamic> json) => FlashRecord(
+        flashDuration: json['flash_duration'],
+        status: json['status'],
+        cvnBeforeFlash: json['cvn_before_flash'],
+        cvnAfterFlash: json['cvn_after_flash'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'flash_duration': flashDuration,
+        'status': status,
+        'cvn_before_flash': cvnBeforeFlash,
+        'cvn_after_flash': cvnAfterFlash,
+      };
+}
+
+// ---------------- pid_live_record ----------------
+class PidLiveRecord {
+  String? pidLive;
+
+  PidLiveRecord({this.pidLive});
+
+  factory PidLiveRecord.fromJson(Map<String, dynamic> json) => PidLiveRecord(
+        pidLive: json['pid_live'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'pid_live': pidLive,
+      };
+}
+
+// ---------------- pid_snapshot_record ----------------
+class PidSnapshotRecord {
+  List<SnapshotRecord> pidSnapshot;
+
+  PidSnapshotRecord({List<SnapshotRecord>? pidSnapshot})
+      : pidSnapshot = pidSnapshot ?? [];
+
+  factory PidSnapshotRecord.fromJson(Map<String, dynamic> json) =>
+      PidSnapshotRecord(
+        pidSnapshot: (json['pid_snapshot'] as List<dynamic>?)
+                ?.map((e) => SnapshotRecord.fromJson(e))
+                .toList() ??
+            [],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'pid_snapshot': pidSnapshot.map((e) => e.toJson()).toList(),
+      };
+}
+
+// ---------------- snapshot_record ----------------
+class SnapshotRecord {
+  String? code;
+  String? value;
+
+  SnapshotRecord({this.code, this.value});
+
+  factory SnapshotRecord.fromJson(Map<String, dynamic> json) => SnapshotRecord(
+        code: json['code'],
+        value: json['value'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'value': value,
+      };
+}
+
+// ---------------- JobcardNumber ----------------
+class JobcardNumber {
+  String? name;
+  bool? success;
+  String? error;
+
+  JobcardNumber({this.name, this.success, this.error});
+
+  factory JobcardNumber.fromJson(Map<String, dynamic> json) => JobcardNumber(
+        name: json['name'],
+        success: json['success'],
+        error: json['error'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'success': success,
+        'error': error,
+      };
 }

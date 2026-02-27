@@ -1095,4 +1095,38 @@ STATUS CODE: ${response.statusCode}
       print('Exception while clearing DTC: $e');
     }
   }
+
+  Future<bool> pidWriteRecord({
+  required List<PidWriteRecordItem> records,
+  required String token,
+  required String jobCardId,
+  required String baseUrl,
+}) async {
+  try {
+    final url = Uri.parse('$baseUrl/analyze/job-card-session/$jobCardId/pid-write-record/');
+
+    // Wrap the list in a parent object
+    final payload = PidWriteRecord(pidWriteRecords: records);
+    final body = jsonEncode(payload.toJson());
+
+    final response = await http.post(
+      url,
+      headers: {
+        'Authorization': 'JWT $token',
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    );
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return true;
+    } else {
+      print('Failed to write PID: ${response.statusCode} ${response.body}');
+      return false;
+    }
+  } catch (e) {
+    print('Exception while writing PID: $e');
+    return false;
+  }
+}
 }
