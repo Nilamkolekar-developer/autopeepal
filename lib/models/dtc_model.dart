@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+
 class IvnDtc {
   int? count;
   dynamic next;
@@ -80,7 +84,8 @@ class FrameDataset {
       frameId: json['frame_id'],
       frameDescription: json['frame_description'],
       frameIds: json['frame_ids'] != null
-          ? List<FrameId>.from(json['frame_ids'].map((x) => FrameId.fromJson(x)))
+          ? List<FrameId>.from(
+              json['frame_ids'].map((x) => FrameId.fromJson(x)))
           : null,
       frameEnum: json['frame_enum'] != null
           ? List<FrameEnum>.from(
@@ -203,14 +208,16 @@ class DtcMainModel {
   List<DtcResults>? results;
   String? message;
 
-  DtcMainModel({this.count, this.next, this.previous, this.results, this.message});
+  DtcMainModel(
+      {this.count, this.next, this.previous, this.results, this.message});
 
   factory DtcMainModel.fromJson(Map<String, dynamic> json) => DtcMainModel(
         count: json['count'],
         next: json['next'],
         previous: json['previous'],
         results: json['results'] != null
-            ? List<DtcResults>.from(json['results'].map((x) => DtcResults.fromJson(x)))
+            ? List<DtcResults>.from(
+                json['results'].map((x) => DtcResults.fromJson(x)))
             : null,
         message: json['message'],
       );
@@ -232,7 +239,13 @@ class DtcResults {
   List<DtcCode>? dtcCode;
   List<DtcListModel>? dtcCode1;
 
-  DtcResults({this.id, this.code, this.description, this.isActive, this.dtcCode, this.dtcCode1});
+  DtcResults(
+      {this.id,
+      this.code,
+      this.description,
+      this.isActive,
+      this.dtcCode,
+      this.dtcCode1});
 
   factory DtcResults.fromJson(Map<String, dynamic> json) => DtcResults(
         id: json['id'],
@@ -240,10 +253,12 @@ class DtcResults {
         description: json['description'],
         isActive: json['is_active'],
         dtcCode: json['dtc_code'] != null
-            ? List<DtcCode>.from(json['dtc_code'].map((x) => DtcCode.fromJson(x)))
+            ? List<DtcCode>.from(
+                json['dtc_code'].map((x) => DtcCode.fromJson(x)))
             : null,
         dtcCode1: json['dtc_code1'] != null
-            ? List<DtcListModel>.from(json['dtc_code1'].map((x) => DtcListModel.fromJson(x)))
+            ? List<DtcListModel>.from(
+                json['dtc_code1'].map((x) => DtcListModel.fromJson(x)))
             : null,
       );
 
@@ -265,7 +280,13 @@ class DtcCode {
   String? statusActivation;
   String? lampActivation;
 
-  DtcCode({this.id, this.code, this.description, this.isActive, this.statusActivation, this.lampActivation});
+  DtcCode(
+      {this.id,
+      this.code,
+      this.description,
+      this.isActive,
+      this.statusActivation,
+      this.lampActivation});
 
   factory DtcCode.fromJson(Map<String, dynamic> json) => DtcCode(
         id: json['id'],
@@ -293,7 +314,8 @@ class DtcListModel {
   String? status;
   String? statusColor;
 
-  DtcListModel({this.id, this.code, this.description, this.status, this.statusColor});
+  DtcListModel(
+      {this.id, this.code, this.description, this.status, this.statusColor});
 
   factory DtcListModel.fromJson(Map<String, dynamic> json) => DtcListModel(
         id: json['id'],
@@ -310,4 +332,210 @@ class DtcListModel {
         'status': status,
         'status_color': statusColor,
       };
+}
+
+// ------------------ DTC ECU ------------------
+class DtcEcusModel extends ChangeNotifier {
+  String? ecuName;
+  int? ecuId;
+
+  double _opacity = 1.0;
+  double get opacity => _opacity;
+  set opacity(double value) {
+    _opacity = value;
+    notifyListeners();
+  }
+
+  List<DtcCode>? dtcList;
+  String? txHeader;
+  String? rxHeader;
+  int? pidCodeFf;
+  Protocol? protocol;
+  String? clearDtcIndex;
+  int? ffSet;
+
+  DtcEcusModel({
+    this.ecuName,
+    this.ecuId,
+    double? opacity,
+    this.dtcList,
+    this.txHeader,
+    this.rxHeader,
+    this.pidCodeFf,
+    this.protocol,
+    this.clearDtcIndex,
+    this.ffSet,
+  }) {
+    if (opacity != null) _opacity = opacity;
+  }
+
+  factory DtcEcusModel.fromJson(Map<String, dynamic> json) => DtcEcusModel(
+        ecuName: json['ecu_name'],
+        ecuId: json['ecu_id'],
+        opacity: json['opacity']?.toDouble(),
+        dtcList: json['dtc_list'] != null
+            ? List<DtcCode>.from(
+                json['dtc_list'].map((x) => DtcCode.fromJson(x)))
+            : [],
+        txHeader: json['tx_header'],
+        rxHeader: json['rx_header'],
+        pidCodeFf: json['pid_code_ff'],
+        protocol: json['protocol'] != null
+            ? Protocol.fromJson(json['protocol'])
+            : null,
+        clearDtcIndex: json['clear_dtc_index'],
+        ffSet: json['ff_set'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ecu_name': ecuName,
+        'ecu_id': ecuId,
+        'opacity': _opacity,
+        'dtc_list': dtcList?.map((x) => x.toJson()).toList(),
+        'tx_header': txHeader,
+        'rx_header': rxHeader,
+        'pid_code_ff': pidCodeFf,
+        'protocol': protocol?.toJson(),
+        'clear_dtc_index': clearDtcIndex,
+        'ff_set': ffSet,
+      };
+}
+
+// ------------------ Read DTC ------------------
+class ReadDtcResponseModel {
+  String? status;
+  List<List<String>>? dtcs; // 2D array
+  int? noOfDtc;
+
+  ReadDtcResponseModel({this.status, this.dtcs, this.noOfDtc});
+
+  factory ReadDtcResponseModel.fromJson(Map<String, dynamic> json) =>
+      ReadDtcResponseModel(
+        status: json['status'],
+        dtcs: json['dtcs'] != null
+            ? List<List<String>>.from(
+                json['dtcs'].map((x) => List<String>.from(x)))
+            : [],
+        noOfDtc: json['noofdtc'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'status': status,
+        'dtcs': dtcs,
+        'noofdtc': noOfDtc,
+      };
+}
+
+class ClearDtcResponseModel {
+  String? ecuResponseStatus;
+  String? ecuResponse;
+  String? actualDataBytes;
+
+  ClearDtcResponseModel(
+      {this.ecuResponseStatus, this.ecuResponse, this.actualDataBytes});
+
+  factory ClearDtcResponseModel.fromJson(Map<String, dynamic> json) =>
+      ClearDtcResponseModel(
+        ecuResponseStatus: json['ECUResponseStatus'],
+        ecuResponse: json['ECUResponse'],
+        actualDataBytes: json['ActualDataBytes'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ECUResponseStatus': ecuResponseStatus,
+        'ECUResponse': ecuResponse,
+        'ActualDataBytes': actualDataBytes,
+      };
+}
+
+class IvnReadDtcResponseModel {
+  int? ecuId;
+  String? frame;
+  String? ecuResponseStatus;
+  String? ecuResponse;
+  Uint8List? actualDataBytes;
+
+  IvnReadDtcResponseModel({
+    this.ecuId,
+    this.frame,
+    this.ecuResponseStatus,
+    this.ecuResponse,
+    this.actualDataBytes,
+  });
+
+  factory IvnReadDtcResponseModel.fromJson(Map<String, dynamic> json) =>
+      IvnReadDtcResponseModel(
+        ecuId: json['ecu_id'],
+        frame: json['Frame'],
+        ecuResponseStatus: json['ECUResponseStatus'],
+        ecuResponse: json['ECUResponse'],
+        actualDataBytes: json['ActualDataBytes'] != null
+            ? Uint8List.fromList(List<int>.from(json['ActualDataBytes']))
+            : null,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ecu_id': ecuId,
+        'Frame': frame,
+        'ECUResponseStatus': ecuResponseStatus,
+        'ECUResponse': ecuResponse,
+        'ActualDataBytes': actualDataBytes,
+      };
+}
+
+// ------------------ IVN Results ------------------
+class IVN_Result {
+  int? id;
+  String? code;
+  String? description;
+  List<FrameDataset>? frameDatasets;
+
+  IVN_Result({this.id, this.code, this.description, this.frameDatasets});
+
+  factory IVN_Result.fromJson(Map<String, dynamic> json) => IVN_Result(
+        id: json['id'],
+        code: json['code'],
+        description: json['description'],
+        frameDatasets: json['frame_datasets'] != null
+            ? List<FrameDataset>.from(
+                json['frame_datasets'].map((x) => FrameDataset.fromJson(x)))
+            : [],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'code': code,
+        'description': description,
+        'frame_datasets': frameDatasets?.map((x) => x.toJson()).toList(),
+      };
+}
+
+class FrameStatu {
+  int? id;
+  String? digit;
+  String? enumValue;
+
+  FrameStatu({this.id, this.digit, this.enumValue});
+
+  factory FrameStatu.fromJson(Map<String, dynamic> json) => FrameStatu(
+        id: json['id'],
+        digit: json['digit'],
+        enumValue: json['enum'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'digit': digit,
+        'enum': enumValue,
+      };
+}
+
+// ------------------ FrameId ------------------
+
+// ------------------ Placeholder classes ------------------
+
+class Protocol {
+  Protocol();
+  factory Protocol.fromJson(Map<String, dynamic> json) => Protocol();
+  Map<String, dynamic> toJson() => {};
 }

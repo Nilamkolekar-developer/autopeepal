@@ -1,3 +1,6 @@
+import 'package:autopeepal/models/all_models.dart';
+import 'package:flutter/material.dart';
+
 class LiveParameterSelectModel {
   String? ecuName;
   List<PidCode>? roots;
@@ -346,3 +349,98 @@ class PIDFrameId {
         'Selected': selected,
       };
 }
+
+
+class FrameOfPidMessage {
+  String? code;
+  String? message;
+
+  FrameOfPidMessage({this.code, this.message});
+
+  factory FrameOfPidMessage.fromJson(Map<String, dynamic> json) => FrameOfPidMessage(
+        code: json['code'],
+        message: json['message'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'message': message,
+      };
+}
+
+class EcusModel {
+  String? ecuName;
+  ValueNotifier<double> opacity;
+  List<PidCode> pidList;
+  String? txHeader;
+  String? rxHeader;
+  Protocol? protocol;
+  String? firingSequence;
+  int? noOfInjectors;
+
+  EcusModel({
+    this.ecuName,
+    double? opacity,
+    List<PidCode>? pidList,
+    this.txHeader,
+    this.rxHeader,
+    this.protocol,
+    this.firingSequence,
+    this.noOfInjectors,
+  })  : opacity = ValueNotifier<double>(opacity ?? 1.0),
+        pidList = pidList ?? [];
+
+  factory EcusModel.fromJson(Map<String, dynamic> json) => EcusModel(
+        ecuName: json['ecu_name'],
+        opacity: (json['opacity'] != null) ? (json['opacity'] as num).toDouble() : 1.0,
+        pidList: (json['pid_list'] as List<dynamic>?)
+                ?.map((e) => PidCode.fromJson(e))
+                .toList() ??
+            [],
+        txHeader: json['tx_header'],
+        rxHeader: json['rx_header'],
+        protocol: json['protocol'] != null ? Protocol.fromJson(json['protocol']) : null,
+        firingSequence: json['firing_sequence'],
+        noOfInjectors: json['no_of_injectors'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ecu_name': ecuName,
+        'opacity': opacity.value,
+        'pid_list': pidList.map((e) => e.toJson()).toList(),
+        'tx_header': txHeader,
+        'rx_header': rxHeader,
+        'protocol': protocol?.toJson(),
+        'firing_sequence': firingSequence,
+        'no_of_injectors': noOfInjectors,
+      };
+}
+
+class IvnEcusModel {
+  String? ecuName;
+  ValueNotifier<double> opacity;
+  List<PIDFrameId> pidList;
+
+  IvnEcusModel({
+    this.ecuName,
+    double? opacity,
+    List<PIDFrameId>? pidList,
+  })  : opacity = ValueNotifier<double>(opacity ?? 1.0),
+        pidList = pidList ?? [];
+
+  factory IvnEcusModel.fromJson(Map<String, dynamic> json) => IvnEcusModel(
+        ecuName: json['ecu_name'],
+        opacity: (json['opacity'] != null) ? (json['opacity'] as num).toDouble() : 1.0,
+        pidList: (json['pid_list'] as List<dynamic>?)
+                ?.map((e) => PIDFrameId.fromJson(e))
+                .toList() ??
+            [],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'ecu_name': ecuName,
+        'opacity': opacity.value,
+        'pid_list': pidList.map((e) => e.toJson()).toList(),
+      };
+}
+
