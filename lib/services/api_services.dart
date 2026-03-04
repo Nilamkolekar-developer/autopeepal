@@ -2,13 +2,20 @@ import 'dart:convert';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/api/app_envirments.dart';
 import 'package:autopeepal/api/app_urls.dart';
+import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/checkJobCard_model.dart';
+import 'package:autopeepal/models/doipConfigFile_model.dart';
 import 'package:autopeepal/models/dtc_model.dart';
 import 'package:autopeepal/models/expert_model.dart';
+import 'package:autopeepal/models/flashRecord_model.dart';
+import 'package:autopeepal/models/freezeFrame_model.dart';
 import 'package:autopeepal/models/gd_model.dart';
+import 'package:autopeepal/models/iotTest_model.dart';
 import 'package:autopeepal/models/jobCard_model.dart';
+import 'package:autopeepal/models/listNumber_model.dart';
 import 'package:autopeepal/models/liveParameter_model.dart';
+import 'package:autopeepal/models/pidLiveRecord_model.dart';
 import 'package:autopeepal/models/registerDongle_model.dart';
 import 'package:autopeepal/models/remoteJobCard_model.dart';
 import 'package:autopeepal/models/unlockecu_model.dart';
@@ -22,65 +29,124 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class AuthApiService {
+//   static Future<UserResModel> login(UserModel model) async {
+//     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
+
+//     try {
+//       final response = await http.post(
+//         url,
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: jsonEncode(model.toJson()),
+//       );
+
+//       print("""
+// LOGIN API
+// URL: $url
+// REQUEST:
+// ${jsonEncode(model.toJson())}
+// RESPONSE:
+// ${response.body}
+// """);
+
+//       if (response.statusCode == 200) {
+//         // Parse response directly into UserResModel
+//         final userResModel = UserResModel.fromJson(jsonDecode(response.body));
+
+//         // Save tokens if present
+//         if (userResModel.token != null) {
+//           await AppPreferences.saveTokens(
+//             accessToken: userResModel.token!.access ?? '',
+//             refreshToken: userResModel.token!.refresh ?? '',
+//           );
+//         }
+
+//         // Save basic user info
+//         await AppPreferences.saveUser(
+//           userId: userResModel.userId.toString(),
+//           name:
+//               "${userResModel.firstName ?? ''} ${userResModel.lastName ?? ''}",
+//           email: userResModel.user ?? '',
+//         );
+
+//         return userResModel;
+//       }
+
+//       if (response.statusCode == 401) {
+//         throw Exception('Invalid username or password');
+//       }
+
+//       if (response.statusCode == 403) {
+//         throw Exception('Device not authorized');
+//       }
+
+//       throw Exception('Login failed (${response.statusCode})');
+//     } catch (e) {
+//       throw Exception('Login API Error: $e');
+//     }
+//   }
+
   static Future<UserResModel> login(UserModel model) async {
     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
 
+    UserResModel loginResponse = UserResModel();
+
     try {
+      final jsonBody = jsonEncode(model.toJson());
       final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(model.toJson()),
+        body: jsonBody,
       );
 
-      print("""
+      debugPrint("""
 LOGIN API
 URL: $url
 REQUEST:
-${jsonEncode(model.toJson())}
+$jsonBody
 RESPONSE:
 ${response.body}
 """);
 
       if (response.statusCode == 200) {
-        // Parse response directly into UserResModel
-        final userResModel = UserResModel.fromJson(jsonDecode(response.body));
+        loginResponse = UserResModel.fromJson(jsonDecode(response.body));
 
-        // Save tokens if present
-        if (userResModel.token != null) {
+        // Save tokens if available
+        if (loginResponse.token != null) {
           await AppPreferences.saveTokens(
-            accessToken: userResModel.token!.access ?? '',
-            refreshToken: userResModel.token!.refresh ?? '',
+            accessToken: loginResponse.token!.access ?? '',
+            refreshToken: loginResponse.token!.refresh ?? '',
           );
         }
 
         // Save basic user info
         await AppPreferences.saveUser(
-          userId: userResModel.userId.toString(),
+          userId: loginResponse.userId.toString(),
           name:
-              "${userResModel.firstName ?? ''} ${userResModel.lastName ?? ''}",
-          email: userResModel.user ?? '',
+              "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
+          email: loginResponse.user ?? '',
         );
 
-        return userResModel;
+        loginResponse.message = "success";
+      } else if (response.statusCode == 401) {
+        loginResponse.message = 'Invalid username or password';
+      } else if (response.statusCode == 403) {
+        loginResponse.message = 'Device not authorized';
+      } else {
+        loginResponse.message = 'Login failed (${response.statusCode})';
       }
-
-      if (response.statusCode == 401) {
-        throw Exception('Invalid username or password');
-      }
-
-      if (response.statusCode == 403) {
-        throw Exception('Device not authorized');
-      }
-
-      throw Exception('Login failed (${response.statusCode})');
     } catch (e) {
-      throw Exception('Login API Error: $e');
+      // Network or other exception
+      loginResponse.message = "Exception @AuthApiService.login(): $e";
     }
+
+    return loginResponse;
   }
 
-  static Future<AllModelsModel> getAllModels(int? oemId) async {
+  static Future<AllModelsModel> getAllModels([int? oemId]) async {
     final allModels = AllModelsModel();
     try {
       final connectivity = await Connectivity().checkConnectivity();
@@ -88,14 +154,15 @@ ${response.body}
         allModels.message = "Please check internet connection.";
         return allModels;
       }
-      final oemId = await AppPreferences.getInt("oemId"); // fetch saved OEM ID
+
+      // If oemId is null, fetch from saved preferences
+      oemId ??= await AppPreferences.getInt("oemId");
+
       final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.allModels(oemId));
 
-      final response = await http.post(
+      final response = await http.get(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
       );
 
       print("""
@@ -831,7 +898,8 @@ STATUS CODE: ${response.statusCode}
 
   Future<List<IVNResult>?> getIvnDtc(String token, int id) async {
     try {
-      final url = Uri.parse('YOUR_BASE_URL/ivn/get-ivn-dtc-datasets/?id=$id');
+      final url = Uri.parse(
+          '${AppEnvironment.baseUrl}ivn/get-ivn-dtc-datasets/?id=$id');
       final response = await http.get(
         url,
         headers: {
@@ -889,7 +957,10 @@ STATUS CODE: ${response.statusCode}
       final client = http.Client();
       final response = await client.get(
         Uri.parse(AppEnvironment.baseUrl + AppURLs.getDTCMask),
-        headers: {'Authorization': 'JWT $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'JWT $token',
+        },
       );
 
       if (response.statusCode == 200) {
@@ -905,16 +976,19 @@ STATUS CODE: ${response.statusCode}
     }
   }
 
-  Future<DtcMainModel> getDtcs(
-      String token, int datasetId, String baseUrl) async {
+  Future<DtcMainModel> getDtcs(int datasetId) async {
     DtcMainModel results = DtcMainModel(message: ''); // default empty
+    final token = await AppPreferences.getAccessToken();
     try {
       final client = http.Client();
       final url = AppEnvironment.baseUrl + AppURLs.getDtcs(datasetId);
 
       final response = await client.get(
         Uri.parse(url),
-        headers: {'Authorization': 'JWT $token'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'JWT $token',
+        },
       );
 
       final data = response.body;
@@ -958,16 +1032,17 @@ STATUS CODE: ${response.statusCode}
 
   Future<GdModelGD> getGD(int submodelId) async {
     GdModelGD result = GdModelGD();
-    final token = AppPreferences.getAccessToken();
+    final token =await AppPreferences.getAccessToken();
     try {
-      var connectivityResult = await Connectivity().checkConnectivity();
-      if (connectivityResult == ConnectivityResult.mobile ||
-          connectivityResult == ConnectivityResult.wifi) {
+      
         final url =
             Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
         final response = await http.get(
           url,
-          headers: {'Authorization': 'JWT $token'},
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'JWT $token',
+          },
         );
 
         final data = response.body;
@@ -978,9 +1053,7 @@ STATUS CODE: ${response.statusCode}
         } else {
           result.message = "${response.statusCode}\n$data";
         }
-      } else {
-        result.message = "Please check internet connection.";
-      }
+      
       return result;
     } catch (ex) {
       result.message = "Exception in getGD(): ${ex.toString()}";
@@ -1070,8 +1143,8 @@ STATUS CODE: ${response.statusCode}
     required String baseUrl,
   }) async {
     try {
-      final url = Uri.parse(
-          AppEnvironment.baseUrl+AppURLs.clearDtcRecord(jobCardId));
+      final url =
+          Uri.parse(AppEnvironment.baseUrl + AppURLs.clearDtcRecord(jobCardId));
 
       // Wrap list in an object if API expects it
       final payload = {'dtc': records.map((e) => e.toJson()).toList()};
@@ -1097,36 +1170,528 @@ STATUS CODE: ${response.statusCode}
   }
 
   Future<bool> pidWriteRecord({
-  required List<PidWriteRecordItem> records,
-  required String token,
-  required String jobCardId,
-  required String baseUrl,
-}) async {
-  try {
-    final url = Uri.parse('$baseUrl/analyze/job-card-session/$jobCardId/pid-write-record/');
+    required List<PidWriteRecordItem> records,
+    required String token,
+    required String jobCardId,
+    required String baseUrl,
+  }) async {
+    try {
+      final url =
+          Uri.parse(AppEnvironment.baseUrl + AppURLs.pidWriteRecord(jobCardId));
 
-    // Wrap the list in a parent object
-    final payload = PidWriteRecord(pidWriteRecords: records);
-    final body = jsonEncode(payload.toJson());
+      // Wrap the list in a parent object
+      final payload = PidWriteRecord(pidWriteRecords: records);
+      final body = jsonEncode(payload.toJson());
 
-    final response = await http.post(
-      url,
-      headers: {
-        'Authorization': 'JWT $token',
-        'Content-Type': 'application/json',
-      },
-      body: body,
-    );
+      final response = await http.post(
+        url,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return true;
-    } else {
-      print('Failed to write PID: ${response.statusCode} ${response.body}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      } else {
+        print('Failed to write PID: ${response.statusCode} ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('Exception while writing PID: $e');
       return false;
     }
-  } catch (e) {
-    print('Exception while writing PID: $e');
-    return false;
+  }
+
+  /// Returns true if API call is successful, false otherwise
+  Future<bool> pidLiveRecord(
+    List<PIDLiveRecord> plr,
+    String token,
+    String jobCardId,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        AppEnvironment.baseUrl + AppURLs.pidliveRecord(jobCardId),
+      );
+
+      // Serialize list to JSON
+      String jsonString = jsonEncode(plr.map((e) => e.toJson()).toList());
+
+      // ---- IMPORTANT ----
+      // C# logic:
+      // JsonConvert.SerializeObject(PLR).Substring(1)
+      // then remove last char
+      //
+      // This converts: [ {...} ]  -->  {...}
+      //
+      // Doing the same in Dart:
+      if (jsonString.startsWith('[') && jsonString.endsWith(']')) {
+        jsonString = jsonString.substring(1, jsonString.length - 1);
+      }
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonString,
+      );
+
+      print('RECORD RESPONSE ${response.body}');
+
+      if (response.statusCode == 400) {
+        return false;
+      }
+
+      return true;
+    } catch (e, stackTrace) {
+      print('ERROR: $e');
+      print(stackTrace);
+      return false;
+    }
+  }
+
+  Future<bool> pidSnapshotRecord(
+    List<SnapshotRecord> snapshotRecords,
+    String token,
+    String jobCardId,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        AppEnvironment.baseUrl + AppURLs.pidSnapShotRecord(jobCardId),
+      );
+
+      // Create object same as C#
+      final bodyObject = {
+        'pid_snapshot': snapshotRecords.map((e) => e.toJson()).toList(),
+      };
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(bodyObject),
+      );
+
+      print('SNAPSHOT RESPONSE ${response.body}');
+
+      // C# checks for HttpStatusCode.Created (201)
+      return response.statusCode == 201;
+    } catch (e, stackTrace) {
+      print('PID SNAPSHOT ERROR: $e');
+      print(stackTrace);
+      return false;
+    }
+  }
+
+  /// Returns true on success (same behavior as intended C#)
+  Future<bool> flashRecord(
+    List<FlashRecord> records,
+    String token,
+    String jobCardId,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        AppEnvironment.baseUrl + AppURLs.flashRecord(jobCardId),
+      );
+
+      // Serialize list to JSON
+      String jsonString = jsonEncode(records.map((e) => e.toJson()).toList());
+
+      // ---- SAME AS C# ----
+      // JsonConvert.SerializeObject(FR).Replace("]", "").Replace("[", "")
+      if (jsonString.startsWith('[') && jsonString.endsWith(']')) {
+        jsonString = jsonString.substring(1, jsonString.length - 1);
+      }
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonString,
+      );
+
+      print('FLASH RECORD RESPONSE: ${response.body}');
+
+      // Success if HTTP 200 or 201
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e, stackTrace) {
+      print('FLASH RECORD ERROR: $e');
+      print(stackTrace);
+      return false;
+    }
+  }
+
+  Future<bool> closeJobCard(
+    List<ResCloseSession> resCloses,
+    String token,
+    String jobCardId,
+  ) async {
+    try {
+      // ✅ Same URI for PUT and GET (as in C#)
+      final uri = Uri.parse(
+        AppEnvironment.baseUrl + AppURLs.closeJobCard(jobCardId),
+      );
+
+      // Serialize list → JSON
+      String jsonString = jsonEncode(resCloses.map((e) => e.toJson()).toList());
+
+      // SAME trimming logic as C#
+      if (jsonString.startsWith('[') && jsonString.endsWith(']')) {
+        jsonString = jsonString.substring(1, jsonString.length - 1);
+      }
+
+      // ---------- PUT: close session ----------
+      await http.put(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonString,
+      );
+
+      // ---------- GET: verify close session ----------
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+        },
+      );
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        print('CLOSE SESSION RESPONSE: ${response.body}');
+        return true;
+      }
+
+      return false;
+    } catch (e, stackTrace) {
+      print('CLOSE JOB CARD ERROR: $e');
+      print(stackTrace);
+      return false;
+    }
+  }
+
+  Future<FlashRecordModel> getFlashRecord() async {
+    FlashRecordModel result = FlashRecordModel();
+    final token = AppPreferences.getAccessToken();
+    try {
+      // ✅ Check internet connectivity (equivalent to Connectivity.Current.NetworkAccess)
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        result.message = 'Please check internet connection.';
+        return result;
+      }
+
+      final uri = Uri.parse(
+        '${AppEnvironment.baseUrl}flash/flash/',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      final data = response.body;
+
+      print('$uri\n\nRESPONSE:\n$data');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        result = FlashRecordModel.fromJson(jsonDecode(data));
+        result.message = 'success';
+      } else {
+        result.message =
+            '${response.statusCode}\n${deserializeErrorModel(data)}';
+      }
+
+      return result;
+    } catch (e) {
+      result.message = e.toString();
+      return result;
+    }
+  }
+
+  String deserializeErrorModel(String data) {
+    try {
+      final json = jsonDecode(data);
+      final errorModel = ErrorModel.fromJson(json);
+      return errorModel.error ?? '';
+    } catch (e) {
+      return '';
+    }
+  }
+
+  Future<IorTestModel> getIorTest() async {
+    IorTestModel result = IorTestModel();
+    final token = await AppPreferences.getAccessToken();
+    try {
+      // ✅ Check internet connectivity
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        result.message = 'Please check internet connection.';
+        return result;
+      }
+
+      final uri = Uri.parse(
+        '${AppEnvironment.baseUrl}ior-test/ior-test-list/',
+      );
+
+      final response = await http.get(
+        uri,
+        headers: {
+          'Authorization': 'JWT $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      final data = response.body;
+
+      print('$uri\n\nRESPONSE:\n$data');
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        result = IorTestModel.fromJson(jsonDecode(data));
+        result.message = 'success';
+      } else {
+        result.message =
+            '${response.statusCode}\n${deserializeErrorModel(data)}';
+      }
+
+      return result;
+    } catch (e) {
+      result.message = e.toString();
+      return result;
+    }
+  }
+
+  Future<ActuatorTestModel> getActuatorTest() async {
+    ActuatorTestModel model = ActuatorTestModel();
+    final token = await AppPreferences.getAccessToken();
+    try {
+      // 🌐 Check Internet
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        model.message = "Please check internet connection.";
+        return model;
+      }
+
+      final url = Uri.parse(
+        AppEnvironment.baseUrl + AppURLs.getActuatorIorTest,
+      );
+
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "JWT $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      debugPrint("URL: $url");
+      debugPrint("RESPONSE: ${response.body}");
+
+      if (response.statusCode == 200) {
+        model = ActuatorTestModel.fromJson(jsonDecode(response.body));
+        model.message = "success";
+      } else {
+        model.message =
+            "${response.statusCode} - ${deserializeErrorModel(response.body)}";
+      }
+    } catch (e) {
+      debugPrint("GetActuatorTest Exception: $e");
+      model.message = e.toString();
+    }
+
+    return model;
+  }
+
+  Future<FreezeFrameModel> getFreezeFrameList() async {
+    FreezeFrameModel results = FreezeFrameModel();
+    final token = await AppPreferences.getAccessToken();
+    try {
+      // 🌐 Internet check
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        results.message = "Please check internet connection.";
+        return results;
+      }
+
+      final url =
+          Uri.parse(AppEnvironment.baseUrl + AppURLs.getFreezeFrameList);
+
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "JWT $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      debugPrint("$url\n\nRESPONSE:\n${response.body}");
+
+      if (response.statusCode == 200) {
+        results = FreezeFrameModel.fromJson(
+          jsonDecode(response.body),
+        );
+        results.message = "success";
+      } else {
+        results.message =
+            "ApiServices.getFreezeFrameList() : ${response.statusCode}\n"
+            "${deserializeErrorModel(response.body)}";
+      }
+    } catch (e) {
+      results.message = "Exception in ApiServices.getFreezeFrameList() : $e";
+      debugPrint(results.message);
+    }
+
+    return results;
+  }
+
+  Future<ListNumberRootModel> getListNumbers() async {
+    ListNumberRootModel results = ListNumberRootModel();
+    final token = await AppPreferences.getAccessToken();
+    try {
+      // 🌐 Internet check
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        results.message = "Please check internet connection.";
+        return results;
+      }
+
+      final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.getListNumbers);
+
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "JWT $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      debugPrint("$url\n\nRESPONSE:\n${response.body}");
+
+      if (response.statusCode == 200) {
+        results = ListNumberRootModel.fromJson(
+          jsonDecode(response.body),
+        );
+        results.message = "success";
+      } else {
+        results.message =
+            "${response.statusCode}\n${deserializeErrorModel(response.body)}";
+      }
+    } catch (e) {
+      results.message = "Exception : $e";
+      debugPrint(results.message);
+    }
+
+    return results;
+  }
+
+  Future<DoipConfigRootModel> getDoipConfiguration() async {
+    DoipConfigRootModel results = DoipConfigRootModel();
+    final token = await AppPreferences.getAccessToken();
+    try {
+      // 🌐 Internet check
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        results.message = "Please check internet connection.";
+        return results;
+      }
+
+      final url =
+          Uri.parse(AppEnvironment.baseUrl + AppURLs.getDoipConfiguration);
+
+      final response = await http.get(
+        url,
+        headers: {
+          "Authorization": "JWT $token",
+          "Content-Type": "application/json",
+        },
+      );
+
+      debugPrint("$url\n\nRESPONSE:\n${response.body}");
+
+      if (response.statusCode == 200) {
+        results = DoipConfigRootModel.fromJson(
+          jsonDecode(response.body),
+        );
+        results.message = "success";
+      } else {
+        results.message =
+            "${response.statusCode}\n${deserializeErrorModel(response.body)}";
+      }
+    } catch (e) {
+      results.message = "Exception : $e";
+      debugPrint(results.message);
+    }
+
+    return results;
+  }
+
+  Future<Root> getPids(int? datasetId) async {
+    Root root = Root();
+    final token = await AppPreferences.getAccessToken();
+
+    debugPrint(
+        "DEBUG: Token value is -> '$token'"); // Look for null or empty string here
+    try {
+      // 🌐 Internet check
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        root.message = "Please check internet connection.";
+        return root;
+      }
+
+      final url =
+          Uri.parse(AppEnvironment.baseUrl + AppURLs.getPids(datasetId));
+
+      final response = await http.get(
+        url,
+        headers: {
+          // ✅ FIX 2: Ensure token is not null before sending
+          "Authorization": "JWT ${token ?? ''}",
+          "Content-Type": "application/json",
+        },
+      );
+
+      debugPrint("$url\nRESPONSE:\n${response.body}");
+
+      if (response.statusCode == 200) {
+        root = Root.fromJson(
+          jsonDecode(response.body),
+        );
+        root.message = "success";
+      } else {
+        root.message =
+            "${response.statusCode}\n${deserializeErrorModel(response.body)}";
+      }
+    } catch (e) {
+      root.message = "Exception in ApiServices.getPids() : $e";
+      debugPrint(root.message);
+    }
+
+    return root;
   }
 }
+
+class ErrorModel {
+  String? error;
+
+  ErrorModel({this.error});
+
+  factory ErrorModel.fromJson(Map<String, dynamic> json) => ErrorModel(
+        error: json['error'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'error': error,
+      };
 }

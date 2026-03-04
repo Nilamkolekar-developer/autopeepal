@@ -1,9 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
-import 'package:autopeepal/api/app_envirments.dart';
+import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
+import 'package:autopeepal/models/doipConfigFile_model.dart';
+import 'package:autopeepal/models/flashRecord_model.dart';
+import 'package:autopeepal/models/freezeFrame_model.dart';
+import 'package:autopeepal/models/gd_model.dart';
+import 'package:autopeepal/models/iotTest_model.dart';
+import 'package:autopeepal/models/listNumber_model.dart';
 
 import 'package:autopeepal/models/user_model.dart';
 import 'package:autopeepal/routes/routes_string.dart';
@@ -99,12 +104,18 @@ class LoginController extends GetxController {
 
       bool isLoggedIn = false;
 
-      if (isReachable) {
-        isLoggedIn = await loginOnline(userRequestModel);
-      } else {
-        // isLoggedIn = await loginOffline(userRequestModel);
-      }
-
+     // Inside loginMethod()
+if (isReachable) {
+  isLoggedIn = await loginOnline(userRequestModel);
+  
+  // ADD THIS: If online login fails due to API error, try offline fallback
+  if (!isLoggedIn) {
+    debugPrint("[LOGIN] Online attempt failed. Trying offline fallback...");
+    isLoggedIn = await loginOffline(userRequestModel);
+  }
+} else {
+  isLoggedIn = await loginOffline(userRequestModel);
+}
       // ================= POST LOGIN =================
       if (isLoggedIn && userResModel != null) {
         final prefs = await SharedPreferences.getInstance();
@@ -161,6 +172,7 @@ class LoginController extends GetxController {
     }
   }
 
+  
   Future<bool> loginOnline(UserModel userRequestModel) async {
     try {
       bool returnValue = false;
@@ -216,7 +228,7 @@ class LoginController extends GetxController {
           print(
               "[LOGIN] Local data missing or OEM changed. Updating local data...");
           // If you have updateModelToLocal(), call it here
-          // await updateModelToLocal();
+           await updateModelToLocal();
         } else {
           print("[LOGIN] Using existing local data");
           // Optional: await loginOffline(userRequestModel);
@@ -240,7 +252,7 @@ class LoginController extends GetxController {
     }
   }
 
-  Future<bool> updateModelToLocal(int? oemId) async {
+  Future<bool> updateModelToLocal() async {
     bool returnValue = false;
 
     try {
@@ -249,9 +261,9 @@ class LoginController extends GetxController {
 
       late AllModelsModel result;
 
-      if (localData == null || localData.isEmpty) {
+      if (localData.isEmpty) {
         // ================= FETCH FROM API =================
-        result = await AuthApiService.getAllModels(oemId);
+        result = await AuthApiService.getAllModels();
 
         if (result.message == "success") {
           String modelLocalList = jsonEncode(result.toJson());
@@ -275,7 +287,7 @@ class LoginController extends GetxController {
         returnValue = await updateFlashRecordToLocal(result.results!);
         if (returnValue) returnValue = await updateIorListToLocal();
         if (returnValue) returnValue = await updateActuatorListToLocal();
-        if (returnValue) returnValue = await updateGDToLocal(result.results!);
+       // if (returnValue) returnValue = await updateGDToLocal(result.results!);
         if (returnValue) returnValue = await updateFreezeFrameListToLocal();
         if (returnValue) returnValue = await updateDoipConfigToLocal();
       }
@@ -328,41 +340,47 @@ class LoginController extends GetxController {
   }
 
   Future<bool> downloadPidToLocal(List<PidDataset> pidDatasets) async {
-    bool returnValue = false;
-
     try {
-      if (pidDatasets.isNotEmpty) {
-        // Group by ID
-        final grouped = <int, List<PidDataset>>{};
-        for (var pid in pidDatasets) {
-          grouped.putIfAbsent(pid.id, () => []).add(pid);
-        }
+      if (pidDatasets.isEmpty) return false;
 
-        for (var entry in grouped.entries) {
-          final key = entry.key;
+      // 🔹 Group by dataset id
+      final Map<int, List<PidDataset>> grouped = {};
+      for (final pid in pidDatasets) {
+        if (pid.id == null) continue;
+        grouped.putIfAbsent(pid.id!, () => []).add(pid);
+      }
 
-          // Call API for each PID group
-          final pids = await AuthApiService.getPids(key);
+      if (grouped.isEmpty) return false;
 
-          if (pids.message == "success" && pids.results.isNotEmpty) {
-            // Save first result to local storage
-            final pidJson = jsonEncode(pids.results[0].toJson());
+      // 🔹 API service instance
+      final AuthApiService services = AuthApiService();
+
+      for (final entry in grouped.entries) {
+        final datasetId = entry.key;
+
+        final pids = await services.getPids(datasetId);
+
+        if (pids.message == "success") {
+          if (pids.results != null && pids.results!.isNotEmpty) {
+            // Save FIRST result (same as your C# logic)
+            final pidJson = jsonEncode(pids.results![0].toJson());
+
             await SaveLocalData.saveData(
-                "PidDataset_${pids.results[0].id}", pidJson);
-            returnValue = true;
-          } else {
-            // Show error dialog (replace with GetX or your preferred method)
-            await Get.defaultDialog(
-              title: "Error in Saving PID Data",
-              middleText: pids.message,
+              "PidDataset_${pids.results![0].id}",
+              pidJson,
             );
-            return false;
           }
+        } else {
+          await Get.defaultDialog(
+            title: "Error in Saving PID Data",
+            middleText: pids.message ?? "Unknown error",
+          );
+          return false;
         }
       }
-      return returnValue;
+
+      return true; // ✅ all datasets saved
     } catch (e) {
-      // Show exception
       await Get.defaultDialog(
         title: "Exception in Saving PID Data",
         middleText: e.toString(),
@@ -372,41 +390,47 @@ class LoginController extends GetxController {
   }
 
   Future<bool> downloadDtcToLocal(List<Dataset> datasets) async {
-    bool returnValue = false;
-
     try {
-      if (datasets.isNotEmpty) {
-        // Group datasets by ID
-        final grouped = <int, List<Dataset>>{};
-        for (var dtc in datasets) {
-          grouped.putIfAbsent(dtc.id, () => []).add(dtc);
-        }
+      if (datasets.isEmpty) return false;
 
-        for (var entry in grouped.entries) {
-          final key = entry.key;
+      // 🔹 Group by dataset id
+      final Map<int, List<Dataset>> grouped = {};
+      for (final data in datasets) {
+        if (data.id == null) continue;
+        grouped.putIfAbsent(data.id!, () => []).add(data);
+      }
 
-          // Call API for each group
-          final dtcs = await AuthApiService.getDtcs(key);
+      if (grouped.isEmpty) return false;
 
-          if (dtcs.message == "success" && dtcs.results.isNotEmpty) {
-            // Save first result to local storage
-            final dtcJson = jsonEncode(dtcs.results[0].toJson());
+      // 🔹 API service instance
+      final AuthApiService services = AuthApiService();
+
+      for (final entry in grouped.entries) {
+        final datasetId = entry.key;
+
+        final dtcs = await services.getDtcs(datasetId);
+
+        if (dtcs.message == "success") {
+          if (dtcs.results != null && dtcs.results!.isNotEmpty) {
+            // Save FIRST result (same behavior as C#)
+            final dtcJson = jsonEncode(dtcs.results![0].toJson());
+
             await SaveLocalData.saveData(
-                "DtcDataset_${dtcs.results[0].id}", dtcJson);
-            returnValue = true;
-          } else {
-            // Show error dialog
-            await Get.defaultDialog(
-              title: "Error in Saving DTC Data",
-              middleText: dtcs.message,
+              "DtcDataset_${dtcs.results![0].id}",
+              dtcJson,
             );
-            return false;
           }
+        } else {
+          await Get.defaultDialog(
+            title: "Error in Saving DTC Data",
+            middleText: dtcs.message ?? "Unknown error",
+          );
+          return false;
         }
       }
-      return returnValue;
+
+      return true; // ✅ all datasets saved
     } catch (e) {
-      // Show exception
       await Get.defaultDialog(
         title: "Exception in Saving DTC Data",
         middleText: e.toString(),
@@ -415,49 +439,65 @@ class LoginController extends GetxController {
     }
   }
 
-  Future<bool> updateFlashRecordToLocal(List<ModelResult> models) async {
+  Future<bool> updateFlashRecordToLocal(List<ModelResult>? models) async {
     try {
-      List<Ecu2> ecu2List = [];
+      final List<Ecu2> ecu2List = [];
 
-      // Flatten all Ecu2 from models
-      for (var model in models) {
-        if (model.subModels != null && model.subModels!.isNotEmpty) {
-          for (var subModel in model.subModels!) {
-            if (subModel.ecus != null && subModel.ecus!.isNotEmpty) {
-              for (var ecu in subModel.ecus!) {
-                if (ecu.ecu != null && ecu.ecu!.isNotEmpty) {
-                  ecu2List.add(ecu.ecu!.first);
-                }
+      // 🔹 Collect ECU2 list safely
+      if (models != null && models.isNotEmpty) {
+        for (final model in models) {
+          final subModels = model.subModels;
+          if (subModels == null || subModels.isEmpty) continue;
+
+          for (final subModel in subModels) {
+            final ecus = subModel.ecus;
+            if (ecus == null || ecus.isEmpty) continue;
+
+            for (final ecu in ecus) {
+              final ecuList = ecu.ecu;
+              if (ecuList != null && ecuList.isNotEmpty) {
+                ecu2List.add(ecuList.first); // same as ecu.ecu[0]
               }
             }
           }
         }
       }
 
-      if (ecu2List.isNotEmpty) {
-        // Group by ID
-        final grouped = <int, List<Ecu2>>{};
-        for (var ecu2 in ecu2List) {
-          grouped.putIfAbsent(ecu2.id, () => []).add(ecu2);
-        }
+      if (ecu2List.isEmpty) return true;
 
-        for (var entry in grouped.entries) {
-          final ecu = entry.value.first;
+      // 🔹 Group by ECU id
+      final Map<int, List<Ecu2>> grouped = {};
+      for (final ecu in ecu2List) {
+        if (ecu.id == null) continue;
+        grouped.putIfAbsent(ecu.id!, () => []).add(ecu);
+      }
 
-          // Download and save sequence file
-          final sequenceFileContent =
-              await AuthApiService.downloadFileContent(ecu.sequenceFile);
-          await SaveLocalData.saveData(
-              'flashRecord_sequence_file_${ecu.id}', sequenceFileContent);
+      final AuthApiService services = AuthApiService();
 
-          // Download and save each file in ecu.file
-          if (ecu.file != null && ecu.file!.isNotEmpty) {
-            for (var file in ecu.file!) {
-              final fileContent =
-                  await AuthApiService.downloadFileContent(file.dataFile);
-              await SaveLocalData.saveData(
-                  'file_data_file_${file.id}', fileContent);
-            }
+      // 🔹 Download & save files
+      for (final entry in grouped.entries) {
+        final Ecu2 ecu = entry.value.first;
+
+        // Save sequence file
+        final String sequenceContent =
+            await services.downloadFileContent(ecu.sequenceFile ?? '');
+
+        await SaveLocalData.saveData(
+          "flashRecord_sequence_file_${ecu.id}",
+          sequenceContent,
+        );
+
+        // Save ECU data files
+        final files = ecu.file;
+        if (files != null && files.isNotEmpty) {
+          for (final file in files) {
+            final String fileContent =
+                await services.downloadFileContent(file.dataFile ?? '');
+
+            await SaveLocalData.saveData(
+              "file_data_file_${file.id}",
+              fileContent,
+            );
           }
         }
       }
@@ -474,28 +514,30 @@ class LoginController extends GetxController {
 
   Future<bool> updateIorListToLocal() async {
     try {
-      // Get existing local data (if any)
-      String? localData = await SaveLocalData.getData("IOR_LocalList");
+      // 🔹 Read local data (empty means not saved yet)
+      final String localData =
+          await SaveLocalData.getData("IOR_LocalList");
 
-      if (localData == null || localData.isEmpty) {
-        // Fetch IOR test data from API
-        final res = await AuthApiService.getIorTest();
+      // 🔹 If not available locally, fetch from API
+      if (localData.trim().isEmpty) {
+        final AuthApiService services = AuthApiService();
+        final IorTestModel res = await services.getIorTest();
 
         if (res.message == "success") {
-          final iorLocalList = jsonEncode(res.toJson());
-          await SaveLocalData.saveData("IOR_LocalList", iorLocalList);
+          final String iorLocalJson = jsonEncode(res.toJson());
+          await SaveLocalData.saveData("IOR_LocalList", iorLocalJson);
           return true;
         } else {
           await Get.defaultDialog(
             title: "Error in Saving IOR Data",
-            middleText: res.message,
+            middleText: res.message ?? "Unknown error",
           );
           return false;
         }
-      } else {
-        // Local data already exists
-        return true;
       }
+
+      // 🔹 Already available locally
+      return true;
     } catch (e) {
       await Get.defaultDialog(
         title: "Exception in Saving IOR Data",
@@ -507,28 +549,33 @@ class LoginController extends GetxController {
 
   Future<bool> updateActuatorListToLocal() async {
     try {
-      // Check if local data exists
-      String? localData = await SaveLocalData.getData("Actuator_LocalList");
+      // 🔹 Read local cache
+      final String localData =
+          await SaveLocalData.getData("Actuator_LocalList");
 
-      if (localData == null || localData.isEmpty) {
-        // Fetch actuator test data from API
-        final res = await AuthApiService.getActuatorTest();
+      // 🔹 If not cached locally, fetch from API
+      if (localData.trim().isEmpty) {
+        final AuthApiService services = AuthApiService();
+        final ActuatorTestModel res = await services.getActuatorTest();
 
         if (res.message == "success") {
-          final actuatorLocalList = jsonEncode(res.toJson());
-          await SaveLocalData.saveData("Actuator_LocalList", actuatorLocalList);
+          final String actuatorLocalJson = jsonEncode(res.toJson());
+          await SaveLocalData.saveData(
+            "Actuator_LocalList",
+            actuatorLocalJson,
+          );
           return true;
         } else {
           await Get.defaultDialog(
             title: "Error in Saving Actuator Data",
-            middleText: res.message,
+            middleText: res.message ?? "Unknown error",
           );
           return false;
         }
-      } else {
-        // Local data already exists
-        return true;
       }
+
+      // 🔹 Already cached
+      return true;
     } catch (e) {
       await Get.defaultDialog(
         title: "Exception in Saving Actuator Data",
@@ -542,29 +589,38 @@ class LoginController extends GetxController {
     try {
       bool returnValue = true;
 
-      for (var model in modelList) {
-        if (model.subModels != null) {
-          for (var submodel in model.subModels!) {
-            // Check if local GD data exists
-            String? localData =
-                await SaveLocalData.getData("GD_LocalList_${submodel.id}");
+      if (modelList.isEmpty) return true;
 
-            if (localData == null || localData.isEmpty) {
-              // Fetch GD data from API
-              final res = await AuthApiService.getGD(submodel.id);
+      final AuthApiService services = AuthApiService();
 
-              if (res.message == "success") {
-                final gdLocalList = jsonEncode(res.toJson());
-                await SaveLocalData.saveData(
-                    "GD_LocalList_${submodel.id}", gdLocalList);
-                returnValue = true;
-              } else {
-                await Get.defaultDialog(
-                  title: "Error in Saving GD Data",
-                  middleText: res.message,
-                );
-                return false;
-              }
+      for (final model in modelList) {
+        final subModels = model.subModels;
+        if (subModels == null || subModels.isEmpty) continue;
+
+        for (final subModel in subModels) {
+          // 🔹 Read local cache
+          final String localData =
+              await SaveLocalData.getData("GD_LocalList_${subModel.id}");
+
+          // 🔹 If not cached, fetch from API
+          if (localData.trim().isEmpty) {
+            final GdModelGD res = await services.getGD(subModel.id!);
+
+            if (res.message == "success") {
+              final String gdLocalJson = jsonEncode(res.toJson());
+
+              await SaveLocalData.saveData(
+                "GD_LocalList_${subModel.id}",
+                gdLocalJson,
+              );
+
+              returnValue = true;
+            } else {
+              await Get.defaultDialog(
+                title: "Error in Saving GD Data",
+                middleText: res.message ?? "Unknown error",
+              );
+              return false; // ❌ fail fast
             }
           }
         }
@@ -582,31 +638,34 @@ class LoginController extends GetxController {
 
   Future<bool> updateFreezeFrameListToLocal() async {
     try {
-      // Check if local data exists
-      String? localData = await SaveLocalData.getData("FreezeFrame_LocalList");
+      // 🔹 Read local cache
+      final String localData =
+          await SaveLocalData.getData("FreezeFrame_LocalList");
 
-      if (localData == null || localData.isEmpty) {
-        bool returnValue = false;
-
-        // Fetch freeze frame data from API
-        final res = await AuthApiService.getFreezeFrameList();
+      // 🔹 If not cached, fetch from API
+      if (localData.trim().isEmpty) {
+        final AuthApiService services = AuthApiService();
+        final FreezeFrameModel res = await services.getFreezeFrameList();
 
         if (res.message == "success") {
-          final freezeFrameLocalList = jsonEncode(res.toJson());
+          final String freezeFrameLocalJson = jsonEncode(res.toJson());
+
           await SaveLocalData.saveData(
-              "FreezeFrame_LocalList", freezeFrameLocalList);
-          returnValue = true;
+            "FreezeFrame_LocalList",
+            freezeFrameLocalJson,
+          );
+          return true;
         } else {
           await Get.defaultDialog(
             title: "Error in Saving Freeze Frame Data",
-            middleText: res.message,
+            middleText: res.message ?? "Unknown error",
           );
-          returnValue = false;
+          return false;
         }
-        return returnValue;
-      } else {
-        return true;
       }
+
+      // 🔹 Already cached
+      return true;
     } catch (e) {
       await Get.defaultDialog(
         title: "Exception in Saving Freeze Frame Data",
@@ -618,33 +677,34 @@ class LoginController extends GetxController {
 
   Future<bool> updateDoipConfigToLocal() async {
     try {
-      // Check if local data exists
-      String? localData = await SaveLocalData.getData("DoipConfig_LocalList");
+      // 🔹 Read local cache
+      final String localData =
+          await SaveLocalData.getData("DoipConfig_LocalList");
 
-      if (localData == null || localData.isEmpty) {
-        bool returnValue = false;
-
-        // Fetch DoIP configuration from API
-        final res = await AuthApiService.getDoipConfiguration();
+      // 🔹 If not cached, fetch from API
+      if (localData.trim().isEmpty) {
+        final AuthApiService services = AuthApiService();
+        final DoipConfigRootModel res = await services.getDoipConfiguration();
 
         if (res.message == "success") {
-          final doipConfigLocalList = jsonEncode(res.toJson());
+          final String doipConfigLocalJson = jsonEncode(res.toJson());
+
           await SaveLocalData.saveData(
-              "DoipConfig_LocalList", doipConfigLocalList);
-          returnValue = true;
+            "DoipConfig_LocalList",
+            doipConfigLocalJson,
+          );
+          return true;
         } else {
           await Get.defaultDialog(
             title: "Error in Doip Config Data",
-            middleText: res.message,
+            middleText: res.message ?? "Unknown error",
           );
-          returnValue = false;
+          return false;
         }
-
-        return returnValue;
-      } else {
-        // Local data already exists
-        return true;
       }
+
+      // 🔹 Already cached
+      return true;
     } catch (e) {
       await Get.defaultDialog(
         title: "Exception in Saving Doip Config Data",
@@ -654,103 +714,117 @@ class LoginController extends GetxController {
     }
   }
 
-  Future<bool> updateListNumbersToLocal() async {
-    try {
-      // Check if local data exists
-      String? localData = await SaveLocalData.getData("ListNumber_LocalList");
+ Future<bool> updateListNumbersToLocal() async {
+  try {
+    // 🔹 Read local cache
+    final String localData =
+        await SaveLocalData.getData("ListNumber_LocalList");
 
-      if (localData == null || localData.isEmpty) {
-        bool returnValue = false;
+    // 🔹 If not cached, fetch from API
+    if (localData.trim().isEmpty) {
+      final AuthApiService services = AuthApiService();
+      final ListNumberRootModel res =
+          await services.getListNumbers();
 
-        // Fetch List Numbers from API
-        final res = await AuthApiService.getListNumbers();
+      if (res.message == "success") {
+        final String listNumberLocalJson =
+            jsonEncode(res.toJson());
 
-        if (res.message == "success") {
-          final listNumberLocalList = jsonEncode(res.toJson());
-          await SaveLocalData.saveData(
-              "ListNumber_LocalList", listNumberLocalList);
-          returnValue = true;
-        } else {
-          await Get.defaultDialog(
-            title: "Error in List Number Data",
-            middleText: res.message,
-          );
-          returnValue = false;
-        }
-
-        return returnValue;
-      } else {
-        // Local data already exists
+        await SaveLocalData.saveData(
+          "ListNumber_LocalList",
+          listNumberLocalJson,
+        );
         return true;
+      } else {
+        await Get.defaultDialog(
+          title: "Error in List Number Data",
+          middleText: res.message ?? "Unknown error",
+        );
+        return false;
       }
-    } catch (e) {
+    }
+
+    // 🔹 Already cached
+    return true;
+  } catch (e) {
+    await Get.defaultDialog(
+      title: "Exception in Saving List Number Data",
+      middleText: e.toString(),
+    );
+    return false;
+  }
+}
+
+  Future<bool> loginOffline(UserModel userRequestModel) async {
+
+  try {
+    bool returnValue = true;
+
+    final String modelLocalList =
+        await SaveLocalData.getData("MODEL_LocalList");
+    final String iorLocalList =
+        await SaveLocalData.getData("IOR_LocalList");
+    final String actuatorLocalList =
+        await SaveLocalData.getData("Actuator_LocalList");
+    final String freezeFrameLocalList =
+        await SaveLocalData.getData("FreezeFrame_LocalList");
+
+    // 🔹 Check mandatory offline data
+    if (modelLocalList.trim().isEmpty ||
+        iorLocalList.trim().isEmpty ||
+        actuatorLocalList.trim().isEmpty ||
+        freezeFrameLocalList.trim().isEmpty) {
       await Get.defaultDialog(
-        title: "Exception in Saving List Number Data",
-        middleText: e.toString(),
+        title: "Failed",
+        middleText:
+            "Local data not completely updated.\nTry to login with internet.",
+      );
+
+      // clear invalid cache
+      await SaveLocalData.saveData("MODEL_LocalList", "");
+      return false;
+    }
+
+    // 🔹 Read user cached data
+    final String responseData =
+        await SaveLocalData.getData("UserDetailL_LocalData");
+    final String requestData =
+        await SaveLocalData.getData("UserRequest_LocalData");
+
+    if (responseData.trim().isEmpty || requestData.trim().isEmpty) {
+      await Get.defaultDialog(
+        title: "Failed",
+        middleText: "Try to login with internet.",
       );
       return false;
     }
+
+    // 🔹 Deserialize cached login data
+    final UserResModel userResModel =
+        UserResModel.fromJson(jsonDecode(responseData));
+
+
+    if (userResModel.message == "success") {
+  // 🔹 Read from SharedPreferences
+  final String? accessToken = await AppPreferences.getAccessToken();
+  final int? oemId = await AppPreferences.getInt('oemId');
+
+  if (accessToken == null || oemId == null) {
+    returnValue = false;
+  } 
+} else {
+  returnValue = false;
+}
+
+    return returnValue;
+  } catch (e) {
+    await Get.defaultDialog(
+      title: "Error",
+      middleText: e.toString(),
+    );
+    return false;
   }
+}
 
-  Future<bool> loginOffline() async {
-    try {
-      bool returnValue = true;
 
-      // Fetch local data
-      String? modelLocalList = await SaveLocalData.getData("MODEL_LocalList");
-      String? iorLocalList = await SaveLocalData.getData("IOR_LocalList");
-      String? actuatorLocalList =
-          await SaveLocalData.getData("Actuator_LocalList");
-      String? freezeFrameLocalList =
-          await SaveLocalData.getData("FreezeFrame_LocalList");
-
-      // Check if any local data is missing
-      if (modelLocalList == null ||
-          modelLocalList.isEmpty ||
-          iorLocalList == null ||
-          iorLocalList.isEmpty ||
-          actuatorLocalList == null ||
-          actuatorLocalList.isEmpty ||
-          freezeFrameLocalList == null ||
-          freezeFrameLocalList.isEmpty) {
-        await Get.defaultDialog(
-            title: "Failed",
-            middleText:
-                "Local data not completely updated.\nTry to login with internet.");
-        await SaveLocalData.saveData("MODEL_LocalList", "");
-        returnValue = false;
-      } else {
-        String? responseData =
-            await SaveLocalData.getData("UserDetail_LocalData");
-        String? requestData =
-            await SaveLocalData.getData("UserRequest_LocalData");
-
-        if (responseData == null ||
-            responseData.isEmpty ||
-            requestData == null ||
-            requestData.isEmpty) {
-          await Get.defaultDialog(
-              title: "Failed", middleText: "Try to login with internet.");
-          returnValue = false;
-        } else {
-          UserResModel userResModel =
-              UserResModel.fromJson(jsonDecode(responseData));
-          UserModel userRequestModel =
-              UserModel.fromJson(jsonDecode(requestData));
-
-          if (userResModel.message == "success") {
-            // Set global token and OEM ID
-            AppPreferences.setInt("oemId", userResModel.profile?.oem?.id ?? 0);
-            AppEnvironment.jwtToken = userResModel.token?.access ?? '';
-            returnValue = true;
-          }
-        }
-      }
-
-      return returnValue;
-    } catch (e) {
-      await Get.defaultDialog(title: "Error", middleText: e.toString());
-      return false;
-    }
-  }
 }

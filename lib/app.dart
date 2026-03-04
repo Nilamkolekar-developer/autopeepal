@@ -2,11 +2,15 @@ import 'dart:async';
 import 'package:autopeepal/api/app_envirments.dart';
 import 'package:autopeepal/common_widgets/app_error_widget.dart';
 import 'package:autopeepal/logic/bindings/app_bindings.dart';
+import 'package:autopeepal/models/jobCard_model.dart';
+import 'package:autopeepal/models/oem_model.dart';
+import 'package:autopeepal/models/user_model.dart';
 import 'package:autopeepal/routes/routes.dart';
 import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/services/error_handler/error_handler_service.dart';
 import 'package:autopeepal/themes/app_theme.dart';
 import 'package:autopeepal/utils/app_logs.dart';
+import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
@@ -15,10 +19,23 @@ import 'package:get_storage/get_storage.dart';
 
 class App {
   static App instance = App();
-
+ static const MethodChannel platform =
+      MethodChannel('autopeepal/native');
   /// [_appName] app display Named
   ///
   final String _appName = 'Autopeepal App';
+  static String jwtToken = '';
+  static String connectedVia = '';
+  static int oemId = 0;
+  static int subModelId = 0;
+  static String firmwareVersion = '';
+  static String sessionId = '';
+
+  static AllOemModel? selectedOem;
+  static Licences? licences;
+  static List<VehicleModel> userVehicleModel = [];
+
+  static DLLFunctions? dllFunctions;
 
   String? _version;
 

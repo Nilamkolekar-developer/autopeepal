@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 
 class IorTestModel {
-  int count;
+  int? count;
   dynamic next;
   dynamic previous;
   String? error;
   String? message;
-  List<IorResult> results;
+  List<IorResult>? results;
 
   IorTestModel({
-    required this.count,
+     this.count,
     this.next,
     this.previous,
     this.error,
     this.message,
-    required this.results,
+     this.results,
   });
 
   factory IorTestModel.fromJson(Map<String, dynamic> json) => IorTestModel(
@@ -34,7 +34,7 @@ class IorTestModel {
         'previous': previous,
         'error': error,
         'message': message,
-        'results': results.map((e) => e.toJson()).toList(),
+        'results': results!.map((e) => e.toJson()).toList(),
       };
 }
 

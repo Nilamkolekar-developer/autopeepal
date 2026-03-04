@@ -444,3 +444,164 @@ class IvnEcusModel {
       };
 }
 
+class Root {
+  int? count;
+  dynamic next;
+  dynamic previous;
+  List<Results>? results;
+  String? message;
+
+  Root({
+    this.count,
+    this.next,
+    this.previous,
+    this.results,
+    this.message,
+  });
+
+  /// 🔽 JSON → Object
+  factory Root.fromJson(Map<String, dynamic> json) {
+    return Root(
+      count: json['count'],
+      next: json['next'],
+      previous: json['previous'],
+      results: json['results'] != null
+          ? (json['results'] as List)
+              .map((e) => Results.fromJson(e))
+              .toList()
+          : [],
+    );
+  }
+
+  /// 🔼 Object → JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'count': count,
+      'next': next,
+      'previous': previous,
+      'results': results?.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+class Results {
+  int? id;
+  String? code;
+  String? description;
+  List<PidCode>? codes;
+
+  Results({
+    this.id,
+    this.code,
+    this.description,
+    this.codes,
+  });
+
+  /// 🔽 JSON → Object
+  factory Results.fromJson(Map<String, dynamic> json) {
+    return Results(
+      id: json['id'],
+      code: json['code'],
+      description: json['description'],
+      codes: json['codes'] != null
+          ? (json['codes'] as List)
+              .map((e) => PidCode.fromJson(e))
+              .toList()
+          : [],
+    );
+  }
+
+  /// 🔼 Object → JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'code': code,
+      'description': description,
+      'codes': codes?.map((e) => e.toJson()).toList(),
+    };
+  }
+}
+class PidGroupModel extends ChangeNotifier {
+  int id;
+
+  String _groupName = '';
+
+  String get groupName => _groupName;
+
+  set groupName(String value) {
+    _groupName = value;
+    notifyListeners(); // == OnPropertyChanged("GroupName")
+  }
+
+  PidGroupModel({
+    required this.id,
+    String groupName = '',
+  }) {
+    _groupName = groupName;
+  }
+}
+
+class Variables {
+  // Define the fields of your Variables class here
+  // Example:
+  String? name;
+  String? value;
+
+  Variables({this.name, this.value});
+
+  factory Variables.fromJson(Map<String, dynamic> json) {
+    return Variables(
+      name: json['name'] as String?,
+      value: json['value'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'value': value,
+      };
+}
+
+class ReadPidPresponseModel {
+  String? status;
+  String? dataArray;
+  int? pidId;
+  String? pidName;
+  String? responseValue;
+  String? unit;
+  List<Variables>? variables;
+
+  ReadPidPresponseModel({
+    this.status,
+    this.dataArray,
+    this.pidId,
+    this.pidName,
+    this.responseValue,
+    this.unit,
+    this.variables,
+  });
+
+  factory ReadPidPresponseModel.fromJson(Map<String, dynamic> json) {
+    return ReadPidPresponseModel(
+      status: json['Status'] as String?,
+      dataArray: json['DataArray'] as String?,
+      pidId: json['pid_id'] as int?,
+      pidName: json['pid_name'] as String?,
+      responseValue: json['responseValue'] as String?,
+      unit: json['unit'] as String?,
+      variables: json['Variables'] != null
+          ? List<Variables>.from(
+              (json['Variables'] as List).map((x) => Variables.fromJson(x)))
+          : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+        'Status': status,
+        'DataArray': dataArray,
+        'pid_id': pidId,
+        'pid_name': pidName,
+        'responseValue': responseValue,
+        'unit': unit,
+        'Variables': variables?.map((x) => x.toJson()).toList(),
+      };
+}
