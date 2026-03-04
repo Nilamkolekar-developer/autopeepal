@@ -158,6 +158,134 @@ class JobCardSession {
       };
 }
 
+class JobCardListModel {
+  String? jobcardName;
+  String? sessionId;
+  DateTime? startDate;
+  String? status;
+  String? jobCard;
+  DateTime? endDate;
+  DateTime? modified;
+  String? sessionType;
+  String? id;
+  String? vehicleModel;
+  int? modelId;
+  String? subModel;
+  int? subModelId;
+  String? modelYear;
+  String? chasisId;
+  String? complaints;
+  String? fertCode;
+  int? kmCovered;
+  String? registrationNo;
+  String? vehicleSegment;
+  String? jobcardStatus;
+  String? showStartDate;
+  String? source;
+  String? workshop;
+  String? city;
+  String? state;
+  String? modelWithSubmodel;
+
+  JobCardListModel({
+    this.jobcardName,
+    this.sessionId,
+    this.startDate,
+    this.status,
+    this.jobCard,
+    this.endDate,
+    this.modified,
+    this.sessionType,
+    this.id,
+    this.vehicleModel,
+    this.modelId,
+    this.subModel,
+    this.subModelId,
+    this.modelYear,
+    this.chasisId,
+    this.complaints,
+    this.fertCode,
+    this.kmCovered,
+    this.registrationNo,
+    this.vehicleSegment,
+    this.jobcardStatus,
+    this.showStartDate,
+    this.source,
+    this.workshop,
+    this.city,
+    this.state,
+    this.modelWithSubmodel,
+  });
+
+  factory JobCardListModel.fromJson(Map<String, dynamic> json) {
+    return JobCardListModel(
+      jobcardName: json['jobcard_name'],
+      sessionId: json['session_id'],
+      startDate: json['start_date'] != null
+          ? DateTime.parse(json['start_date'])
+          : null,
+      status: json['status'],
+      jobCard: json['job_card'],
+      endDate:
+          json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
+      modified:
+          json['modified'] != null ? DateTime.parse(json['modified']) : null,
+      sessionType: json['session_type'],
+      id: json['id'],
+      vehicleModel: json['vehicle_model'],
+      modelId: json['model_id'],
+      subModel: json['sub_model'],
+      subModelId: json['sub_model_id'],
+      modelYear: json['model_year'],
+      chasisId: json['chasis_id'],
+      complaints: json['complaints'],
+      fertCode: json['fert_code'],
+      kmCovered: json['km_covered'],
+      registrationNo: json['registration_no'],
+      vehicleSegment: json['vehicle_segment'],
+      jobcardStatus: json['jobcard_status'],
+      showStartDate: json['show_start_date'],
+      source: json['source'],
+      workshop: json['workshop'],
+      city: json['city'],
+      state: json['state'],
+      modelWithSubmodel: json['model_with_submodel'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'jobcard_name': jobcardName,
+      'session_id': sessionId,
+      'start_date': startDate?.toIso8601String(),
+      'status': status,
+      'job_card': jobCard,
+      'end_date': endDate?.toIso8601String(),
+      'modified': modified?.toIso8601String(),
+      'session_type': sessionType,
+      'id': id,
+      'vehicle_model': vehicleModel,
+      'model_id': modelId,
+      'sub_model': subModel,
+      'sub_model_id': subModelId,
+      'model_year': modelYear,
+      'chasis_id': chasisId,
+      'complaints': complaints,
+      'fert_code': fertCode,
+      'km_covered': kmCovered,
+      'registration_no': registrationNo,
+      'vehicle_segment': vehicleSegment,
+      'jobcard_status': jobcardStatus,
+      'show_start_date': showStartDate,
+      'source': source,
+      'workshop': workshop,
+      'city': city,
+      'state': state,
+      'model_with_submodel': modelWithSubmodel,
+    };
+  }
+}
+
 class User {
   String? email;
   dynamic workshop;
@@ -1014,5 +1142,56 @@ class JobcardNumber {
         'name': name,
         'success': success,
         'error': error,
+      };
+}
+class ResCloseSession {
+  String? id;
+  String? source;
+  String? sessionId;
+  String? jobCard;
+  DateTime? startDate;
+  DateTime? endDate;
+  List<User>? user;
+  String? sessionType;
+  String? status;
+
+  ResCloseSession({
+    this.id,
+    this.source,
+    this.sessionId,
+    this.jobCard,
+    this.startDate,
+    this.endDate,
+    this.user,
+    this.sessionType,
+    this.status,
+  });
+
+  factory ResCloseSession.fromJson(Map<String, dynamic> json) => ResCloseSession(
+        id: json['id'],
+        source: json['source'],
+        sessionId: json['session_id'],
+        jobCard: json['job_card'],
+        startDate:
+            json['start_date'] != null ? DateTime.parse(json['start_date']) : null,
+        endDate:
+            json['end_date'] != null ? DateTime.parse(json['end_date']) : null,
+        user: json['user'] != null
+            ? List<User>.from(json['user'].map((x) => User.fromJson(x)))
+            : [],
+        sessionType: json['session_type'],
+        status: json['status'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'source': source,
+        'session_id': sessionId,
+        'job_card': jobCard,
+        'start_date': startDate?.toIso8601String(),
+        'end_date': endDate?.toIso8601String(),
+        'user': user?.map((x) => x.toJson()).toList(),
+        'session_type': sessionType,
+        'status': status,
       };
 }

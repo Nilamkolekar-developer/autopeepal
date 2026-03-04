@@ -1,15 +1,15 @@
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/diagnosticFunctionsController.dart';
-import 'package:autopeepal/routes/routes_string.dart';
+import 'package:autopeepal/models/jobCard_model.dart';
 import 'package:autopeepal/themes/app_colors.dart';
-import 'package:autopeepal/utils/extension/extension/text_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class DiagnosticFunctions extends StatelessWidget {
   DiagnosticFunctions({super.key});
 
-  final DiagnosticController controller = Get.put(DiagnosticController());
+  final AppFeatureController controller =
+      Get.put(AppFeatureController(jobCardSession: JobCardListModel()));
 
   @override
   Widget build(BuildContext context) {
@@ -17,61 +17,38 @@ class DiagnosticFunctions extends StatelessWidget {
     bool isMobile = width < 600;
     bool isTablet = width >= 600 && width < 1024;
 
-    isMobile
+    int gridCount = isMobile
         ? 2
         : isTablet
             ? 3
             : 4;
+
     return WillPopScope(
-      onWillPop: () async{
-        return false;
-      },
+      onWillPop: () async => false,
       child: Scaffold(
         backgroundColor: AppColors.pagebgColor,
         appBar: AppBar(
           toolbarHeight: isMobile ? 60 : 80,
           automaticallyImplyLeading: false,
           backgroundColor: AppColors.primaryColor,
-          title: ("Diagnostic Functions").toInter(
-            fontWeight: FontWeight.w700,
-            fontSize: isMobile ? 20 : 28,
-            color: AppColors.white,
-            fontFamily: "OpenSans-SemiBold",
+          title: Text(
+            "Diagnostic Functions",
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              fontSize: isMobile ? 20 : 28,
+              color: Colors.white,
+            ),
           ),
-          actions: [
-            IconButton(
-              onPressed: () {
-                Get.toNamed(Routes.SessionScreen);
-              },
-              icon: Image.asset(
-                "assets/new/ic_session_log.png",
-                height: isMobile ? 35 : 50,
-                width: isMobile ? 35 : 50,
-                color: Colors.white, // optional if PNG is black
-              ),
-            ),
-            IconButton(
-              onPressed: () {
-                Get.toNamed(Routes.firmwareUpdateScreen);
-              },
-              icon: Image.asset(
-                "assets/new/ic_update_fw.png",
-                height: isMobile ? 35 : 50,
-                width: isMobile ? 35 : 50,
-                color: Colors.white,
-              ),
-            ),
-            C5(),
-          ],
         ),
         body: SingleChildScrollView(
           child: SafeArea(
             child: Column(
               children: [
+             
                 Container(
-                  margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                  margin:
+                      const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -89,7 +66,7 @@ class DiagnosticFunctions extends StatelessWidget {
                           buildRow("Model :", controller.selectedModel.value),
                           buildDivider(),
                           buildRow("Regulation :",
-                              controller.selectedRegulation.value),
+                              controller.selectedSubModel.value),
                           buildDivider(),
                           buildEcuRow(
                             controller.selectedEcu.value,
@@ -103,32 +80,33 @@ class DiagnosticFunctions extends StatelessWidget {
                         ],
                       )),
                 ),
-                verticalSpace(isMobile ? 10 : 20),
+                verticalSpace(isMobile ? 15 : 30),
                 GestureDetector(
-                  onTap: () async {
-                    Get.toNamed(Routes.dashboardScreen);
-                  },
-                  child: Container(
-                    padding: EdgeInsets.all(isMobile ? 14 : 24),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.09),
-                          blurRadius: isMobile ? 5 : 10,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Image.asset(
-                      "assets/new/ic_disconnect.png",
-                      height: isMobile ? 40 : 50,
-                      width: isMobile ? 50 : 50,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
+  onTap: () async {
+    print("Disconnect icon tapped...");
+    await controller.disconnectDongle(context); // call our fixed function
+  },
+  child: Container(
+    padding: EdgeInsets.all(isMobile ? 14 : 24),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      shape: BoxShape.circle,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.09),
+          blurRadius: isMobile ? 5 : 10,
+          offset: const Offset(0, 10),
+        ),
+      ],
+    ),
+    child: Image.asset(
+      "assets/new/ic_disconnect.png",
+      height: isMobile ? 40 : 50,
+      width: isMobile ? 50 : 50,
+      fit: BoxFit.contain,
+    ),
+  ),
+),
                 C10(),
                 const Text(
                   "Click Here To Disconnect",
@@ -141,75 +119,27 @@ class DiagnosticFunctions extends StatelessWidget {
                 ),
                 verticalSpace(isMobile ? 15 : 30),
                 Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 27, vertical: 22),
-                  child: GridView.count(
-                    crossAxisCount: isMobile
-                        ? 2
-                        : isTablet
-                            ? 3
-                            : 3, // 4 columns for desktop
-                    crossAxisSpacing: 70,
-                    mainAxisSpacing: 55,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      functionCard(
-                        context: context,
-                        imagePath: "assets/new/ic_info.png",
-                        title: "ECU Information",
-                        onTap: () {
-                          Get.toNamed(Routes.ecuInformation);
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Obx(() => GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: gridCount,
+                          crossAxisSpacing: 20,
+                          mainAxisSpacing: 20,
+                        ),
+                        itemCount: controller.featureList.length,
+                        itemBuilder: (context, index) {
+                          final feature = controller.featureList[index];
+                          return functionCard(
+                            context: context,
+                            title: feature.name ?? '',
+                            imagePath: feature.image ?? '',
+                            onTap: () =>
+                                controller.onFeatureTap(feature, context),
+                          );
                         },
-                      ),
-                      functionCard(
-                          context: context,
-                          imagePath: "assets/new/ic_dtc.png",
-                          title: "DTC",
-                          onTap: () {
-                            Get.toNamed(Routes.dtcScreen);
-                          }),
-                      functionCard(
-                          context: context,
-                          imagePath: "assets/new/ic_pid.png",
-                          title: "Live Parameter",
-                          onTap: () {
-                            Get.toNamed(Routes.liveParameter);
-                          }),
-                      functionCard(
-                        context: context,
-                        imagePath: "assets/new/ic_write.png",
-                        title: "Write Parameter",
-                        onTap: () {
-                          Get.toNamed(Routes.writeParameter);
-                        },
-                      ),
-                      functionCard(
-                        context: context,
-                        imagePath: "assets/new/ic_flash.png",
-                        title: "ECU Flashing",
-                        onTap: () {
-                          Get.toNamed(Routes.ecuFlashing);
-                        },
-                      ),
-                      functionCard(
-                        context: context,
-                        imagePath: "assets/new/ic_routine.png",
-                        title: "Routine Test",
-                        onTap: () {
-                          Get.toNamed(Routes.routineTest);
-                        },
-                      ),
-                      functionCard(
-                        context: context,
-                        imagePath: "assets/new/ic_dtc.png",
-                        title: "All DTC Details",
-                        onTap: () {
-                          Get.toNamed(Routes.allDtcDetails);
-                        },
-                      ),
-                    ],
-                  ),
+                      )),
                 ),
               ],
             ),
@@ -255,83 +185,6 @@ class DiagnosticFunctions extends StatelessWidget {
     );
   }
 
-  Widget functionCard({
-    required BuildContext context,
-    required String title,
-    IconData? icon,
-    String? imagePath,
-    VoidCallback? onTap,
-  }) {
-    double width = MediaQuery.of(context).size.width;
-
-    bool isMobile = width < 600;
-    bool isTablet = width >= 600 && width < 1024;
-
-    double padding = isMobile
-        ? 12
-        : isTablet
-            ? 14
-            : 16;
-    double iconSize = isMobile
-        ? 60
-        : isTablet
-            ? 90
-            : 120;
-    double fontSize = isMobile
-        ? 13
-        : isTablet
-            ? 14
-            : 14;
-    double blur = isMobile
-        ? 5
-        : isTablet
-            ? 6
-            : 6;
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black38.withOpacity(0.09),
-              blurRadius: blur,
-              offset: const Offset(14, 14),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(vertical: padding, horizontal: padding),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Show image if provided
-              if (imagePath != null)
-                Image.asset(
-                  imagePath,
-                  height: iconSize,
-                  width: iconSize,
-                  fit: BoxFit.contain,
-                ),
-
-              C8(),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: fontSize,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget buildEcuRow(String ecu, String status) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,19 +212,22 @@ class DiagnosticFunctions extends StatelessWidget {
               ),
             ),
 
-            /// Status exactly center
+            /// Status with colored dot (centered)
             Expanded(
+              flex: 3,
               child: Center(
                 child: Text(
                   status == "Connected"
                       ? "ECU Connected"
-                      : "Dongle Disconnected",
+                      : "Dongle Disconnected", // default for everything else
                   style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
-                    //fontFamily: "OpenSans-Regular",
                     color: getStatusColor(status),
                   ),
+
+                  textAlign: TextAlign.center,
+                  softWrap: true, // allow wrapping
                 ),
               ),
             ),
@@ -381,9 +237,67 @@ class DiagnosticFunctions extends StatelessWidget {
     );
   }
 
+  /// Helper to get color based on status
   Color getStatusColor(String status) {
-    if (status == "Connected") return Colors.green.shade700;
-    if (status == "Disconnected") return Colors.red;
-    return Colors.grey;
+    switch (status) {
+      case "Connected":
+        return Colors.green.shade700;
+      
+      case "Dongle Disconnected":
+        return Colors.red;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Widget functionCard({
+    required BuildContext context,
+    required String title,
+    required String imagePath,
+    VoidCallback? onTap,
+  }) {
+    double width = MediaQuery.of(context).size.width;
+    bool isMobile = width < 600;
+    bool isTablet = width >= 600 && width < 1024;
+
+    double iconSize = isMobile
+        ? 60
+        : isTablet
+            ? 80
+            : 100;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black38.withOpacity(0.09),
+              blurRadius: 6,
+              offset: const Offset(4, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Image.asset(
+              imagePath,
+              height: iconSize,
+              width: iconSize,
+              fit: BoxFit.contain,
+            ),
+            verticalSpace(10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

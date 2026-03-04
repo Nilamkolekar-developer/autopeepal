@@ -41,6 +41,24 @@ class AppURLs {
       "gdauthor/gd/gd-by-year_id-dtc_id/?name=${submodelId}";
   static String dtcRecord(String? jobCardId) =>
       "analyze/job-card-session/${jobCardId.toString()}/dtc-record/";
-       static String clearDtcRecord(String? jobCardId) =>
+  static String clearDtcRecord(String? jobCardId) =>
       "analyze/job-card-session/${jobCardId.toString()}/clear-record/";
+  static String pidWriteRecord(String? jobCardId) =>
+      "analyze/job-card-session/$jobCardId/pid-write-record/";
+  static String pidliveRecord(String? jobCardId) =>
+      "analyze/job-card-session/$jobCardId/pid-write-record/";
+  static String pidSnapShotRecord(String? jobCardId) =>
+      "analyze/job-card-session/$jobCardId/pid-snapshot-record/";
+  static String flashRecord(String? jobCardId) =>
+      "analyze/job-card-session/$jobCardId/flash-record/";
+  static String closeJobCard(String? jobCardId) =>
+      "analyze/job-card-session/$jobCardId/close-session/";
+  static String get getFlashRecord => "flash/flash/";
+  static String get getIorTest => "ior-test/ior-test-list/";
+  static String get getActuatorIorTest => "ior-test/actuator-test-list/";
+  static String get getFreezeFrameList => "datasets/get-freeze-frames/";
+  static String get getListNumbers => "variant/list/";
+  static String get getDoipConfiguration => "datasets/get-doip-conf/";
+ static String getPids(int? datasetId) =>
+      "datasets/get-pid-datasets/?id=$datasetId";
 }

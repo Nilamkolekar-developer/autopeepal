@@ -1,4 +1,3 @@
-
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -9,11 +8,25 @@ class AppPreferences {
   static const String _userIdKey = 'userId';
   static const String _nameKey = 'name';
   static const String _emailKey = 'email';
-  
+  static const String _firmwareVersionKey = 'firmwareVersion';
   static const String _localDataKey = 'localData';
   static const String _selectedVciKey = 'selectedVCI';
   static const String _licencesKey = 'licences';
-static const String _vehicleModelsKey = 'vehicleModels';
+  static const String _vehicleModelsKey = 'vehicleModels';
+  static const String ConnectedVia = 'ConnectedVia';
+  static const String _lastIpKey = 'lastDongleIp';
+  static const String _channelIdKey = 'channelId';
+  static const String _connectedViaKey = 'connectedVia';
+
+  static Future<void> setConnectedVia(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_connectedViaKey, value);
+  }
+
+  static Future<String?> getConnectedVia() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_connectedViaKey);
+  }
 
   // ================= TOKENS =================
 
@@ -34,6 +47,46 @@ static const String _vehicleModelsKey = 'vehicleModels';
   static Future<String?> getRefreshToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_refreshTokenKey);
+  }
+
+  static Future<void> setStringValue(String key, String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(key, value);
+  }
+
+  static Future<String?> getStringValue(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(key);
+  }
+
+  static Future<void> setFirmwareVersion(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_firmwareVersionKey, value);
+  }
+
+  static Future<String?> getFirmwareVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_firmwareVersionKey);
+  }
+
+  static Future<void> setLastDongleIp(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_lastIpKey, value);
+  }
+
+  static Future<String?> getLastDongleIp() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_lastIpKey);
+  }
+
+  static Future<void> setChannelId(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_channelIdKey, value);
+  }
+
+  static Future<String?> getChannelId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_channelIdKey);
   }
 
   // ================= USER =================
@@ -92,49 +145,46 @@ static const String _vehicleModelsKey = 'vehicleModels';
   static Future<String?> getSelectedVCI() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_selectedVciKey);
-
-
   }
 
   // ================= LICENCES =================
 
-static Future<void> saveLicences(Map<String, dynamic> licencesJson) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_licencesKey, jsonEncode(licencesJson));
-}
+  static Future<void> saveLicences(Map<String, dynamic> licencesJson) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_licencesKey, jsonEncode(licencesJson));
+  }
 
-static Future<Map<String, dynamic>?> getLicences() async {
-  final prefs = await SharedPreferences.getInstance();
-  final data = prefs.getString(_licencesKey);
-  if (data == null) return null;
-  return jsonDecode(data);
-}
+  static Future<Map<String, dynamic>?> getLicences() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_licencesKey);
+    if (data == null) return null;
+    return jsonDecode(data);
+  }
 
 // ================= VEHICLE MODELS =================
 
-static Future<void> saveVehicleModels(
-    List<Map<String, dynamic>> modelsJson) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(
-      _vehicleModelsKey, jsonEncode(modelsJson));
-}
+  static Future<void> saveVehicleModels(
+      List<Map<String, dynamic>> modelsJson) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_vehicleModelsKey, jsonEncode(modelsJson));
+  }
 
-static Future<List<dynamic>> getVehicleModels() async {
-  final prefs = await SharedPreferences.getInstance();
-  final data = prefs.getString(_vehicleModelsKey);
-  return data == null ? [] : jsonDecode(data);
-}
+  static Future<List<dynamic>> getVehicleModels() async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString(_vehicleModelsKey);
+    return data == null ? [] : jsonDecode(data);
+  }
 
 // ================= INT =================
-static Future<void> setInt(String key, int value) async {
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setInt(key, value);
-}
+  static Future<void> setInt(String key, int value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(key, value);
+  }
 
-static Future<int?> getInt(String key) async {
-  final prefs = await SharedPreferences.getInstance();
-  return prefs.getInt(key);
-}
+  static Future<int?> getInt(String key) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(key);
+  }
 
   // ================= CLEAR =================
 

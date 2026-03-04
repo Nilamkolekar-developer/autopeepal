@@ -4,6 +4,7 @@ import 'package:autopeepal/utils/ui_helper_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
+
 class CustomDropdownTextField extends StatelessWidget {
   final RxString selectedValue;
   final List<String> items;
@@ -14,9 +15,9 @@ class CustomDropdownTextField extends StatelessWidget {
   final double? iconSize;
   final bool readOnly;
 
-  // NEW
   final bool enabled;
   final VoidCallback? onTapDisabled;
+  final Function(String)? onItemSelected;
 
   const CustomDropdownTextField({
     Key? key,
@@ -30,6 +31,7 @@ class CustomDropdownTextField extends StatelessWidget {
     this.readOnly = true,
     this.enabled = true,
     this.onTapDisabled,
+    this.onItemSelected,
   }) : super(key: key);
 
   @override
@@ -69,88 +71,80 @@ class CustomDropdownTextField extends StatelessWidget {
           ),
           onTap: () {
             if (!enabled) {
-              if (onTapDisabled != null) {
-                onTapDisabled!();
-              }
+              if (onTapDisabled != null) onTapDisabled!();
               return;
             }
-            showDialog(
-              context: context,
-              builder: (context) {
-                return Dialog(
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    side: const BorderSide(
-                        color: AppColors.primaryColor, width: 6),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      maxHeight: MediaQuery.of(context).size.height * 0.5,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          color: AppColors.primaryColor,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          child: Text(
-                            title.toUpperCase(),
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                            ),
+showDialog(
+  context: context,
+  builder: (context) {
+    final double maxHeight = MediaQuery.of(context).size.height * 0.5;
+    return Dialog(
+      clipBehavior: Clip.antiAlias,
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: AppColors.primaryColor, width: 6),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SizedBox(
+        height: maxHeight,
+        child: Column(
+          children: [
+            // Header
+            Container(
+              width: double.infinity,
+              color: AppColors.primaryColor,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                title.toUpperCase(),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+
+            // Scrollable list fills remaining space
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.all(12),
+                itemCount: items.length,
+                itemBuilder: (context, index) {
+                  final item = items[index];
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 8.0),
+                    child: InkWell(
+                      onTap: () {
+                        selectedValue.value = item;
+                        if (onItemSelected != null) onItemSelected!(item);
+                        Navigator.pop(context);
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor.withOpacity(0.4),
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                        child: Text(
+                          item,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        Flexible(
-                          child: SingleChildScrollView(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              color: Colors.white,
-                              child: Column(
-                                children: items.map((item) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 8.0),
-                                    child: InkWell(
-                                      onTap: () {
-                                        selectedValue.value = item;
-                                        Navigator.pop(context);
-                                      },
-                                      child: Container(
-                                        width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 14),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.primaryColor
-                                              .withOpacity(0.4),
-                                          border: Border.all(
-                                              color: Colors.grey.shade400),
-                                        ),
-                                        child: Text(
-                                          item,
-                                          textAlign: TextAlign.center,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                        ),
-                        C100()
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              },
-            );
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  },
+);
           },
         ),
       );
