@@ -1,6 +1,5 @@
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:flutter/material.dart';
-import 'package:get/get.dart';
 
 class CustomPopup extends StatelessWidget {
   final String title;

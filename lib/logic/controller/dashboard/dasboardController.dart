@@ -1,12 +1,17 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
+import 'package:autopeepal/app.dart';
 import 'package:autopeepal/common_widgets/commonLoader.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/models/all_models.dart';
+import 'package:autopeepal/models/doipConfigFile_model.dart';
 import 'package:autopeepal/models/staticData.dart';
 import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/services/api_services.dart';
+import 'package:autopeepal/services/connectionUsbService.dart';
+import 'package:autopeepal/services/connectionWebUsbService.dart';
 import 'package:autopeepal/services/connectionWifiService.dart';
 import 'package:autopeepal/services/hotspot_service.dart';
 import 'package:autopeepal/services/local_storage_services/localStorage_service.dart';
@@ -275,257 +280,277 @@ class DashboardController extends GetxController {
     }
   }
 
-//   Future<void> usbConnect(BuildContext context) async {
-//   try {
-//     // 🔴 Validation: Model & SubModel
-//     if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
-//       showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message: "Please Select model and submodel",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//         );
+  Future<void> usbConnect(BuildContext context) async {
+    print("🔹 usbConnect started");
+    Get.dialog(
+      const CommonLoader(message: "Scanning..."),
+      barrierDismissible: false,
+    );
+    try {
+      print("Checking selectedModel and selectedSubModel...");
+      if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
+        print("❌ Model or SubModel not selected");
+        showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Please Select model and submodel",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
+      print("Checking selected VCI Type...");
+      if (selectedVciType.value.isEmpty ||
+          selectedVciType.value == "Select VCI") {
+        print("❌ VCI Type not selected");
+        showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Please Select VCI Type",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
+      isLoading.value = true;
+      await Future.delayed(const Duration(milliseconds: 50));
+      print("Loader shown");
 
-//       return;
-//     }
+      String channelId = '';
+      final ecuInfo = StaticData.ecuInfo;
+      print("ECU Info: $ecuInfo");
+      if (ecuInfo.isEmpty || ecuInfo.first.channelId == null) {
+        print("❌ Invalid Channel Id Format");
+        showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Invalid Channel Id Format",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
 
-//     // 🔴 Validation: VCI
-//     if (selectedVciType.value.isEmpty ||
-//         selectedVciType.value == "Select VCI") {
-//      showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message: "Please Select VCI Type",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//         );
-//       return;
-//     }
+      final channelSplit = ecuInfo.first.channelId!.split('-');
+      if (channelSplit.length > 1) {
+        channelId = '0${channelSplit[1]}';
+      } else {
+        print("❌ Invalid Channel Id Format (split length <=1)");
+        showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Invalid Channel Id Format",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
+      print("Parsed channelId: $channelId");
+      print("Parsing VCI Type...");
+      final VCIType vciType = VCIType.values.firstWhere(
+        (e) => e.name == selectedVciType.value,
+        orElse: () {
+          print("❌ Invalid VCI Type: ${selectedVciType.value}");
+          return VCIType.RP1210;
+        },
+      );
+      print("Selected VCI Type: $vciType");
+      DoipConfigModel? doipConfigModel;
 
-//     // 🔄 Loader
-//     isLoading.value = true;
-//     await Future.delayed(const Duration(milliseconds: 50));
+      if (vciType == VCIType.DOIP) {
+        print("Loading DOIP Config...");
+        final doipConfigLocal =
+            await AppPreferences.getStringValue("DoipConfig_LocalList");
 
-//     String firmwareVersion = '';
-//     String channelId = '';
+        if (doipConfigLocal == null || doipConfigLocal.isEmpty) {
+          print("❌ DOIP Configuration data not available");
+          showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Alert",
+              message:
+                  "DOIP Configuration data not available.\nPlease sync local data.",
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+          return;
+        }
 
-//     // ===============================
-//     // CHANNEL ID PARSING
-//     // ===============================
-//     final ecuInfo = StaticData.ecuInfo;
-//     if (ecuInfo.isEmpty || ecuInfo.first.channelId == null) {
-//       showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message: "Invalid Channel Id Format",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
-//       return;
-//     }
+        final doipRoot =
+            DoipConfigRootModel.fromJson(jsonDecode(doipConfigLocal));
+        doipConfigModel = doipRoot.results
+            ?.firstWhereOrNull((x) => x.ecu == ecuInfo.first.ecuID);
 
-//     final channelSplit = ecuInfo.first.channelId!.split('-');
-//     if (channelSplit.length > 1) {
-//       channelId = '0${channelSplit[1]}';
-//     } else {
-//        showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message: "Invalid Channel Id Format",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
+        if (doipConfigModel == null) {
+          print("❌ DOIP Config for ECU not found");
+          showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Alert",
+              message: "DOIP Configuration data not available",
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+          return;
+        }
+        print("DOIP Config loaded: $doipConfigModel");
+      }
+      print("Connecting USB...");
+      // final connectionUSB = ConnectionUSB();
+      dynamic connectionUSB;
 
-//       return;
-//     }
+      if (Platform.isAndroid) {
+        connectionUSB = ConnectionUSB();
+      } else if (Platform.isWindows) {
+        connectionUSB = ConnectionUSBWindows();
+      } else {
+        print("Unsupported platform");
+        return;
+      }
+      final bool isConnected = await connectionUSB.connectUsb(vciType);
+      print("USB connected: $isConnected");
 
-//     // ===============================
-//     // VCI TYPE PARSE
-//     // ===============================
-//     final VCIType vciType = VCIType.values.firstWhere(
-//       (e) => e.name == selectedVciType.value,
-//       orElse: () => throw Exception("Invalid VCI Type"),
-//     );
+      if (!isConnected) {
+        print("❌ Failed to connect dongle");
+        showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Failed to connect dongle",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
+      if (vciType == VCIType.CAN2X ||
+          vciType == VCIType.CAN2XG ||
+          vciType == VCIType.CAN2XGK) {
+        print("Getting Dongle MAC ID...");
+        final macResult =
+            await connectionUSB.getDongleMacID(channelId: channelId);
+        print("MAC Result: $macResult");
 
-//     // ===============================
-//     // DOIP CONFIG (ONLY FOR DOIP)
-//     // ===============================
-//     DoipConfigModel? doipConfigModel;
+        if (macResult[0] != "true") {
+          print("❌ MAC ID error: ${macResult[1]}");
+          showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Alert",
+              message: macResult[1],
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+          return;
+        }
 
-//     if (vciType == VCIType.DOIP) {
-//       final doipConfigLocal =
-//           await AppPreferences.getStringValue("DoipConfig_LocalList");
+        print("Setting Dongle Properties...");
+        await App.dllFunctions!.setDongleProperties1(
+            // StaticData.ecuInfo[0].protocol.autopeepal??'',
+            // StaticData.ecuInfo[0].txHeader ?? '',
+            // StaticData.ecuInfo[0].rxHeader ?? '',
+            );
 
-//       if (doipConfigLocal == null || doipConfigLocal.isEmpty) {
-//          showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:"DOIP Configuration data not available.\nPlease sync local data.",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
+        await AppPreferences.setConnectedVia("USB");
+        print("USB connection complete for CAN2X family");
+      } else if (vciType == VCIType.RP1210 ||
+          vciType == VCIType.CAN2xFD ||
+          vciType == VCIType.DOIP) {
+        print("Getting firmware version...");
+        final fwResult =
+            await connectionUSB.getRP1210FWVersion(channelId, vciType);
+        print("Firmware result: $fwResult");
 
-//         return;
-//       }
+        if (fwResult[0] != "true") {
+          print("❌ Firmware error: ${fwResult[1]}");
+          showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Alert",
+              message: fwResult[1],
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+          return;
+        }
 
-//       final doipRoot =
-//           DoipConfigRootModel.fromJson(jsonDecode(doipConfigLocal));
+        print("Setting DLL properties...");
+        final status = vciType == VCIType.DOIP
+            ? await App.dllFunctions!.setDoipRp1210Properties(doipConfigModel!)
+            : await App.dllFunctions!.setRp1210Properties();
 
-//       doipConfigModel = doipRoot.results?.firstWhere(
-//         (x) => x.ecu == ecuInfo.first.ecuID,
-//         orElse: () => null,
-//       );
+        if (status != "Success") {
+          print("❌ DLL Property error: $status");
+          showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Alert",
+              message: status,
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+          return;
+        }
 
-//       if (doipConfigModel == null) {
-//          showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:"DOIP Configuration data not available",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
+        await AppPreferences.setConnectedVia("USB");
+        print("USB connection complete for RP1210/CAN2xFD/DOIP");
+      } else {
+        print("❌ Invalid VCI Type Selected");
+        showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Invalid VCI Type Selected",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
+      final firmware = await App.dllFunctions?.setDongleProperties1() ?? '';
+      print("Firmware version: $firmware");
 
-//         return;
-//       }
-//     }
+      if (firmware.isNotEmpty) {
+        App.firmwareVersion = firmware;
+        App.connectedVia = "USB";
 
-//     // ===============================
-//     // USB CONNECTION
-//     // ===============================
-//     final connectionUSB = ConnectionUSB();
-//     final bool isConnected = await connectionUSB.connectUsb(vciType);
+        print("Navigating to Diagnostic Screen");
+        Get.toNamed(Routes.diagnosticScreen, arguments: {
+          'firmwareVersion': firmware,
+          'sessionId': App.sessionId,
+        });
+      } else {
+        if (!isConnected) {
+          print("❌ Failed to connect dongle");
 
-//     if (!isConnected) {
-//       showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:"Failed to connect dongle",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
+          closeLoader(); // ⭐ CLOSE LOADER FIRST
 
-//       return;
-//     }
+          showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Alert",
+              message: "Failed to connect dongle",
+              onButtonPressed: () => Get.back(),
+            ),
+          );
 
-//     // ===============================
-//     // CAN2X FAMILY
-//     // ===============================
-//     if (vciType == VCIType.CAN2X ||
-//         vciType == VCIType.CAN2XG ||
-//         vciType == VCIType.CAN2XGK) {
-//       final macResult = await connectionUSB.getDongleMacId(channelId);
+          return;
+        }
+      }
+    } catch (e, stack) {
+      print("❌ USB Connect error: $e");
+      debugPrintStack(stackTrace: stack);
+    } finally {
+      isLoading.value = false;
+      print("🔹 usbConnect finished");
+    }
+  }
 
-//       if (macResult[0] != "true") {
-//         showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:macResult[1],
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
-
-//         return;
-//       }
-
-//       final dllFunctions = DLLFunctions(connectionUSB.mDongleComm);
-
-// firmwareVersion =
-//     await dllFunctions.setDongleProperties();
-
-// await AppPreferences.setConnectedVia("USB");
-//     }
-
-//     // ===============================
-//     // RP1210 / CAN2xFD / DOIP
-//     // ===============================
-//     else if (vciType == VCIType.RP1210 ||
-//         vciType == VCIType.CAN2xFD ||
-//         vciType == VCIType.DOIP) {
-//       final fwResult =
-//           await connectionUSB.getRp1210FwVersion(channelId, vciType);
-
-//       if (fwResult[0] != "true") {
-//         showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:fwResult[1],
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
-
-//         return;
-//       }
-
-//       firmwareVersion = fwResult[1];
-
-//       final status = vciType == VCIType.DOIP
-//           ? await DLLFunctions.setDoipRp1210Properties(doipConfigModel!)
-//           : await AppDllFunctions.setRp1210Properties();
-
-//       if (status != "Success") {
-//         showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:status,
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
-
-//         return;
-//       }
-
-//       await AppPreferences.setConnectedVia("USB");
-//     } else {
-//       showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:"Invalid VCI Type Selected",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
-
-//       return;
-//     }
-
-//     // ===============================
-//     // NAVIGATION
-//     // ===============================
-//     if (firmwareVersion.isNotEmpty) {
-//      Get.toNamed(
-//   Routes.diagnosticScreen,
-//   arguments: {
-//     'firmwareVersion': firmwareVersion,
-//     'data': null,
-//   },
-// );
-//     } else {
-//        showDialog(
-//           context: context,
-//           builder: (context) => CustomPopup(
-//             title: "Alert",
-//             message:"Firmware version not found.",
-//             onButtonPressed: () => Get.back(),
-//           ),
-//       );
-
-//     }
-//   } catch (e, stack) {
-//     debugPrint("❌ USB Connect error: $e");
-//     debugPrintStack(stackTrace: stack);
-//   } finally {
-//     isLoading.value = false;
-//   }
-// }
+  void closeLoader() {
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    }
+  }
 }
