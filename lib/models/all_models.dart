@@ -197,7 +197,7 @@ class Ecu {
       'name': name,
       'tx_header': txHeader,
       'rx_header': rxHeader,
-      'protocol': protocol?.toJson(),
+      'protocol': protocol.toJson(),
       'datasets': datasets?.map((e) => e.toJson()).toList(),
       'pid_datasets': pidDatasets?.map((e) => e.toJson()).toList(),
       'read_dtc_fn_index': readDtcFnIndex?.toJson(),

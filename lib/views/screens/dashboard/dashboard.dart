@@ -1,4 +1,3 @@
-import 'package:autopeepal/common_widgets/commonLoader.dart';
 import 'package:autopeepal/common_widgets/customDropdown.dart';
 import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/common_widgets/custom_drawer.dart';
@@ -122,8 +121,8 @@ class DashboardScreen extends StatelessWidget {
                         _connectionButton(
                           icon: Icons.usb,
                           label: "USB",
-                          onTap: () {
-                            Get.toNamed(Routes.usbWebScreen);
+                          onTap: () async {
+                            await controller.usbConnect(context);
                           },
                         ),
                         // _connectionButton(

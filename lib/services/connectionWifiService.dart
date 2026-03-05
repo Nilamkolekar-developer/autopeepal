@@ -11,17 +11,12 @@ import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:flutter/foundation.dart';
 
 CommController? comm;
- DongleComm? dongleCommWin;
- UDSDiagnostic? dSDiagnostic;
-/// ===============================
-/// CONNECTION WIFI
-/// ===============================
+DongleComm? dongleCommWin;
+UDSDiagnostic? dSDiagnostic;
 
 class ConnectionWifi {
   Socket? _socket;
 
-  /// ===========================mDNS)
-  /// ===============================
   Future<List<DiscoveredService>?> getDeviceList() async {
     final List<DiscoveredService> devices = [];
     final MdnsDiscoveryService mdns =
@@ -31,7 +26,6 @@ class ConnectionWifi {
 
     late StreamSubscription sub;
     sub = mdns.discoveredServices.listen((service) {
-      // Filter only OBD2 or AP devices
       final name = service.name.toLowerCase();
       if (name.contains("obd2") || name.startsWith("ap")) {
         if (!devices.any((d) => d.ip == service.ip)) {
@@ -39,11 +33,7 @@ class ConnectionWifi {
         }
       }
     });
-
-    // Start discovery
     await mdns.startDiscovery();
-
-    // Stop after 15 seconds
     Future.delayed(const Duration(seconds: 15), () async {
       await sub.cancel();
       await mdns.stopDiscovery();
@@ -57,84 +47,65 @@ class ConnectionWifi {
     return completer.future;
   }
 
-Future<String> getDongleMacID(String ip, {String channelId = "00", int port = 6888}) async {
-  try {
-    // 0️⃣ Initialize CommController if null
-    comm ??= CommController();
-    print("CommController initialized.");
-
-    // 1️⃣ Initialize DongleComm
-    dongleCommWin = DongleComm(channelId: channelId,isChannel: true);
-    dongleCommWin!.comm = comm;
-    print("DongleComm initialized with channelId: $channelId and comm assigned");
-
-    // 2️⃣ Connect via WiFi
-    print("Connecting to $ip:$port via WiFi...");
-    await comm!.connectWifi(host: ip, port: port);
-    print("WiFi connected.");
-
-    // 3️⃣ Initialize UDSDiagnostic
-    dSDiagnostic ??= UDSDiagnostic(dongleCommWin!,dSDiagnostic);
-    print("UDSDiagnostic initialized.");
-
-    // 4️⃣ Security Access
-    print("Sending Security Access command...");
-    await dongleCommWin!.securityAccess();
-    print("Security Access completed.");
-
-    // 5️⃣ Get MAC ID
-    print("Sending Get MAC ID command...");
-    Uint8List? macResp = await dongleCommWin!.getWifiMacId();
-    print("Raw MAC response: $macResp");
-
-    if (macResp == null || macResp.length < 9) {
-      print("Error: Invalid MAC response");
-      return "";
-    }
-
-    String macId = [
-      macResp[3],
-      macResp[4],
-      macResp[5],
-      macResp[6],
-      macResp[7],
-      macResp[8]
-    ].map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(":");
-    print("Parsed MAC ID: $macId");
-
-    // 6️⃣ Get firmware version
-    print("Sending Get Firmware Version command...");
-    Uint8List? fwResp = await dongleCommWin!.getFirmwareVersion();
-    print("Raw firmware response: $fwResp");
-
-    if (fwResp != null && fwResp.length >= 6) {
-      String ver =
-          '${fwResp[3].toString().padLeft(2,'0')}.${fwResp[4].toString().padLeft(2,'0')}.${fwResp[5].toString().padLeft(2,'0')}';
-      print("Dongle Firmware Version: $ver");
-    }
-
-    // 7️⃣ Initialize DLLFunctions
-    print("Initializing DLLFunctions...");
-    App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
-    print("DLLFunctions initialized.");
-
-    return macId;
-
-  } catch (e) {
-    print("Error @getDongleMacID: $e");
-    return "";
-  } finally {
+  Future<String> getDongleMacID(String ip,
+      {String channelId = "00", int port = 6888}) async {
     try {
-    
-    } catch (_) {}
-  }
-}
+      comm ??= CommController();
+      print("CommController initialized.");
+      dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
+      dongleCommWin!.comm = comm;
+      print(
+          "DongleComm initialized with channelId: $channelId and comm assigned");
+      print("Connecting to $ip:$port via WiFi...");
+      await comm!.connectWifi(host: ip, port: port);
+      print("WiFi connected.");
+      dSDiagnostic ??= UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      print("UDSDiagnostic initialized.");
+      print("Sending Security Access command...");
+      await dongleCommWin!.securityAccess();
+      print("Security Access completed.");
+      print("Sending Get MAC ID command...");
+      Uint8List? macResp = await dongleCommWin!.getWifiMacId();
+      print("Raw MAC response: $macResp");
 
-Future<List<String>> getRP1210FWVersion(
-    String ipAddress, 
-    VCIType vciType, 
-    String channelId
-  ) async {
+      if (macResp == null || macResp.length < 9) {
+        print("Error: Invalid MAC response");
+        return "";
+      }
+
+      String macId = [
+        macResp[3],
+        macResp[4],
+        macResp[5],
+        macResp[6],
+        macResp[7],
+        macResp[8]
+      ].map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase()).join(":");
+      print("Parsed MAC ID: $macId");
+      print("Sending Get Firmware Version command...");
+      Uint8List? fwResp = await dongleCommWin!.getFirmwareVersion();
+      print("Raw firmware response: $fwResp");
+
+      if (fwResp != null && fwResp.length >= 6) {
+        String ver =
+            '${fwResp[3].toString().padLeft(2, '0')}.${fwResp[4].toString().padLeft(2, '0')}.${fwResp[5].toString().padLeft(2, '0')}';
+        print("Dongle Firmware Version: $ver");
+      }
+      print("Initializing DLLFunctions...");
+      App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+      print("DLLFunctions initialized.");
+
+      return macId;
+    } catch (e) {
+      print("Error @getDongleMacID: $e");
+      return "";
+    } finally {
+      try {} catch (_) {}
+    }
+  }
+
+  Future<List<String>> getRP1210FWVersion(
+      String ipAddress, VCIType vciType, String channelId) async {
     try {
       await _socket?.close();
 
@@ -146,9 +117,9 @@ Future<List<String>> getRP1210FWVersion(
         port = int.tryParse(parts[1]) ?? 6888;
       }
 
-      _socket = await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+      _socket =
+          await Socket.connect(host, port, timeout: const Duration(seconds: 5));
 
-      // 1. Determine Connectivity
       Connectivity connType;
       switch (vciType) {
         case VCIType.RP1210:
@@ -163,34 +134,23 @@ Future<List<String>> getRP1210FWVersion(
         default:
           return ["false", "Invalid VCI type selected"];
       }
-
-      // 2. Fix the CommController Initialization
-      // Use the cascade operator (..) to set the value after creation
       comm = CommController()..connectivity.value = connType;
+      dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
+      dongleCommWin!.comm = comm;
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
 
-      // 3. Initialize DongleComm and Diagnostic
-      dongleCommWin = DongleComm(channelId: channelId,isChannel: true);
-      dongleCommWin!.comm = comm; // Assign the controller we just created
-      
-      // Ensure UDSDiagnostic is initialized correctly
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!,dSDiagnostic);
-
-      String fwVersion = "x.x.x"; 
+      String fwVersion = "x.x.x";
 
       if (fwVersion.isNotEmpty) {
-        // 4. Fix Casting: Pass objects as their actual types
-        // dSDiagnostic is UDSDiagnostic, dongleCommWin is DongleComm
-        App.dllFunctions = DLLFunctions(dSDiagnostic! as DongleComm, dongleCommWin! as UDSDiagnostic);
-        
+        App.dllFunctions = DLLFunctions(
+            dSDiagnostic! as DongleComm, dongleCommWin! as UDSDiagnostic);
+
         return ["true", fwVersion];
       } else {
         return ["false", "Failed to read firmware version"];
       }
-
     } catch (e, stackTrace) {
       return ["false", "Exception @getRP1210FWVersion(): $e \n $stackTrace"];
     }
   }
 }
-
-
