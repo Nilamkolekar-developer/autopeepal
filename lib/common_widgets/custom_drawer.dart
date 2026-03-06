@@ -1,6 +1,7 @@
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/dashboard/dasboardController.dart';
+import 'package:autopeepal/logic/controller/dataSyncController.dart';
 import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ class CustomDrawer extends StatelessWidget {
   final String drawerSubtitle = "TEST GREAVES";
   final String subtitle = "TECHNICIAN";
 final DashboardController controller = Get.find();
+final DataSyncController dataSyncController = Get.find();
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +89,7 @@ final DashboardController controller = Get.find();
                       ),
                     ),
                     onTap: () {
-                      Navigator.pop(context);
+                     dataSyncController.dataSyncMethod(context);
                     },
                   ),
                    buildDivider(),

@@ -20,7 +20,137 @@ class GdImageGD {
         'gd_image': gdImage,
       };
 }
+class TreeSetGD {
+  int? id;
+  String? treeId;
+  String? vehicleModel;
+  String? model;
+  String? treeDescription;
+  String? isActive; // always store as String
+  List<TreeDataGD>? treeData;
 
+  TreeSetGD({
+    this.id,
+    this.treeId,
+    this.vehicleModel,
+    this.model,
+    this.treeDescription,
+    this.isActive,
+    this.treeData,
+  });
+
+  factory TreeSetGD.fromJson(Map<String, dynamic> json) => TreeSetGD(
+        id: json['id'],
+        treeId: json['tree_id'],
+        vehicleModel: json['vehicle_model'],
+        model: json['model'],
+        treeDescription: json['tree_description'],
+        isActive: json['is_active']?.toString(), // converts bool -> String if needed
+        treeData: (json['tree_data'] as List<dynamic>?)
+            ?.map((e) => TreeDataGD.fromJson(e))
+            .toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'tree_id': treeId,
+        'vehicle_model': vehicleModel,
+        'model': model,
+        'tree_description': treeDescription,
+        'is_active': isActive,
+        'tree_data': treeData?.map((e) => e.toJson()).toList(),
+      };
+}
+
+class TreeDataGD {
+  int? parent;
+  int? id;
+  String? name;
+  String? description;
+  DataGD? data;
+
+  TreeDataGD({this.parent, this.id, this.name, this.description, this.data});
+
+  factory TreeDataGD.fromJson(Map<String, dynamic> json) => TreeDataGD(
+        parent: json['parent'],
+        id: json['id'],
+        name: json['name'],
+        description: json['description'],
+        data: json['data'] != null ? DataGD.fromJson(json['data']) : null,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'parent': parent,
+        'id': id,
+        'name': name,
+        'description': description,
+        'data': data?.toJson(),
+      };
+}
+
+class DataGD {
+  String? exitScript;
+  List<ImageGD>? images;
+  String? topic;
+  bool? isActive;
+  String? entryScript;
+  TypeFormGD? typeForm;
+  String? type;
+  String? description;
+  DecisionsGD? decisions;
+  String? id;
+  List<dynamic>? globals;
+
+  DataGD({
+    this.exitScript,
+    this.images,
+    this.topic,
+    this.isActive,
+    this.entryScript,
+    this.typeForm,
+    this.type,
+    this.description,
+    this.decisions,
+    this.id,
+    this.globals,
+  });
+
+  factory DataGD.fromJson(Map<String, dynamic> json) => DataGD(
+        exitScript: json['exit_script'],
+        images: (json['images'] as List<dynamic>?)
+            ?.map((e) => ImageGD.fromJson(e))
+            .toList(),
+        topic: json['topic'],
+        isActive: json['is_active'] is bool
+            ? json['is_active']
+            : json['is_active']?.toString() == 'true', // safely parse
+        entryScript: json['entry_script'],
+        typeForm: json['type_form'] != null
+            ? TypeFormGD.fromJson(json['type_form'])
+            : null,
+        type: json['type'],
+        description: json['description'],
+        decisions: json['decisions'] != null
+            ? DecisionsGD.fromJson(json['decisions'])
+            : null,
+        id: json['id'],
+        globals: json['globals'],
+      );
+
+  Map<String, dynamic> toJson() => {
+        'exit_script': exitScript,
+        'images': images?.map((e) => e.toJson()).toList(),
+        'topic': topic,
+        'is_active': isActive,
+        'entry_script': entryScript,
+        'type_form': typeForm?.toJson(),
+        'type': type,
+        'description': description,
+        'decisions': decisions?.toJson(),
+        'id': id,
+        'globals': globals,
+      };
+}
 class ImageGD {
   bool? isActive;
   String? image;
@@ -145,137 +275,7 @@ class DecisionsGD {
       };
 }
 
-class DataGD {
-  String? exitScript;
-  List<ImageGD>? images;
-  String? topic;
-  bool? isActive;
-  String? entryScript;
-  TypeFormGD? typeForm;
-  String? type;
-  String? description;
-  DecisionsGD? decisions;
-  String? id;
-  List<dynamic>? globals;
 
-  DataGD({
-    this.exitScript,
-    this.images,
-    this.topic,
-    this.isActive,
-    this.entryScript,
-    this.typeForm,
-    this.type,
-    this.description,
-    this.decisions,
-    this.id,
-    this.globals,
-  });
-
-  factory DataGD.fromJson(Map<String, dynamic> json) => DataGD(
-        exitScript: json['exit_script'],
-        images: json['images'] != null
-            ? List<ImageGD>.from(json['images'].map((x) => ImageGD.fromJson(x)))
-            : [],
-        topic: json['topic'],
-        isActive: json['is_active'],
-        entryScript: json['entry_script'],
-        typeForm: json['type_form'] != null
-            ? TypeFormGD.fromJson(json['type_form'])
-            : null,
-        type: json['type'],
-        description: json['description'],
-        decisions: json['decisions'] != null
-            ? DecisionsGD.fromJson(json['decisions'])
-            : null,
-        id: json['id'],
-        globals:
-            json['globals'] != null ? List<dynamic>.from(json['globals']) : [],
-      );
-
-  Map<String, dynamic> toJson() => {
-        'exit_script': exitScript,
-        'images': images?.map((x) => x.toJson()).toList(),
-        'topic': topic,
-        'is_active': isActive,
-        'entry_script': entryScript,
-        'type_form': typeForm?.toJson(),
-        'type': type,
-        'description': description,
-        'decisions': decisions?.toJson(),
-        'id': id,
-        'globals': globals,
-      };
-}
-
-class TreeDataGD {
-  int? parent;
-  DataGD? data;
-  String? name;
-  int? id;
-  String? description;
-
-  TreeDataGD({this.parent, this.data, this.name, this.id, this.description});
-
-  factory TreeDataGD.fromJson(Map<String, dynamic> json) => TreeDataGD(
-        parent: json['parent'],
-        data: json['data'] != null ? DataGD.fromJson(json['data']) : null,
-        name: json['name'],
-        id: json['id'],
-        description: json['description'],
-      );
-
-  Map<String, dynamic> toJson() => {
-        'parent': parent,
-        'data': data?.toJson(),
-        'name': name,
-        'id': id,
-        'description': description,
-      };
-}
-
-class TreeSetGD {
-  int? id;
-  String? treeId;
-  String? vehicleModel;
-  String? model;
-  String? treeDescription;
-  List<TreeDataGD>? treeData;
-  String? isActive;
-
-  TreeSetGD({
-    this.id,
-    this.treeId,
-    this.vehicleModel,
-    this.model,
-    this.treeDescription,
-    this.treeData,
-    this.isActive,
-  });
-
-  factory TreeSetGD.fromJson(Map<String, dynamic> json) => TreeSetGD(
-        id: json['id'],
-        treeId: json['tree_id'],
-        vehicleModel: json['vehicle_model'],
-        model: json['model'],
-        treeDescription: json['tree_description'],
-        treeData: json['tree_data'] != null
-            ? List<TreeDataGD>.from(
-                json['tree_data'].map((x) => TreeDataGD.fromJson(x)))
-            : [],
-        isActive: json['is_active'],
-      );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'tree_id': treeId,
-        'vehicle_model': vehicleModel,
-        'model': model,
-        'tree_description': treeDescription,
-        'tree_data': treeData?.map((x) => x.toJson()).toList(),
-        'is_active': isActive,
-      };
-}
 
 class DtcGD {
   int? id;
@@ -391,7 +391,7 @@ class GdModelGD {
             ? List<ResultGD>.from(
                 json['results'].map((x) => ResultGD.fromJson(x)))
             : [],
-        message: json['message'],
+        message: json['message'].toString(),
       );
 
   Map<String, dynamic> toJson() => {
@@ -399,10 +399,9 @@ class GdModelGD {
         'next': next,
         'previous': previous,
         'results': results?.map((x) => x.toJson()).toList(),
-        'message': message,
+        'message': message.toString(),
       };
 }
-
 
 // ----------------- Group and TypeForm -----------------
 class GroupModel {
@@ -412,7 +411,12 @@ class GroupModel {
   String? entryDescription;
   String? groupName;
 
-  GroupModel({this.upperLimit, this.lowerLimit, this.unit, this.entryDescription, this.groupName});
+  GroupModel(
+      {this.upperLimit,
+      this.lowerLimit,
+      this.unit,
+      this.entryDescription,
+      this.groupName});
 
   factory GroupModel.fromJson(Map<String, dynamic> json) => GroupModel(
         upperLimit: json['upper_limit'],
@@ -437,7 +441,8 @@ class TypeFormModel {
   List<String>? entryGroupNames;
   List<GroupModel>? groups;
 
-  TypeFormModel({this.topic, this.description, this.entryGroupNames, this.groups});
+  TypeFormModel(
+      {this.topic, this.description, this.entryGroupNames, this.groups});
 
   factory TypeFormModel.fromJson(Map<String, dynamic> json) => TypeFormModel(
         topic: json['topic'],
@@ -446,7 +451,8 @@ class TypeFormModel {
             ? List<String>.from(json['entry_group_names'])
             : [],
         groups: json['groups'] != null
-            ? List<GroupModel>.from(json['groups'].map((x) => GroupModel.fromJson(x)))
+            ? List<GroupModel>.from(
+                json['groups'].map((x) => GroupModel.fromJson(x)))
             : [],
       );
 
@@ -466,7 +472,8 @@ class DecissionListModel {
 
   DecissionListModel({this.node, this.textVal, this.type});
 
-  factory DecissionListModel.fromJson(Map<String, dynamic> json) => DecissionListModel(
+  factory DecissionListModel.fromJson(Map<String, dynamic> json) =>
+      DecissionListModel(
         node: json['node'],
         textVal: json['text_val'],
         type: json['type'],
@@ -488,7 +495,8 @@ class DecisionsModel {
   factory DecisionsModel.fromJson(Map<String, dynamic> json) => DecisionsModel(
         type: json['type'],
         data: json['data'] != null
-            ? List<DecissionListModel>.from(json['data'].map((x) => DecissionListModel.fromJson(x)))
+            ? List<DecissionListModel>.from(
+                json['data'].map((x) => DecissionListModel.fromJson(x)))
             : [],
       );
 
@@ -527,9 +535,13 @@ class DataModel {
   });
 
   factory DataModel.fromJson(Map<String, dynamic> json) => DataModel(
-        typeForm: json['type_form'] != null ? TypeFormModel.fromJson(json['type_form']) : null,
+        typeForm: json['type_form'] != null
+            ? TypeFormModel.fromJson(json['type_form'])
+            : null,
         description: json['description'],
-        decisions: json['decisions'] != null ? DecisionsModel.fromJson(json['decisions']) : null,
+        decisions: json['decisions'] != null
+            ? DecisionsModel.fromJson(json['decisions'])
+            : null,
         isActive: json['is_active'],
         exitScript: json['exit_script'],
         topic: json['topic'],
@@ -592,7 +604,14 @@ class TreeSet extends ChangeNotifier {
   String? vehicleModel;
   List<TreeData>? treeData;
 
-  TreeSet({this.id, this.treeId, this.isActive, this.model, this.treeDescription, this.vehicleModel, this.treeData});
+  TreeSet(
+      {this.id,
+      this.treeId,
+      this.isActive,
+      this.model,
+      this.treeDescription,
+      this.vehicleModel,
+      this.treeData});
 
   factory TreeSet.fromJson(Map<String, dynamic> json) => TreeSet(
         id: json['id'],
@@ -602,7 +621,8 @@ class TreeSet extends ChangeNotifier {
         treeDescription: json['tree_description'],
         vehicleModel: json['vehicle_model'],
         treeData: json['tree_data'] != null
-            ? List<TreeData>.from(json['tree_data'].map((x) => TreeData.fromJson(x)))
+            ? List<TreeData>.from(
+                json['tree_data'].map((x) => TreeData.fromJson(x)))
             : [],
       );
 
@@ -675,14 +695,16 @@ class Info {
 
   factory Info.fromJson(Map<String, dynamic> json) => Info(
         causes: json['causes'],
-        created: json['created'] != null ? DateTime.parse(json['created']) : null,
+        created:
+            json['created'] != null ? DateTime.parse(json['created']) : null,
         ecuNameId: json['ecu_name_id'],
         effectsOnVehicle: json['effects_on_vehicle'],
         gdDescription: json['gd_description'],
         gdId: json['gd_id'],
         id: json['id'],
         isActive: json['is_active'],
-        modified: json['modified'] != null ? DateTime.parse(json['modified']) : null,
+        modified:
+            json['modified'] != null ? DateTime.parse(json['modified']) : null,
         model: json['model'],
         nameId: json['name_id'],
         occurringConditions: json['occurring_conditions'],
