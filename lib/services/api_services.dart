@@ -89,22 +89,82 @@ class AuthApiService {
 //     }
 //   }
 
+//   static Future<UserResModel> login(UserModel model) async {
+//     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
+
+//     UserResModel loginResponse = UserResModel();
+
+//     try {
+//       final jsonBody = jsonEncode(model.toJson());
+//       final response = await http.post(
+//         url,
+//         headers: {
+//           'Content-Type': 'application/json',
+//         },
+//         body: jsonBody,
+//       );
+
+//       debugPrint("""
+// LOGIN API
+// URL: $url
+// REQUEST:
+// $jsonBody
+// RESPONSE:
+// ${response.body}
+// """);
+
+//       if (response.statusCode == 200) {
+//         loginResponse = UserResModel.fromJson(jsonDecode(response.body));
+
+//         // Save tokens if available
+//         if (loginResponse.token != null) {
+//           await AppPreferences.saveTokens(
+//             accessToken: loginResponse.token!.access ?? '',
+//             refreshToken: loginResponse.token!.refresh ?? '',
+//           );
+//         }
+
+//         // Save basic user info
+//         await AppPreferences.saveUser(
+//           userId: loginResponse.userId.toString(),
+//           name:
+//               "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
+//           email: loginResponse.user ?? '',
+//         );
+
+//         loginResponse.message = "success";
+//       } else if (response.statusCode == 401) {
+//         loginResponse.message = 'Invalid username or password';
+//       } else if (response.statusCode == 403) {
+//         loginResponse.message = 'Device not authorized';
+//       } else {
+//         loginResponse.message = 'Login failed (${response.statusCode})';
+//       }
+//     } catch (e) {
+//       // Network or other exception
+//       loginResponse.message = "Exception @AuthApiService.login(): $e";
+//     }
+
+//     return loginResponse;
+//   }
+
   static Future<UserResModel> login(UserModel model) async {
     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
-
     UserResModel loginResponse = UserResModel();
 
     try {
+      // Serialize request body
       final jsonBody = jsonEncode(model.toJson());
+
+      // HTTP POST request
       final response = await http.post(
         url,
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: {'Content-Type': 'application/json'},
         body: jsonBody,
       );
 
-      debugPrint("""
+      // Debug log
+      print("""
 LOGIN API
 URL: $url
 REQUEST:
@@ -114,24 +174,25 @@ ${response.body}
 """);
 
       if (response.statusCode == 200) {
+        // Deserialize response
         loginResponse = UserResModel.fromJson(jsonDecode(response.body));
 
-        // Save tokens if available
+        // Save token in SharedPreferences
         if (loginResponse.token != null) {
           await AppPreferences.saveTokens(
-            accessToken: loginResponse.token!.access ?? '',
-            refreshToken: loginResponse.token!.refresh ?? '',
+            accessToken: loginResponse.token?.access ?? '',
+            refreshToken: loginResponse.token?.refresh ?? '',
           );
         }
 
         // Save basic user info
         await AppPreferences.saveUser(
           userId: loginResponse.userId.toString(),
-          name:
-              "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
+          name: "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
           email: loginResponse.user ?? '',
         );
 
+        // Set message as success
         loginResponse.message = "success";
       } else if (response.statusCode == 401) {
         loginResponse.message = 'Invalid username or password';
@@ -141,12 +202,12 @@ ${response.body}
         loginResponse.message = 'Login failed (${response.statusCode})';
       }
     } catch (e) {
-      // Network or other exception
       loginResponse.message = "Exception @AuthApiService.login(): $e";
     }
 
     return loginResponse;
   }
+
 
   static Future<AllModelsModel> getAllModels([int? oemId]) async {
     final allModels = AllModelsModel();
@@ -1047,36 +1108,74 @@ STATUS CODE: ${response.statusCode}
     }
   }
 
+  // Future<GdModelGD> getGD(int submodelId) async {
+  //   GdModelGD result = GdModelGD();
+  //   final token =await AppPreferences.getAccessToken();
+  //   try {
+      
+  //       final url =
+  //           Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
+  //       final response = await http.get(
+  //         url,
+  //         headers: {
+  //           'Content-Type': 'application/json',
+  //           'Authorization': 'JWT $token',
+  //         },
+  //       );
+
+  //       final data = response.body;
+
+  //       if (response.statusCode == 200) {
+  //         result = GdModelGD.fromJson(json.decode(data));
+  //         result.message = "success";
+  //       } else {
+  //         result.message = "${response.statusCode}\n$data";
+  //       }
+      
+  //     return result;
+  //   } catch (ex) {
+  //     result.message = "Exception in getGD(): ${ex.toString()}";
+  //     return result;
+  //   }
+  // }
+
   Future<GdModelGD> getGD(int submodelId) async {
-    GdModelGD result = GdModelGD();
-    final token =await AppPreferences.getAccessToken();
-    try {
-      
-        final url =
-            Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
-        final response = await http.get(
-          url,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'JWT $token',
-          },
-        );
+  GdModelGD result = GdModelGD(message: ''); // initialize message safely
+  final token = await AppPreferences.getAccessToken();
 
-        final data = response.body;
+  try {
+    final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
+    print("🔹 GET URL: $url"); // print URL
 
-        if (response.statusCode == 200) {
-          result = GdModelGD.fromJson(json.decode(data));
-          result.message = "success";
-        } else {
-          result.message = "${response.statusCode}\n$data";
-        }
-      
-      return result;
-    } catch (ex) {
-      result.message = "Exception in getGD(): ${ex.toString()}";
-      return result;
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'JWT $token',
+      },
+    );
+
+    print("🔹 Response Status: ${response.statusCode}");
+    print("🔹 Response Body: ${response.body}");
+
+    final data = response.body;
+
+    if (response.statusCode == 200) {
+      result = GdModelGD.fromJson(json.decode(data));
+      result.message = "success";
+      print("✅ GD parsed successfully: ${result.results?.length ?? 0} items");
+    } else {
+      result.message = "${response.statusCode}\n$data";
+      print("❌ Error fetching GD: ${result.message}");
     }
+
+    return result;
+  } catch (ex) {
+    result.message = "Exception in getGD(): ${ex.toString()}";
+    print("⚠️ Exception in getGD(): ${ex.toString()}");
+    return result;
   }
+}
 
   Future<String> readTextFile(String fileName) async {
     try {

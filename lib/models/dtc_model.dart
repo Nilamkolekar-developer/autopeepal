@@ -276,7 +276,7 @@ class DtcCode {
   int? id;
   String? code;
   String? description;
-  String? isActive;
+  bool? isActive;
   String? statusActivation;
   String? lampActivation;
 

@@ -1,4 +1,5 @@
 import 'package:ap_diagnostic/usd_diagnostic.dart';
+import 'package:autopeepal/logic/controller/dataSyncController.dart';
 import 'package:get/get.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
 import 'package:ap_dongle_comm/utils/commController.dart';
@@ -27,5 +28,7 @@ class AppBinding extends Bindings {
       ),
       permanent: true,
     );
+    Get.put(DataSyncController(),permanent: true);
   }
+  
 }
