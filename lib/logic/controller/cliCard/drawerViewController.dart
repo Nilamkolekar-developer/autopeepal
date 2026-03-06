@@ -30,27 +30,7 @@ final _storage =GetStorage();
   @override
   void onInit() {
     super.onInit();
-    fetchDevices();
-  }
-
-  void fetchDevices() async {
-    try {
-      isLoading.value = true;
-      wifiDevices.clear();
-
-      final services = await connectionWifi.getDeviceList();
-
-      if (services != null && services.isNotEmpty) {
-        for (var s in services) {
-          final device = WifiDevicesModel(name: s.name, ip: s.ip);
-          wifiDevices.add(device);
-        }
-      }
-    } catch (e) {
-      print("Error fetching devices: $e");
-    } finally {
-      isLoading.value = false;
-    }
+   
   }
 
 Future<void> connectDevice(WifiDevicesModel device, BuildContext context) async {

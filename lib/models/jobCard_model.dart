@@ -180,7 +180,7 @@ class JobCardListModel {
   String? registrationNo;
   String? vehicleSegment;
   String? jobcardStatus;
-  String? showStartDate;
+  DateTime? showStartDate;
   String? source;
   String? workshop;
   String? city;

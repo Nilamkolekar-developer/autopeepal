@@ -16,6 +16,7 @@ import 'package:autopeepal/logic/bindings/terminal_bindings.dart';
 import 'package:autopeepal/logic/bindings/writeParameter_bindings.dart';
 import 'package:autopeepal/views/screens/auth/login.dart';
 import 'package:autopeepal/views/screens/auth/register.dart';
+import 'package:autopeepal/views/screens/clicard/createJobCard.dart';
 import 'package:autopeepal/views/screens/clicard/vciTypes.dart';
 import 'package:autopeepal/views/screens/clicard/jobCard.dart';
 import 'package:autopeepal/views/screens/clicard/jobCardDetails.dart';
@@ -166,6 +167,12 @@ class AppRoutes {
       name: Routes.registerScreen,
       binding: RegisterBindings(),
       page: () => RegisterScreen(),
+    ),
+
+    GetPage(
+      name: Routes.createJobCardScreen,
+      //binding: RegisterBindings(),
+      page: () => CreateJobCardScreen(),
     ),
   ];
 }

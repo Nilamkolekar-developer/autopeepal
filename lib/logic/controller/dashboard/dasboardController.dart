@@ -5,9 +5,11 @@ import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/app.dart';
 import 'package:autopeepal/common_widgets/commonLoader.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
+import 'package:autopeepal/logic/controller/cliCard/drawerViewController.dart';
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/doipConfigFile_model.dart';
 import 'package:autopeepal/models/staticData.dart';
+import 'package:autopeepal/models/wifiDevice_model.dart';
 import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/services/api_services.dart';
 import 'package:autopeepal/services/connectionUsbService.dart';
@@ -215,7 +217,7 @@ class DashboardController extends GetxController {
     }
   }
 
-  Future<void> wifiConnect(BuildContext context) async {
+  Future<void> wifiConnect1(BuildContext context) async {
     try {
       // 🔴 Validation: Model & SubModel
       if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
@@ -277,6 +279,117 @@ class DashboardController extends GetxController {
       debugPrintStack(stackTrace: stack);
     } finally {
       isLoading.value = false;
+
+//       // Make sure loader is dismissed in finally
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+    }
+  }
+
+  Future<void> wifiConnect(BuildContext context) async {
+    try {
+      // 🔴 Validation: Model & SubModel
+      if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
+        await showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Please Select model and submodel",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return;
+      }
+
+      // 🔴 Validation: VCI
+      if (selectedVciType.value.isEmpty ||
+          selectedVciType.value == "Select VCI") {
+        await showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Alert",
+            message: "Please Select VCI Type",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+        return; // ⚠ Important: exit function after validation
+      }
+
+      // 🟡 Loading
+      isLoading.value = true;
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      // 🔌 Save connection type
+      await AppPreferences.setConnectedVia("WIFI");
+
+      // Show loader
+      Get.dialog(
+        const CommonLoader(message: "Scanning..."),
+        barrierDismissible: false,
+      );
+      final connectionWifi = ConnectionWifi();
+      final wifiDeviceList = await connectionWifi.getDeviceList();
+      final controller = Get.find<DrawerViewController>();
+//Save devices in controller
+      if (wifiDeviceList != null && wifiDeviceList.isNotEmpty) {
+        controller.wifiDevices.value = wifiDeviceList
+            .map((s) => WifiDevicesModel(name: s.name, ip: s.ip))
+            .toList();
+
+        if (context.mounted) {
+          Get.back(); // dismiss loader
+          Get.toNamed(Routes.wifiScreen); // display list immediately
+        }
+      }
+      //  final connectionWifi = ConnectionWifi();
+      // final wifiDeviceList = await connectionWifi.getDeviceList();
+
+      // if (wifiDeviceList != null && wifiDeviceList.isNotEmpty) {
+      //   if (context.mounted) {
+      //     Get.toNamed(Routes.wifiScreen);
+      //   }
+      // }
+      else {
+        // ❌ Dongle not found
+        if (context.mounted) {
+          Get.back(); // dismiss loader before showing popup
+          await showDialog(
+            context: context,
+            builder: (context) => CustomPopup(
+              title: "Failed",
+              message: "Dongle not found",
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+        }
+      }
+    } catch (e, stack) {
+      debugPrint("❌ WifiConnect error: $e");
+      debugPrintStack(stackTrace: stack);
+
+      // Dismiss loader on error
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
+
+      if (context.mounted) {
+        await showDialog(
+          context: context,
+          builder: (context) => CustomPopup(
+            title: "Error",
+            message: "Something went wrong: $e",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+      }
+    } finally {
+      isLoading.value = false;
+
+      // Make sure loader is dismissed in finally
+      if (Get.isDialogOpen ?? false) {
+        Get.back();
+      }
     }
   }
 
@@ -290,6 +403,7 @@ class DashboardController extends GetxController {
       print("Checking selectedModel and selectedSubModel...");
       if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
         print("❌ Model or SubModel not selected");
+        closeLoader(); // ⭐ CLOSE LOADER FIRST
         showDialog(
           context: context,
           builder: (context) => CustomPopup(
@@ -304,6 +418,7 @@ class DashboardController extends GetxController {
       if (selectedVciType.value.isEmpty ||
           selectedVciType.value == "Select VCI") {
         print("❌ VCI Type not selected");
+        closeLoader(); // ⭐ CLOSE LOADER FIRST
         showDialog(
           context: context,
           builder: (context) => CustomPopup(
@@ -323,6 +438,7 @@ class DashboardController extends GetxController {
       print("ECU Info: $ecuInfo");
       if (ecuInfo.isEmpty || ecuInfo.first.channelId == null) {
         print("❌ Invalid Channel Id Format");
+        closeLoader(); // ⭐ CLOSE LOADER FIRST
         showDialog(
           context: context,
           builder: (context) => CustomPopup(
@@ -339,6 +455,7 @@ class DashboardController extends GetxController {
         channelId = '0${channelSplit[1]}';
       } else {
         print("❌ Invalid Channel Id Format (split length <=1)");
+        closeLoader(); // ⭐ CLOSE LOADER FIRST
         showDialog(
           context: context,
           builder: (context) => CustomPopup(
@@ -368,6 +485,7 @@ class DashboardController extends GetxController {
 
         if (doipConfigLocal == null || doipConfigLocal.isEmpty) {
           print("❌ DOIP Configuration data not available");
+          closeLoader(); // ⭐ CLOSE LOADER FIRST
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -387,6 +505,7 @@ class DashboardController extends GetxController {
 
         if (doipConfigModel == null) {
           print("❌ DOIP Config for ECU not found");
+          closeLoader(); // ⭐ CLOSE LOADER FIRST
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -416,6 +535,7 @@ class DashboardController extends GetxController {
 
       if (!isConnected) {
         print("❌ Failed to connect dongle");
+        closeLoader(); // ⭐ CLOSE LOADER FIRST
         showDialog(
           context: context,
           builder: (context) => CustomPopup(
@@ -436,6 +556,7 @@ class DashboardController extends GetxController {
 
         if (macResult[0] != "true") {
           print("❌ MAC ID error: ${macResult[1]}");
+          closeLoader(); // ⭐ CLOSE LOADER FIRST
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -466,6 +587,7 @@ class DashboardController extends GetxController {
 
         if (fwResult[0] != "true") {
           print("❌ Firmware error: ${fwResult[1]}");
+          closeLoader(); // ⭐ CLOSE LOADER FIRST
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -484,6 +606,7 @@ class DashboardController extends GetxController {
 
         if (status != "Success") {
           print("❌ DLL Property error: $status");
+          closeLoader(); // ⭐ CLOSE LOADER FIRST
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -499,6 +622,7 @@ class DashboardController extends GetxController {
         print("USB connection complete for RP1210/CAN2xFD/DOIP");
       } else {
         print("❌ Invalid VCI Type Selected");
+        closeLoader(); // ⭐ CLOSE LOADER FIRST
         showDialog(
           context: context,
           builder: (context) => CustomPopup(
@@ -513,6 +637,7 @@ class DashboardController extends GetxController {
       print("Firmware version: $firmware");
 
       if (firmware.isNotEmpty) {
+        closeLoader();
         App.firmwareVersion = firmware;
         App.connectedVia = "USB";
 
@@ -544,13 +669,14 @@ class DashboardController extends GetxController {
       debugPrintStack(stackTrace: stack);
     } finally {
       isLoading.value = false;
+      if (Get.isDialogOpen ?? false) Get.back();
       print("🔹 usbConnect finished");
     }
   }
 
   void closeLoader() {
     if (Get.isDialogOpen ?? false) {
-      Get.back();
+      Get.back(); // closes CommonLoader
     }
   }
 }

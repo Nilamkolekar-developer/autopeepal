@@ -1,8 +1,6 @@
-import 'package:autopeepal/common_widgets/commonLoader.dart';
-import 'package:autopeepal/common_widgets/popup.dart';
+import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/cliCard/jobCardDetailsController.dart';
-import 'package:autopeepal/logic/controller/dashboard/dasboardController.dart';
 import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:flutter/material.dart';
@@ -13,30 +11,19 @@ class JobCardDetailsPage extends StatelessWidget {
 
   final JobCardDetailsController controller =
       Get.put(JobCardDetailsController());
-  final DashboardController dashboardController =
-      Get.find<DashboardController>();
   final Color primaryColor = const Color(0xFFFF7A00);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-       backgroundColor: AppColors.pagebgColor,
-      appBar: AppBar(
-        backgroundColor: primaryColor,
-        elevation: 0,
-        title: const Text("Job Card Details"),
-        actions: [
-          Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: Center(
-              child: Text(
-                controller.vciName,
-                style:
-                    TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-            ),
-          )
-        ],
+      backgroundColor: AppColors.pagebgColor,
+      appBar: appBar(
+        title: "Job Card Details",
+        isBack: true,
+        showSelectVci: true,
+        onSelectVciTap: () {
+          Get.toNamed(Routes.cliCard);
+        },
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -45,11 +32,10 @@ class JobCardDetailsPage extends StatelessWidget {
             _detailsCard(),
             C50(),
             Column(
-              mainAxisSize: MainAxisSize.min, // prevents extra vertical space
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                      vertical: 20), // smaller padding
+                  padding: const EdgeInsets.symmetric(vertical: 20),
                   child: const Text(
                     "Start Diagnosis\nby connecting Dongle via",
                     textAlign: TextAlign.center,
@@ -59,14 +45,13 @@ class JobCardDetailsPage extends StatelessWidget {
                   ),
                 ),
                 Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.spaceAround, // tighter spacing
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _connectionButton(
                       icon: Icons.usb,
                       label: "USB",
-                      onTap: () {
-                        Get.toNamed(Routes.usbWebScreen);
+                      onTap: () async {
+                        await controller.usbConnect(context);
                       },
                     ),
                     _connectionButton(
@@ -75,39 +60,7 @@ class JobCardDetailsPage extends StatelessWidget {
                       onTap: () async {
                         print("📶 WiFi tapped");
 
-                        Get.dialog(
-                          const CommonLoader(message: "Scanning..."),
-                          barrierDismissible: false,
-                        );
-
-                        bool deviceFound = false;
-                        await dashboardController.mdnsDiscoveryService
-                            .startDiscovery();
-                        final subscription = dashboardController
-                            .mdnsDiscoveryService.discoveredServices
-                            .listen((device) {
-                          print("✅ Device detected during tap: $device");
-                          deviceFound = true;
-                        });
-
-                        await Future.delayed(const Duration(seconds: 5));
-                        await subscription.cancel();
-
-                        if (Get.isDialogOpen ?? false) Get.back();
-
-                        if (deviceFound) {
-                          print("🚀 Redirecting to WiFi screen");
-                          Get.toNamed(Routes.wifiScreen);
-                        } else {
-                          print("❌ No device found");
-                          Get.dialog(
-                            CustomPopup(
-                              title: "Failed",
-                              message: "Dongle not found",
-                              onButtonPressed: () => Get.back(),
-                            ),
-                          );
-                        }
+                        await controller.wifiConnect(context);
                       },
                     ),
                   ],
@@ -121,42 +74,46 @@ class JobCardDetailsPage extends StatelessWidget {
   }
 
   Widget _detailsCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _rowItem("Job Card No", controller.jobCardNo),
-          _divider(),
-          _rowItem("Model", controller.model),
-          _divider(),
-          Row(
-            children: [
-              Expanded(
-                child: _columnItem(
-                  "Registration Number",
-                  controller.registrationNumber,
+    return Obx(() {
+      final job = controller.jobCard.value;
+
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade300),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _rowItem("Job Card No", job?.sessionId ?? ''),
+            _divider(),
+            _rowItem("Model", (job?.modelWithSubmodel ?? 0).toString()),
+            _divider(),
+            Row(
+              children: [
+                Expanded(
+                  child: _columnItem(
+                    "Registration Number",
+                    job?.registrationNo ?? '',
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _columnItem(
-                  "KM Covered",
-                  controller.kmCovered,
+                Expanded(
+                  child: _columnItem(
+                    "KM Covered",
+                    job?.kmCovered?.toString() ?? '', // null-safe string
+                  ),
                 ),
-              ),
-            ],
-          ),
-          _divider(),
-          _rowItem("Chassis ID", controller.chassisId),
-          _divider(),
-          _rowItem("Complaints", controller.complaints),
-        ],
-      ),
-    );
+              ],
+            ),
+            _divider(),
+            _rowItem("Chassis ID", job?.chasisId ?? ''),
+            _divider(),
+            _rowItem("Complaints", job?.complaints ?? ''),
+          ],
+        ),
+      );
+    });
   }
 
   Widget _rowItem(String title, String value) {
@@ -171,10 +128,7 @@ class JobCardDetailsPage extends StatelessWidget {
         C2(),
         Text(
           value,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade900
-
-              // fontWeight: FontWeight.w500,
-              ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade900),
         ),
       ],
     );
@@ -192,9 +146,7 @@ class JobCardDetailsPage extends StatelessWidget {
         C2(),
         Text(
           value,
-          style: TextStyle(fontSize: 14, color: Colors.grey.shade900
-              //fontWeight: FontWeight.w500,
-              ),
+          style: TextStyle(fontSize: 14, color: Colors.grey.shade900),
         ),
       ],
     );

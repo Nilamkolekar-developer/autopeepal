@@ -341,24 +341,70 @@ class DLLFunctions {
     }
   }
 
+  // List<SessionLogsModel> getLogs() {
+  //   final logs = mDongleComm.logs; // <-- added missing semicolon
+  //   final List<SessionLogsModel> sessionLogsModel = [];
+
+  //   for (final item in logs!) {
+  //     sessionLogsModel.add(SessionLogsModel(
+  //       header: item.header,
+  //       message: item.message,
+  //       status: item.status == "NOERROR" ? '' : item.status,
+  //     ));
+  //   }
+
+  //   return sessionLogsModel;
+  // }
+
+  // void clearLogs() {
+  //   mDongleComm.logs = <SessionLogsModel>[];
+  // }
+
   List<SessionLogsModel> getLogs() {
-    final logs = mDongleComm.logs; // <-- added missing semicolon
-    final List<SessionLogsModel> sessionLogsModel = [];
+  print("DLLFunctions.getLogs: Start");
 
-    for (final item in logs!) {
-      sessionLogsModel.add(SessionLogsModel(
-        header: item.header,
-        message: item.message,
-        status: item.status == "NOERROR" ? '' : item.status,
-      ));
-    }
-
-    return sessionLogsModel;
+  // Check mDongleComm
+  if (mDongleComm == null) {
+    print("Error: mDongleComm is null!");
+    return [];
+  } else {
+    print("DLLFunctions.getLogs: mDongleComm exists");
   }
 
-  void clearLogs() {
-    mDongleComm.logs = <SessionLogsModel>[];
+  final logs = mDongleComm.logs;
+  print("DLLFunctions.getLogs: raw logs = $logs");
+
+  if (logs == null) {
+    print("DLLFunctions.getLogs: logs list is null, returning empty list");
+    return [];
   }
+
+  final List<SessionLogsModel> sessionLogsModel = [];
+  for (final item in logs) {
+    print("DLLFunctions.getLogs: processing item = $item");
+    sessionLogsModel.add(SessionLogsModel(
+      header: item.header,
+      message: item.message,
+      status: item.status == "NOERROR" ? '' : item.status,
+     // color: item.color, // optional, if SessionLogsModel has it
+    ));
+  }
+
+  print(
+      "DLLFunctions.getLogs: Finished, returning ${sessionLogsModel.length} items");
+  return sessionLogsModel;
+}
+
+void clearLogs() {
+  print("DLLFunctions.clearLogs: Start");
+  if (mDongleComm == null) {
+    print("Error: mDongleComm is null! Cannot clear logs");
+    return;
+  }
+
+  mDongleComm.logs = <SessionLogsModel>[];
+  print("DLLFunctions.clearLogs: Logs cleared");
+}
 
   // Future<String> getFirmware() async {
   //   try {

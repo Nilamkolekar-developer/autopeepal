@@ -20,9 +20,11 @@ import 'package:autopeepal/models/registerDongle_model.dart';
 import 'package:autopeepal/models/remoteJobCard_model.dart';
 import 'package:autopeepal/models/unlockecu_model.dart';
 import 'package:autopeepal/models/updateFirmware_model.dart';
+import 'package:autopeepal/routes/routes_string.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart' as client;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -394,58 +396,73 @@ STATUS CODE: ${response.statusCode}
     return jobCardNumber;
   }
 
-  Future<List<JobCardModel>?> getJobCard({String? filename}) async {
-    try {
-      final token = await SharedPreferences.getInstance();
-      List<JobCardModel>? jobCards;
+  Future<List<JobCardModel>?> getJobCard(String filename) async {
+  try {
+    final token = await AppPreferences.getAccessToken();
+    final prefs = await SharedPreferences.getInstance();
 
-      // Check internet connectivity (simple approach)
-      bool isOnline = true; // Replace with connectivity check if needed
+    List<JobCardModel>? jobCards;
+    var connectivityResult = await Connectivity().checkConnectivity();
+    bool isOnline = connectivityResult != ConnectivityResult.none;
 
-      if (isOnline) {
-        final response = await http.get(
-          Uri.parse(AppEnvironment.baseUrl + AppURLs.getJobCard),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'JWT $token',
-          },
-        );
+    if (isOnline) {
+      final response = await http.get(
+        Uri.parse(AppEnvironment.baseUrl + AppURLs.getJobCard),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'JWT $token',
+        },
+      );
 
-        if (response.statusCode == 401) {
-          // Unauthorized
-          print("Unauthorized: You need to login again.");
-          return null;
-        } else if (response.statusCode == 200) {
-          final data = response.body;
-          jobCards = (jsonDecode(data) as List)
-              .map((e) => JobCardModel.fromJson(e))
-              .toList();
+      final data = response.body;
 
-          // Save locally for offline use
-          await token.setString('JsonList', data);
+      if (response.statusCode == 401) {
+        print("Unauthorized: Login again");
+        Get.offAll(Routes.loginScreen);
+        return null;
+      } 
+      else if (response.statusCode == 200) {
 
-          return jobCards;
-        } else {
-          final data = response.body;
-          final detail = jsonDecode(data)['detail'];
-          print("Error: $detail");
-          return null;
-        }
-        // ignore: dead_code
-      } else {
-        // Offline: load from local storage
-        final jsonListData = token.getString('JsonList') ?? '[]';
-        jobCards = (jsonDecode(jsonListData) as List)
+        final decoded = jsonDecode(data) as List;
+
+        jobCards = decoded
             .map((e) => JobCardModel.fromJson(e))
             .toList();
+        await prefs.setString('JsonList', data);
+
+        return jobCards;
+      } 
+      else {
+        final detail = jsonDecode(data)['detail'];
+        print("Error: $detail");
+        return null;
+      }
+    } 
+    else {
+      /// Offline mode → Load from local storage
+      final jsonListData = prefs.getString('JsonList');
+
+      if (jsonListData != null) {
+        final decoded = jsonDecode(jsonListData) as List;
+
+        jobCards = decoded
+            .map((e) => JobCardModel.fromJson(e))
+            .toList();
+
         return jobCards;
       }
-    } catch (e) {
-      print("Exception: $e");
-      // Navigate to login page or handle session expiration
+
       return null;
     }
+  } 
+  catch (ex) {
+    print("Session Expired: $ex");
+
+    Get.offAll(Routes.loginScreen);
+
+    return null;
   }
+}
 
   Future<CheckJobCardModel?> checkJobCard(String jobCardNumber) async {
     try {

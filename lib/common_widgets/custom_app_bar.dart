@@ -34,10 +34,74 @@ AppBar appBarWithTitle({
   );
 }
 
+// AppBar appBar({
+//   required String title,
+//   List<Widget>? actions,
+//   VoidCallback? onMenuTap,
+//   bool showSelectVci = false,
+//   VoidCallback? onSelectVciTap,
+// }) {
+//   return AppBar(
+//     titleSpacing: 10,
+//     leading: Builder(
+//       builder: (context) {
+//         return IconButton(
+//           icon: const Icon(
+//             Icons.menu,
+//             color: Colors.white,
+//             size: 35,
+//           ),
+//           onPressed: onMenuTap ??
+//               () {
+//                 Scaffold.of(context).openDrawer();
+//               },
+//         );
+//       },
+//     ),
+//     title: Text(
+//       title,
+//       style: TextStyles.appBarTitle.copyWith(
+//         fontWeight: FontWeight.w600,
+//       ),
+//       maxLines: maxTitleLine,
+//       overflow: TextOverflow.ellipsis,
+//     ),
+//     actions: [
+//       if (showSelectVci)
+//         Padding(
+//           padding: const EdgeInsets.only(right: 16),
+//           child: Obx(() {
+//             final controller = Get.find<DashboardController>();
+
+//             return GestureDetector(
+//               onTap: onSelectVciTap,
+//               child: Text(
+//                 controller.selectedVciType.value.isEmpty
+//                     ? "Select VCI"
+//                     : controller.selectedVciType.value,
+//                 style: const TextStyle(
+//                   color: Colors.white,
+//                   fontSize: 16,
+//                   fontWeight: FontWeight.bold,
+//                 ),
+//               ),
+//             );
+//           }),
+//         ),
+//       ...?actions,
+//     ],
+//     backgroundColor: AppColors.primaryColor,
+//     iconTheme: const IconThemeData(color: Colors.white),
+//   );
+// }
+
 AppBar appBar({
   required String title,
   List<Widget>? actions,
   VoidCallback? onMenuTap,
+  bool isMenu = false,
+  bool isBack = false,
+  VoidCallback? onBackTap,
   bool showSelectVci = false,
   VoidCallback? onSelectVciTap,
 }) {
@@ -45,17 +109,27 @@ AppBar appBar({
     titleSpacing: 10,
     leading: Builder(
       builder: (context) {
-        return IconButton(
-          icon: const Icon(
-            Icons.menu,
-            color: Colors.white,
-            size: 35,
-          ),
-          onPressed: onMenuTap ??
-              () {
-                Scaffold.of(context).openDrawer();
-              },
-        );
+        if (isBack) {
+          return IconButton(
+            icon: const Icon(
+              Icons.arrow_back,
+              color: Colors.white,
+              size: 28,
+            ),
+            onPressed: onBackTap ?? () => Navigator.of(context).pop(),
+          );
+        } else if (isMenu) {
+          return IconButton(
+            icon: const Icon(
+              Icons.menu,
+              color: Colors.white,
+              size: 35,
+            ),
+            onPressed: onMenuTap ?? () => Scaffold.of(context).openDrawer(),
+          );
+        } else {
+          return const SizedBox(); // no leading widget
+        }
       },
     ),
     title: Text(
