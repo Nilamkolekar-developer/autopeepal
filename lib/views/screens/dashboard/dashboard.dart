@@ -22,7 +22,7 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: AppColors.pagebgColor,
       key: scaffoldKey,
       appBar: appBar(
-        title: "ATPL Diagnostic Tool",
+        title: "ATPL Diagnostic Tool",isMenu: true,
         showSelectVci: true,
         onSelectVciTap: () {
           Get.toNamed(Routes.cliCard);

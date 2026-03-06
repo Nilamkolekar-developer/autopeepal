@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:autopeepal/app.dart';
+import 'package:autopeepal/common_widgets/commonLoader.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/models/feature_model.dart';
 import 'package:autopeepal/models/jobCard_model.dart';
@@ -142,57 +143,56 @@ class AppFeatureController extends GetxController {
     isBusy.value = false;
   }
 
- Future<void> disconnectDongle(BuildContext context) async {
-  print("Opening disconnect dialog...");
+  Future<void> disconnectDongle(BuildContext context) async {
+    print("Opening disconnect dialog...");
 
-  final answer = await showDialog<bool>(
-    context: context,
-    barrierDismissible: false,
-    builder: (context) => CustomPopup1(
-      title: "Alert",
-      message: "Do you want to disconnect dongle?",
-      showYesNo: true,
-      onYesTap: () => Navigator.of(context, rootNavigator: true).pop(true),
-      onNoTap: () => Navigator.of(context, rootNavigator: true).pop(false),
-    ),
-  );
+    final answer = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => CustomPopup1(
+        title: "Alert",
+        message: "Do you want to disconnect dongle?",
+        showYesNo: true,
+        onYesTap: () => Navigator.of(context, rootNavigator: true).pop(true),
+        onNoTap: () => Navigator.of(context, rootNavigator: true).pop(false),
+      ),
+    );
 
-  if (answer == true) {
-    isPageLoaded = false; 
-    print("Background loop stopped.");
+    if (answer == true) {
+      isPageLoaded = false;
+      print("Background loop stopped.");
 
-    try {
-      isBusy.value = true;
-      loaderText.value = 'Disconnecting...';
-      while (_isCheckingEcuStatus) {
-        await Future.delayed(const Duration(milliseconds: 500));
+      try {
+        isBusy.value = true;
+        loaderText.value = 'Disconnecting...';
+        while (_isCheckingEcuStatus) {
+          await Future.delayed(const Duration(milliseconds: 500));
+        }
+
+        print("Starting hardware disconnect...");
+        await App.dllFunctions!.disconnectVCI1().timeout(
+              const Duration(seconds: 5),
+              onTimeout: () => print("Hardware disconnect timed out"),
+            );
+        await SaveLocalData.getData('UserDetailL_LocalData');
+      } catch (e) {
+        print("Error during disconnect: $e");
+      } finally {
+        isBusy.value = false;
+        print("Navigating to dashboard...");
+        Get.offAllNamed(Routes.dashboardScreen);
       }
-
-      print("Starting hardware disconnect...");
-      await App.dllFunctions!.disconnectVCI1().timeout(
-        const Duration(seconds: 5),
-        onTimeout: () => print("Hardware disconnect timed out"),
-      );
-       await SaveLocalData.getData('UserDetailL_LocalData');
-      
-    } catch (e) {
-      print("Error during disconnect: $e");
-    } finally {
-      isBusy.value = false;
-      print("Navigating to dashboard...");
-      Get.offAllNamed(Routes.dashboardScreen);
     }
   }
-}
 
   checkConnection() async {
     isPageLoaded = true;
 
-    // await App.dllFunctions!.setDongleProperties(
-    //   StaticData.ecuInfo[0].protocol.autopeepal ?? '',
-    //   StaticData.ecuInfo[0].txHeader ?? '',
-    //   StaticData.ecuInfo[0].rxHeader ?? '',
-    // );
+    await App.dllFunctions!.setDongleProperties(
+      StaticData.ecuInfo[0].protocol.autopeepal ?? '',
+      StaticData.ecuInfo[0].txHeader ?? '',
+      StaticData.ecuInfo[0].rxHeader ?? '',
+    );
 
     while (isPageLoaded) {
       _isCheckingEcuStatus = true;
@@ -227,6 +227,71 @@ class AppFeatureController extends GetxController {
       await Future.delayed(const Duration(seconds: 3));
     }
   }
+
+  bool isPaused = false;
+  Future<void> checkSessionLogs() async {
+    try {
+      isBusy.value = true;
+      Get.dialog(const CommonLoader(message: "Scanning..."),
+          barrierDismissible: false);
+
+      await Future.delayed(const Duration(milliseconds: 100));
+      isPaused = true;
+      while (_isCheckingEcuStatus) {
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
+
+      if (Get.isDialogOpen ?? false) Get.back();
+      await Get.toNamed(Routes.SessionScreen);
+      isPaused = false;
+      print("Resumed ECU background status check.");
+    } catch (ex) {
+      isPaused = false;
+      if (Get.isDialogOpen ?? false) Get.back();
+    } finally {
+      isBusy.value = false;
+    }
+  }
+
+  Future<void> fotaCommand() async {
+  try {
+    // 1. Check connectivity (Similar to App.ConnectedVia)
+    if (App.connectedVia == "USB") {
+      // Assuming you have a helper for dialogs or using Get.defaultDialog
+      await Get.defaultDialog(
+        title: "Alert!",
+        middleText: "To update firmware of VCI, you need to connect VCI and application with WIFI",
+        textConfirm: "OK",
+        onConfirm: () => Get.back(),
+      );
+      return;
+    }
+
+    isBusy.value = true;
+
+    // 2. Stop the background connection loop
+    // Note: Based on our previous fix, use isPaused = true instead of killing the loop
+    isPaused = true; 
+
+    // 3. Wait for any active hardware communication to finish
+    while (_isCheckingEcuStatus) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+    }
+
+    // 4. Navigate to Settings Page
+    // Using GetX navigation
+    await Get.toNamed(Routes.firmwareUpdateScreen);
+
+    // Optional: Resume monitoring when coming back from settings
+    isPaused = false;
+
+  } catch (ex) {
+    print("FOTA Command Error: ${ex.toString()}");
+    isPaused = false;
+  } finally {
+    isBusy.value = false;
+  }
+}
 
   @override
   void onClose() {

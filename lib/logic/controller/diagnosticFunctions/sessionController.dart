@@ -1,62 +1,103 @@
-import 'dart:async';
 import 'dart:io';
 import 'package:ap_dongle_comm/utils/model/sessionLogModel.dart';
+import 'package:autopeepal/app.dart';
+
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 
-class SessionController extends GetxController {
-  // Observable list of logs
-  var logs = <SessionLogsModel>[].obs;
-  final RxBool isMenuOpen = false.obs;
-  // To track if a save operation is in progress
-  var isSaving = false.obs;
+class SessionLogsController extends GetxController {
+  var logsList = <SessionLogsModel>[].obs;
+  var isBusy = false.obs;
+  var loaderText = ''.obs;
+  VoidCallback? onScrollToBottom;
 
   @override
   void onInit() {
     super.onInit();
-    // Start with empty logs or fetch initial history if needed
+    getLogs();
   }
+Future<void> getLogs() async {
+  print("getLogs: Start");
 
-  /// Add a new log entry (TX or RX)
-  /// Example: addLog("Tx", "1003") or addLog("Rx", "No Resp From Dongle")
-  void addLog(String header, String message) {
-    logs.add(SessionLogsModel(
-      header: header,
-      message: message,
-    ));
+  try {
+    isBusy.value = true;
+    loaderText.value = "Loading logs...";
+    print("getLogs: isBusy set to true, loaderText updated");
+
+    await Future.delayed(Duration(milliseconds: 100));
+    print("getLogs: Delay finished");
+    final dll = App.dllFunctions;
+    print("getLogs: dllFunctions = $dll");
+
+    if (dll == null) {
+      print("Error: App.dllFunctions is null!");
+      logsList.value = [];
+      return;
+    }
+
+    final fetchedLogs = await dll.getLogs();
+    print("getLogs: fetchedLogs = $fetchedLogs");
+    logsList.value = fetchedLogs
+        .map((e) {
+          print("Mapping log item: $e");
+          return e;
+        })
+        .toList(growable: true);
+
+    print("getLogs: logsList updated with ${logsList.length} items");
+    onScrollToBottom?.call();
+    print("getLogs: onScrollToBottom called");
+
+  } catch (ex, stacktrace) {
+    print("Error fetching logs: $ex");
+    print("Stacktrace: $stacktrace");
+  } finally {
+    isBusy.value = false;
+    loaderText.value = '';
+    print("getLogs: Finished, isBusy reset, loaderText cleared");
   }
+}
 
-  /// Clear all logs from the screen
   void clearLogs() {
-    logs.clear();
+    try {
+      logsList.clear();
+      App.dllFunctions?.clearLogs();
+    } catch (ex) {
+      print("Error clearing logs: $ex");
+    }
   }
 
-  /// Save current logs to a .txt file
+
   Future<void> saveLogs() async {
-    if (logs.isEmpty) return;
+    if (logsList.isEmpty) return;
 
     try {
-      isSaving.value = true;
-      
+      isBusy.value = true;
+      loaderText.value = "Saving logs...";
+      await Future.delayed(Duration(milliseconds: 500));
+
       StringBuffer buffer = StringBuffer();
-      for (var log in logs) {
-        // Formats as "Tx : 1003"
-        buffer.writeln('${log.header} : ${log.message}');
+      for (var log in logsList) {
+        buffer.writeln("${log.header} ${log.message} ${log.status}");
       }
 
       final directory = await getApplicationDocumentsDirectory();
-      final fileName = 'Session_Log_${DateTime.now().millisecondsSinceEpoch}.txt';
+      final fileName =
+          "ATPLTechbud_Session_Log_${DateFormat('yyyy_MM_dd_HH_mm_ss').format(DateTime.now())}.txt";
       final file = File('${directory.path}/$fileName');
-      
       await file.writeAsString(buffer.toString());
 
       Get.snackbar("Success", "Logs saved to Documents",
           snackPosition: SnackPosition.BOTTOM);
-    } catch (e) {
+    } catch (ex) {
+      print("Error saving logs: $ex");
       Get.snackbar("Error", "Could not save logs",
           snackPosition: SnackPosition.BOTTOM);
     } finally {
-      isSaving.value = false;
+      isBusy.value = false;
+      loaderText.value = '';
     }
   }
 }

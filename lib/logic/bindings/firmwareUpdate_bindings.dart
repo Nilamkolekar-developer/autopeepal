@@ -4,6 +4,6 @@ import 'package:get/get.dart';
 class FirmwareupdateBindings extends Bindings{
   @override
   void dependencies() {
-   Get.put(Firmwareupdatecontroller());
+   Get.put(SettingsController());
   }
 }

@@ -5,6 +5,6 @@ import 'package:get/get.dart';
 class SessionBindings extends Bindings {
   @override
   void dependencies() {
-    Get.put(SessionController());
+    Get.put(SessionLogsController());
   }
 }

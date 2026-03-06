@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class SessionLogsScreen extends StatelessWidget {
-  final SessionController controller = Get.put(SessionController());
+  final SessionLogsController controller = Get.put(SessionLogsController());
   final ScrollController scrollController = ScrollController();
 
   @override
@@ -74,9 +74,9 @@ class SessionLogsScreen extends StatelessWidget {
         return ListView.builder(
           controller: scrollController,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          itemCount: controller.logs.length,
+          itemCount: controller.logsList.length,
           itemBuilder: (context, index) {
-            final log = controller.logs[index];
+            final log = controller.logsList[index];
             bool isTx = log.header?.toUpperCase() == "TX";
             Color logColor = isTx ? Colors.green.shade700 : Colors.red.shade700;
 

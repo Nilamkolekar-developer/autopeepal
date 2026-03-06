@@ -1,0 +1,62 @@
+[
+  {
+    "id": "2342890f-8e52-40fa-a964-cd6cb2d5da9b",
+    "job_card_name": "123456789",
+    "status": "new",
+    "fert_code": "1233",
+    "vehicle_segment": "Na",
+    "vehicle_model": {
+      "name": "NA",
+      "parent": {
+        "name": "Pro6000  MDE5 And 8 BSVI",
+        "parent": null,
+        "model_year": null
+      },
+      "model_year": "NA",
+      "sub_models": []
+    },
+    "chasis_id": "etbj5678",
+    "registration_no": "mp09ae4544",
+    "km_covered": 15,
+    "complaints": "test",
+    "created_by": {
+      "email": "dipak.yogi@autopeepal.com",
+      "workshop": null,
+      "role": null
+    },
+    "created": "2020-08-19T17:00:13.678103+05:30",
+    "modified": "2020-08-19T17:00:13.678136+05:30",
+    "job_card_age": 1,
+    "job_card_session": [
+      {
+        "id": "5e2d91f6-2b19-4c2a-a481-f5028881da02",
+        "session_id": "vecv/gen/2020-08-19/123456789/000000",
+        "job_card": "2342890f-8e52-40fa-a964-cd6cb2d5da9b",
+        "start_date": "2020-08-19T17:00:13.725655+05:30",
+        "end_date": null,
+        "device_dongle": null,
+        "vehicle_model": {
+          "name": "NA",
+          "parent": {
+            "name": "Pro6000  MDE5 And 8 BSVI",
+            "parent": null,
+            "model_year": null
+          },
+          "model_year": "NA",
+          "sub_models": []
+        },
+        "device": 4782,
+        "user": {
+          "email": "dipak.yogi@autopeepal.com",
+          "workshop": null,
+          "role": null
+        },
+        "source": "gen",
+        "session_type": "regular",
+        "status": "open",
+        "job_card_remote_session": null,
+        "automated_session": null
+      }
+    ]
+  }
+]

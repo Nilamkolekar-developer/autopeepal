@@ -39,6 +39,31 @@ class DiagnosticFunctions extends StatelessWidget {
               color: Colors.white,
             ),
           ),
+           actions: [
+            IconButton(
+              onPressed: () {
+               controller.checkSessionLogs();
+              },
+              icon: Image.asset(
+                "assets/new/ic_session_log.png",
+                height: isMobile ? 35 : 50,
+                width: isMobile ? 35 : 50,
+                color: Colors.white, 
+              ),
+            ),
+            IconButton(
+              onPressed: () {
+               controller. fotaCommand();
+              },
+              icon: Image.asset(
+                "assets/new/ic_update_fw.png",
+                height: isMobile ? 35 : 50,
+                width: isMobile ? 35 : 50,
+                color: Colors.white,
+              ),
+            ),
+            C5(),
+          ],
         ),
         body: SingleChildScrollView(
           child: SafeArea(
