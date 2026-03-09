@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:autopeepal/models/all_models.dart';
 import 'package:flutter/material.dart';
 
@@ -604,4 +606,35 @@ class ReadPidPresponseModel {
         'unit': unit,
         'Variables': variables?.map((x) => x.toJson()).toList(),
       };
+}
+class TestRoutineResponseModel {
+  String? ecuResponseStatus;
+  String? ecuResponse;
+  Uint8List? actualDataBytes;
+
+  TestRoutineResponseModel({
+    this.ecuResponseStatus,
+    this.ecuResponse,
+    this.actualDataBytes,
+  });
+
+  // fromJson
+  factory TestRoutineResponseModel.fromJson(Map<String, dynamic> json) {
+    return TestRoutineResponseModel(
+      ecuResponseStatus: json['ECUResponseStatus'],
+      ecuResponse: json['ECUResponse'],
+      actualDataBytes: json['ActualDataBytes'] != null
+          ? Uint8List.fromList(List<int>.from(json['ActualDataBytes']))
+          : null,
+    );
+  }
+
+  // toJson
+  Map<String, dynamic> toJson() {
+    return {
+      "ECUResponseStatus": ecuResponseStatus,
+      "ECUResponse": ecuResponse,
+      "ActualDataBytes": actualDataBytes?.toList(),
+    };
+  }
 }

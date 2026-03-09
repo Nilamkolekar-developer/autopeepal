@@ -31,80 +31,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class AuthApiService {
-//   static Future<UserResModel> login(UserModel model) async {
-//     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
 
-//     try {
-//       final response = await http.post(
-//         url,
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
-//         body: jsonEncode(model.toJson()),
-//       );
-
-//       print("""
-// LOGIN API
-// URL: $url
-// REQUEST:
-// ${jsonEncode(model.toJson())}
-// RESPONSE:
-// ${response.body}
-// """);
-
-//       if (response.statusCode == 200) {
-//         // Parse response directly into UserResModel
-//         final userResModel = UserResModel.fromJson(jsonDecode(response.body));
-
-//         // Save tokens if present
-//         if (userResModel.token != null) {
-//           await AppPreferences.saveTokens(
-//             accessToken: userResModel.token!.access ?? '',
-//             refreshToken: userResModel.token!.refresh ?? '',
-//           );
-//         }
-
-//         // Save basic user info
-//         await AppPreferences.saveUser(
-//           userId: userResModel.userId.toString(),
-//           name:
-//               "${userResModel.firstName ?? ''} ${userResModel.lastName ?? ''}",
-//           email: userResModel.user ?? '',
-//         );
-
-//         return userResModel;
-//       }
-
-//       if (response.statusCode == 401) {
-//         throw Exception('Invalid username or password');
-//       }
-
-//       if (response.statusCode == 403) {
-//         throw Exception('Device not authorized');
-//       }
-
-//       throw Exception('Login failed (${response.statusCode})');
-//     } catch (e) {
-//       throw Exception('Login API Error: $e');
-//     }
-//   }
 
 //   static Future<UserResModel> login(UserModel model) async {
 //     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
-
 //     UserResModel loginResponse = UserResModel();
 
 //     try {
+//       // Serialize request body
 //       final jsonBody = jsonEncode(model.toJson());
+
+//       // HTTP POST request
 //       final response = await http.post(
 //         url,
-//         headers: {
-//           'Content-Type': 'application/json',
-//         },
+//         headers: {'Content-Type': 'application/json'},
 //         body: jsonBody,
 //       );
 
-//       debugPrint("""
+//       // Debug log
+//       print("""
 // LOGIN API
 // URL: $url
 // REQUEST:
@@ -114,13 +59,14 @@ class AuthApiService {
 // """);
 
 //       if (response.statusCode == 200) {
+//         // Deserialize response
 //         loginResponse = UserResModel.fromJson(jsonDecode(response.body));
 
-//         // Save tokens if available
+//         // Save token in SharedPreferences
 //         if (loginResponse.token != null) {
 //           await AppPreferences.saveTokens(
-//             accessToken: loginResponse.token!.access ?? '',
-//             refreshToken: loginResponse.token!.refresh ?? '',
+//             accessToken: loginResponse.token?.access ?? '',
+//             refreshToken: loginResponse.token?.refresh ?? '',
 //           );
 //         }
 
@@ -132,6 +78,7 @@ class AuthApiService {
 //           email: loginResponse.user ?? '',
 //         );
 
+//         // Set message as success
 //         loginResponse.message = "success";
 //       } else if (response.statusCode == 401) {
 //         loginResponse.message = 'Invalid username or password';
@@ -141,73 +88,76 @@ class AuthApiService {
 //         loginResponse.message = 'Login failed (${response.statusCode})';
 //       }
 //     } catch (e) {
-//       // Network or other exception
 //       loginResponse.message = "Exception @AuthApiService.login(): $e";
 //     }
 
 //     return loginResponse;
 //   }
 
-  static Future<UserResModel> login(UserModel model) async {
-    final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
-    UserResModel loginResponse = UserResModel();
+static Future<UserResModel> login(UserModel model) async {
+  final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
+  UserResModel loginResponse = UserResModel();
 
-    try {
-      // Serialize request body
-      final jsonBody = jsonEncode(model.toJson());
+  try {
+    // Serialize request body
+    final jsonBody = jsonEncode(model.toJson());
+    print("[LOGIN] Sending request to: $url");
+    print("[LOGIN] Request Body: $jsonBody");
 
-      // HTTP POST request
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonBody,
+    // HTTP POST request
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonBody,
+    );
+
+    // Log response status and body
+    print("[LOGIN] Response Status Code: ${response.statusCode}");
+    print("[LOGIN] Response Body: ${response.body}");
+
+    if (response.statusCode == 200) {
+      // Deserialize response
+      loginResponse = UserResModel.fromJson(jsonDecode(response.body));
+      print("[LOGIN] Parsed user response: $loginResponse");
+
+      // Save token in SharedPreferences
+      if (loginResponse.token != null) {
+        print("[LOGIN] Saving tokens to SharedPreferences");
+        await AppPreferences.saveTokens(
+          accessToken: loginResponse.token?.access ?? '',
+          refreshToken: loginResponse.token?.refresh ?? '',
+        );
+      }
+
+      // Save basic user info
+      print("[LOGIN] Saving user info to SharedPreferences");
+      await AppPreferences.saveUser(
+        userId: loginResponse.userId.toString(),
+        name: "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
+        email: loginResponse.user ?? '',
       );
 
-      // Debug log
-      print("""
-LOGIN API
-URL: $url
-REQUEST:
-$jsonBody
-RESPONSE:
-${response.body}
-""");
-
-      if (response.statusCode == 200) {
-        // Deserialize response
-        loginResponse = UserResModel.fromJson(jsonDecode(response.body));
-
-        // Save token in SharedPreferences
-        if (loginResponse.token != null) {
-          await AppPreferences.saveTokens(
-            accessToken: loginResponse.token?.access ?? '',
-            refreshToken: loginResponse.token?.refresh ?? '',
-          );
-        }
-
-        // Save basic user info
-        await AppPreferences.saveUser(
-          userId: loginResponse.userId.toString(),
-          name: "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
-          email: loginResponse.user ?? '',
-        );
-
-        // Set message as success
-        loginResponse.message = "success";
-      } else if (response.statusCode == 401) {
-        loginResponse.message = 'Invalid username or password';
-      } else if (response.statusCode == 403) {
-        loginResponse.message = 'Device not authorized';
-      } else {
-        loginResponse.message = 'Login failed (${response.statusCode})';
-      }
-    } catch (e) {
-      loginResponse.message = "Exception @AuthApiService.login(): $e";
+      // Set message as success
+      loginResponse.message = "success";
+      print("[LOGIN] Login successful");
+    } else if (response.statusCode == 401) {
+      loginResponse.message = 'Invalid username or password';
+      print("[LOGIN] Login failed: Invalid username or password");
+    } else if (response.statusCode == 403) {
+      loginResponse.message = 'Device not authorized';
+      print("[LOGIN] Login failed: Device not authorized");
+    } else {
+      loginResponse.message = 'Login failed (${response.statusCode})';
+      print("[LOGIN] Login failed with status: ${response.statusCode}");
     }
-
-    return loginResponse;
+  } catch (e, st) {
+    loginResponse.message = "Exception @AuthApiService.login(): $e";
+    print("[LOGIN] Exception occurred: $e");
+    print("[LOGIN] StackTrace: $st");
   }
 
+  return loginResponse;
+}
 
   static Future<AllModelsModel> getAllModels([int? oemId]) async {
     final allModels = AllModelsModel();
@@ -458,15 +408,18 @@ STATUS CODE: ${response.statusCode}
   }
 
   Future<List<JobCardModel>?> getJobCard(String filename) async {
-  try {
+    print("🔹 getJobCard started for file: $filename");
+
     final token = await AppPreferences.getAccessToken();
+    print("🔹 Access token retrieved: $token");
+
     final prefs = await SharedPreferences.getInstance();
+    print("🔹 SharedPreferences instance obtained");
 
     List<JobCardModel>? jobCards;
-    var connectivityResult = await Connectivity().checkConnectivity();
-    bool isOnline = connectivityResult != ConnectivityResult.none;
 
-    if (isOnline) {
+    try {
+      print("🔹 Trying to fetch JobCards from API...");
       final response = await http.get(
         Uri.parse(AppEnvironment.baseUrl + AppURLs.getJobCard),
         headers: {
@@ -475,55 +428,49 @@ STATUS CODE: ${response.statusCode}
         },
       );
 
+      print("🔹 API call completed → Status Code: ${response.statusCode}");
       final data = response.body;
+      print("🔹 API Response Body: $data");
 
       if (response.statusCode == 401) {
-        print("Unauthorized: Login again");
+        print("❌ Unauthorized: redirecting to login");
         Get.offAll(Routes.loginScreen);
         return null;
-      } 
-      else if (response.statusCode == 200) {
-
+      } else if (response.statusCode == 200) {
         final decoded = jsonDecode(data) as List;
+        print("🔹 Decoded JSON length: ${decoded.length}");
 
-        jobCards = decoded
-            .map((e) => JobCardModel.fromJson(e))
-            .toList();
+        jobCards = decoded.map((e) => JobCardModel.fromJson(e)).toList();
+        print("🔹 Total JobCards parsed: ${jobCards.length}");
+
         await prefs.setString('JsonList', data);
+        print("🔹 Data saved to SharedPreferences under key 'JsonList'");
 
         return jobCards;
-      } 
-      else {
+      } else {
         final detail = jsonDecode(data)['detail'];
-        print("Error: $detail");
+        print("❌ API Error → Detail: $detail");
         return null;
       }
-    } 
-    else {
-      /// Offline mode → Load from local storage
-      final jsonListData = prefs.getString('JsonList');
+    } catch (e) {
+      print("⚠️ API call failed (offline?) → Exception: $e");
+      print("🔹 Trying to load JobCards from local storage...");
 
+      final jsonListData = prefs.getString('JsonList');
       if (jsonListData != null) {
         final decoded = jsonDecode(jsonListData) as List;
+        print("🔹 Decoded local JSON length: ${decoded.length}");
 
-        jobCards = decoded
-            .map((e) => JobCardModel.fromJson(e))
-            .toList();
-
+        jobCards = decoded.map((e) => JobCardModel.fromJson(e)).toList();
+        print(
+            "🔹 Total JobCards loaded from local storage: ${jobCards.length}");
         return jobCards;
+      } else {
+        print("❌ No local data found");
+        return null;
       }
-
-      return null;
     }
-  } 
-  catch (ex) {
-    print("Session Expired: $ex");
-
-    Get.offAll(Routes.loginScreen);
-
-    return null;
   }
-}
 
   Future<CheckJobCardModel?> checkJobCard(String jobCardNumber) async {
     try {
@@ -583,51 +530,99 @@ STATUS CODE: ${response.statusCode}
     }
   }
 
-  Future<MainResultClass?> sendJobCard(
-      SendJobcardData model, String token) async {
-    try {
-      final mainResultClass = MainResultClass();
+  // Future<MainResultClass?> sendJobCard(
+  //     SendJobcardData model) async {
+  //     final token = await AppPreferences.getAccessToken();
+  //   try {
+  //     final mainResultClass = MainResultClass();
 
-      // Check internet connectivity if needed using connectivity_plus
-      var connectivityResult = await (Connectivity().checkConnectivity());
-      if (connectivityResult == ConnectivityResult.none) return mainResultClass;
+  //     // Check internet connectivity if needed using connectivity_plus
+  //     var connectivityResult = await (Connectivity().checkConnectivity());
+  //     if (connectivityResult == ConnectivityResult.none) return mainResultClass;
 
-      final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.sendJobCard);
+  //     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.sendJobCard);
 
-      // Convert model to JSON
-      final body = jsonEncode(model.toJson());
+  //     // Convert model to JSON
+  //     final body = jsonEncode(model.toJson());
 
-      // Make POST request with JWT token
-      final response = await http.post(
-        url,
-        headers: {
+  //     // Make POST request with JWT token
+  //     final response = await http.post(
+  //       url,
+  //      headers: {
+  //         'Content-Type': 'application/json',
+  //         'Authorization': 'JWT $token',
+  //       },
+  //       body: body,
+  //     );
+
+  //     if (response.statusCode == 400) {
+  //       // Deserialize into SameJobcard when BadRequest
+  //       final sameJobcard = SameJobcard.fromJson(jsonDecode(response.body));
+  //       mainResultClass.sameJobcard = sameJobcard;
+  //       mainResultClass.createJobcard = null;
+  //     } else if (response.statusCode == 201) {
+  //       // Deserialize into JobCardModel for success
+  //       final jobCard = JobCardModel.fromJson(jsonDecode(response.body));
+  //       mainResultClass.sameJobcard = null;
+  //       mainResultClass.createJobcard = jobCard;
+  //     } else {
+  //       print('Unexpected status code: ${response.statusCode}');
+  //     }
+
+  //     return mainResultClass;
+  //   } catch (e, stackTrace) {
+  //     print('Exception in sendJobCard: $e');
+  //     print(stackTrace);
+  //     return null;
+  //   }
+  // }
+
+
+
+Future<MainResultClass?> sendJobCard(SendJobcardData model) async {
+  final token = await AppPreferences.getAccessToken();
+  try {
+     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.sendJobCard);
+    print("🌐 API URL: $url");
+
+    final jsonBody = jsonEncode(model.toJson());
+
+    print("📤 Sending JobCard Data:");
+    print(jsonBody);
+
+    final response = await http.post(
+      url,
+      headers: {
           'Content-Type': 'application/json',
           'Authorization': 'JWT $token',
         },
-        body: body,
-      );
+      body: jsonBody,
+    );
 
-      if (response.statusCode == 400) {
-        // Deserialize into SameJobcard when BadRequest
-        final sameJobcard = SameJobcard.fromJson(jsonDecode(response.body));
-        mainResultClass.sameJobcard = sameJobcard;
-        mainResultClass.createJobcard = null;
-      } else if (response.statusCode == 200) {
-        // Deserialize into JobCardModel for success
-        final jobCard = JobCardModel.fromJson(jsonDecode(response.body));
-        mainResultClass.sameJobcard = null;
-        mainResultClass.createJobcard = jobCard;
-      } else {
-        print('Unexpected status code: ${response.statusCode}');
-      }
+    print("📥 Status Code: ${response.statusCode}");
+    print("📥 Response Body: ${response.body}");
 
-      return mainResultClass;
-    } catch (e, stackTrace) {
-      print('Exception in sendJobCard: $e');
-      print(stackTrace);
-      return null;
+    MainResultClass result = MainResultClass();
+
+    if (response.statusCode == 400) {
+      /// Same JobCard case
+      final data = jsonDecode(response.body);
+      result.sameJobcard = SameJobcard.fromJson(data);
+      result.createJobcard = null;
+    } else {
+      /// Success case
+      final data = jsonDecode(response.body);
+      result.sameJobcard = null;
+      result.createJobcard = JobCardModel.fromJson(data);
     }
+
+    return result;
+  } catch (e, stackTrace) {
+    print("❌ Exception in sendJobCard: $e");
+    print("📍 StackTrace: $stackTrace");
+    return null;
   }
+}
 
   Future<List<ExistJobCardResult>?> getExistJobCard(
       String token, String jobCardNumber) async {
@@ -1112,7 +1107,7 @@ STATUS CODE: ${response.statusCode}
   //   GdModelGD result = GdModelGD();
   //   final token =await AppPreferences.getAccessToken();
   //   try {
-      
+
   //       final url =
   //           Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
   //       final response = await http.get(
@@ -1131,7 +1126,7 @@ STATUS CODE: ${response.statusCode}
   //       } else {
   //         result.message = "${response.statusCode}\n$data";
   //       }
-      
+
   //     return result;
   //   } catch (ex) {
   //     result.message = "Exception in getGD(): ${ex.toString()}";
@@ -1140,42 +1135,42 @@ STATUS CODE: ${response.statusCode}
   // }
 
   Future<GdModelGD> getGD(int submodelId) async {
-  GdModelGD result = GdModelGD(message: ''); // initialize message safely
-  final token = await AppPreferences.getAccessToken();
+    GdModelGD result = GdModelGD(message: ''); // initialize message safely
+    final token = await AppPreferences.getAccessToken();
 
-  try {
-    final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
-    print("🔹 GET URL: $url"); // print URL
+    try {
+      final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.getGD(submodelId));
+      print("🔹 GET URL: $url"); // print URL
 
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'JWT $token',
-      },
-    );
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'JWT $token',
+        },
+      );
 
-    print("🔹 Response Status: ${response.statusCode}");
-    print("🔹 Response Body: ${response.body}");
+      print("🔹 Response Status: ${response.statusCode}");
+      print("🔹 Response Body: ${response.body}");
 
-    final data = response.body;
+      final data = response.body;
 
-    if (response.statusCode == 200) {
-      result = GdModelGD.fromJson(json.decode(data));
-      result.message = "success";
-      print("✅ GD parsed successfully: ${result.results?.length ?? 0} items");
-    } else {
-      result.message = "${response.statusCode}\n$data";
-      print("❌ Error fetching GD: ${result.message}");
+      if (response.statusCode == 200) {
+        result = GdModelGD.fromJson(json.decode(data));
+        result.message = "success";
+        print("✅ GD parsed successfully: ${result.results?.length ?? 0} items");
+      } else {
+        result.message = "${response.statusCode}\n$data";
+        print("❌ Error fetching GD: ${result.message}");
+      }
+
+      return result;
+    } catch (ex) {
+      result.message = "Exception in getGD(): ${ex.toString()}";
+      print("⚠️ Exception in getGD(): ${ex.toString()}");
+      return result;
     }
-
-    return result;
-  } catch (ex) {
-    result.message = "Exception in getGD(): ${ex.toString()}";
-    print("⚠️ Exception in getGD(): ${ex.toString()}");
-    return result;
   }
-}
 
   Future<String> readTextFile(String fileName) async {
     try {

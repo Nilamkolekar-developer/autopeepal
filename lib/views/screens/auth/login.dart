@@ -108,27 +108,17 @@ class LoginScreen extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            /// 🔲 Remember Me + Checkbox
-            Obx(
-              () => Row(
-                children: [
-                  const Text(
-                    'Remember Me',
-                    style: TextStyle(
-                      fontSize: 12,
+            Obx(() => Row(
+                  children: [
+                    const Text('Remember Me', style: TextStyle(fontSize: 12)),
+                    Checkbox(
+                      value: controller.isRememberMeChecked.value,
+                      onChanged: (value) =>
+                          controller.isRememberMeChecked.value = value ?? false,
+                      activeColor: const Color(0xFFFF7A18),
                     ),
-                  ),
-                  Checkbox(
-                    value: controller.rememberMe.value,
-                    onChanged: (value) {
-                      controller.rememberMe.value = value ?? false;
-                    },
-                    activeColor: const Color(0xFFFF7A18),
-                  ),
-                ],
-              ),
-            ),
-
+                  ],
+                )),
             TextButton(
               onPressed: () {
                 Get.toNamed(Routes.registerScreen);
@@ -156,13 +146,7 @@ class LoginScreen extends StatelessWidget {
                   borderRadius: BorderRadiusGeometry.circular(6)),
             ),
             onPressed: () {
-              // if (controller.rememberMe.value) {
-              //   controller.saveCredentials();
-              // } else {
-              //   controller.clearSavedCredentials();
-              // }
-controller.loginMethod();
-              //Get.toNamed(Routes.dashboardScreen);
+              controller.loginMethod();
             },
             child: const Text(
               'LOG IN',

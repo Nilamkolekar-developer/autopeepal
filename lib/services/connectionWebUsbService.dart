@@ -52,6 +52,7 @@ class ConnectionUSBWindows {
     try {
       final portNames = SerialPort.availablePorts;
       String? targetPortName;
+
       for (var name in portNames) {
         final tempPort = SerialPort(name);
         if ((tempPort.description ?? "").contains("Silicon Labs CP210x")) {
@@ -64,36 +65,32 @@ class ConnectionUSBWindows {
         print("❌ No serial device found.");
         return false;
       }
+      final comm = Get.put(CommController());
+      await comm.connectDesktopUsb(targetPortName, 460800);
 
-      serialPort = SerialPort(targetPortName);
-      if (!serialPort!.openReadWrite()) {
-        print("❌ Unable to open the serial device.");
+      if (!comm.isConnected.value) {
+        print("❌ CommController failed to connect to $targetPortName");
         return false;
       }
-
-      final config = SerialPortConfig();
-      config.baudRate = 460800;
-      config.bits = 8;
-      config.stopBits = 1;
-      config.parity = SerialPortParity.none;
-      serialPort!.config = config;
-
-      print("✅ Serial device connected successfully for Config.");
+      print("✅ Serial device linked via CommController for Config.");
       dongleCommWin = DongleComm(channelId: "00", isChannel: true);
-      dongleCommWin.comm = comm;
+      dongleCommWin!.comm = comm;
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+
+      print("🔐 Requesting Security Access...");
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
 
       if (securityAccess != null &&
           securityAccess.length > 3 &&
           securityAccess[3] == 0x00) {
-        App.dllFunctions = DLLFunctions(dongleCommWin, dSDiagnostic);
+        print("✅ Security Access Success!");
+        App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
         return true;
       } else {
-        serialPort?.close();
+        print("❌ Security Access Response: ${securityAccess ?? 'NULL'}");
         return false;
       }
     } catch (e) {
-      serialPort?.close();
       print("🔥 Error in connectUsbForConfig: $e");
       return false;
     }
@@ -140,6 +137,7 @@ class ConnectionUSBWindows {
     List<String> retVal = ["false", "Unknown error"];
 
     try {
+      // ignore: unused_local_variable
       Connectivity connectivity;
       switch (vciType) {
         case VCIType.RP1210:

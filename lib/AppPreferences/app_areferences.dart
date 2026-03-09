@@ -17,6 +17,9 @@ class AppPreferences {
   static const String _lastIpKey = 'lastDongleIp';
   static const String _channelIdKey = 'channelId';
   static const String _connectedViaKey = 'connectedVia';
+  static const String _rememberMeKey = 'RememberIsChecked';
+static const String _savedUserKey = 'user_id';
+static const String _savedPassKey = 'password';
 
   static Future<void> setConnectedVia(String value) async {
     final prefs = await SharedPreferences.getInstance();
@@ -27,6 +30,27 @@ class AppPreferences {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_connectedViaKey);
   }
+
+  static Future<void> saveRememberMe(bool value, String user, String pass) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(_rememberMeKey, value);
+  if (value) {
+    await prefs.setString(_savedUserKey, user);
+    await prefs.setString(_savedPassKey, pass);
+  } else {
+    await prefs.remove(_savedUserKey);
+    await prefs.remove(_savedPassKey);
+  }
+}
+
+static Future<Map<String, dynamic>> getRememberMeData() async {
+  final prefs = await SharedPreferences.getInstance();
+  return {
+    "isChecked": prefs.getBool(_rememberMeKey) ?? false,
+    "user": prefs.getString(_savedUserKey) ?? "",
+    "pass": prefs.getString(_savedPassKey) ?? "",
+  };
+}
 
   // ================= TOKENS =================
 
@@ -186,17 +210,31 @@ class AppPreferences {
     return prefs.getInt(key);
   }
 
+  // Save login request (username + password) for offline use
+static Future<void> saveOfflineLoginRequest(Map<String, dynamic> jsonData) async {
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString('UserRequest_LocalData', jsonEncode(jsonData));
+}
+
+// Get offline login request
+static Future<Map<String, dynamic>?> getOfflineLoginRequest() async {
+  final prefs = await SharedPreferences.getInstance();
+  final data = prefs.getString('UserRequest_LocalData');
+  return data == null ? null : jsonDecode(data);
+}
+
   // ================= CLEAR =================
 
   /// ⚠️ Clears everything EXCEPT selected VCI
-  static Future<void> clearPreferences() async {
-    final prefs = await SharedPreferences.getInstance();
-    final vci = prefs.getString(_selectedVciKey);
-    await prefs.clear();
-    if (vci != null) {
-      await prefs.setString(_selectedVciKey, vci);
-    }
+static Future<void> clearPreferences() async {
+  final prefs = await SharedPreferences.getInstance();
+  final vci = prefs.getString(_selectedVciKey);
+  await prefs.clear();
+  if (vci != null) {
+    await prefs.setString(_selectedVciKey, vci);
   }
+  // Do NOT delete RememberIsChecked.txt here if you want remember me
+}
 
   static Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();

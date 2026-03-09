@@ -14,7 +14,7 @@ class AppFeatureController extends GetxController {
   JobCardListModel? jobCardSession;
   RxString firmwareVersion = "".obs;
   RxString sessionId = "".obs;
-
+SaveLocalData? saveLocalData;
   AppFeatureController({
     this.jobCardSession,
   });
@@ -174,7 +174,7 @@ class AppFeatureController extends GetxController {
               const Duration(seconds: 5),
               onTimeout: () => print("Hardware disconnect timed out"),
             );
-        await SaveLocalData.getData('UserDetailL_LocalData');
+        await saveLocalData!.getData('UserDetailL_LocalData');
       } catch (e) {
         print("Error during disconnect: $e");
       } finally {

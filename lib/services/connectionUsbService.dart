@@ -58,34 +58,48 @@ class ConnectionUSB {
   Future<bool> connectUsbForConfig() async {
     try {
       bool hardwareConnected = await connectUsb(VCIType.RP1210);
-      if (!hardwareConnected || port == null) return false;
-      comm ??= Get.put(CommController());
-      await comm!.connectUsb(port!);
+      if (!hardwareConnected || port == null) {
+        print("❌ Hardware connection failed");
+        // Fluttertoast.showToast(
+        //     msg: "USB Hardware not found or Permission denied");
+        return false;
+      }
+      final comm = Get.find<CommController>();
+      await comm.connectUsb(port!);
+
+      await Future.delayed(const Duration(milliseconds: 600));
+
       dongleCommWin = DongleComm(channelId: "00", isChannel: true);
       dongleCommWin!.comm = comm;
       dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
 
-      print("Starting Security Access...");
+      print("🔐 Starting Security Access on Mobile...");
+     // Fluttertoast.showToast(msg: "Requesting Security Access...");
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
 
-      if (securityAccess != null &&
-          securityAccess.length > 3 &&
-          securityAccess[3] == 0x00) {
-        App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
-        return true;
+      if (securityAccess != null && securityAccess.length > 3) {
+        if (securityAccess[3] == 0x00) {
+          App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+         // Fluttertoast.showToast(msg: "✅ Security Access Granted");
+          return true;
+        } else {
+          securityAccess[3].toRadixString(16).padLeft(2, '0');
+          //Fluttertoast.showToast(msg: "❌ Access Denied. Error: 0x$errCode");
+          return false;
+        }
       } else {
-        print("Denied. Raw Response: $securityAccess");
-        await port?.close();
+       // Fluttertoast.showToast(msg: "⚠️ No response from VCI (Security)");
         return false;
       }
     } catch (e) {
-      print("Exception: $e");
+      print("🔥 Mobile USB Exception: $e");
+    //  Fluttertoast.showToast(msg: "Exception: ${e.toString()}");
       await port?.close();
       return false;
     }
   }
 
-  Future<List<String>> getDongleMacID({String channelId='00'}) async {
+  Future<List<String>> getDongleMacID({String channelId = '00'}) async {
     try {
       comm ??= Get.put(CommController());
       dongleCommWin = DongleComm(channelId: channelId, isChannel: true);

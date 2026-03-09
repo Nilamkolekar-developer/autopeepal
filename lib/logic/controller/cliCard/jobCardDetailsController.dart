@@ -52,6 +52,59 @@ class JobCardDetailsController extends GetxController {
       }
     }
 
+    // final arguments = Get.arguments;
+
+    // print("📥 Argument type: ${arguments.runtimeType}");
+
+    // if (arguments == null) return;
+
+    // if (arguments is JobCardListModel) {
+    //   jobCard.value = arguments;
+    // }
+
+    // // else if (arguments is JobCardModel) {
+    // //   jobCard.value = JobCardListModel(
+    // //     id: arguments.id,
+    // //     sessionId: arguments.jobCardSession,
+    // //     jobcardName: arguments.jobCardName,
+    // //     status: arguments.status,
+    // //     chasisId: arguments.chasisId,
+    // //     registrationNo: arguments.registrationNo,
+    // //     complaints: arguments.complaints,
+    // //     kmCovered: arguments.kmCovered,
+    // //   );
+    // // }
+
+    // else if (arguments is JobCardModel) {
+    //   print("📦 JobCardModel received:");
+    //   print("ID: ${arguments.id}");
+    //   print("JobCardName: ${arguments.jobCardName}");
+    //   print("Model: ${arguments.vehicleModel?.name}");
+    //   print("Session: ${arguments.jobCardSession}");
+
+    //   jobCard.value = JobCardListModel(
+    //     id: arguments.id,
+    //     jobcardName: arguments.jobCardName,
+    //     status: arguments.status,
+    //     chasisId: arguments.chasisId,
+    //     registrationNo: arguments.registrationNo,
+    //     complaints: arguments.complaints,
+    //     kmCovered: arguments.kmCovered,
+    //     modelWithSubmodel:
+    //         "${arguments.vehicleModel?.parent?.name ?? ''}-${arguments.vehicleModel?.name ?? ''} ",
+    //     sessionId: arguments.jobCardSession?.isNotEmpty == true
+    //         ? arguments.jobCardSession!.first.sessionId
+    //         : null, // ⭐ FIX
+    //   );
+
+    //   print("✅ Converted JobCardListModel:");
+    //   print("JobCardNo: ${jobCard.value?.jobcardName}");
+    //   // print("Model: ${jobCard.value?.model}");
+    //   print("SessionId: ${jobCard.value?.sessionId}");
+    // }
+
+   
+
     vciList.value = VCIType.values.where((e) => e != VCIType.NONE).toList();
     AppPreferences.getSelectedVCI().then((value) {
       if (value != null && value.isNotEmpty) {

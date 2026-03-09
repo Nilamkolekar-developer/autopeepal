@@ -387,20 +387,21 @@ class VehicleModel {
 
 class Parent {
   String? name;
-  dynamic parent;
-  dynamic modelYear;
+  Parent? parent;
+  String? modelYear;
 
   Parent({this.name, this.parent, this.modelYear});
 
   factory Parent.fromJson(Map<String, dynamic> json) => Parent(
         name: json['name'],
-        parent: json['parent'],
-        modelYear: json['model_year'],
+        parent:
+            json['parent'] != null ? Parent.fromJson(json['parent']) : null,
+        modelYear: json['model_year']?.toString(),
       );
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'parent': parent,
+        'parent': parent?.toJson(),
         'model_year': modelYear,
       };
 }
