@@ -16,7 +16,7 @@ class TextStyles {
       color: Colors.black,
       fontFamily: "OpenSans-SemiBold",
       fontWeight: FontWeight.bold,
-      fontSize: FontSizes.s16);
+      fontSize: FontSizes.s14);
 
        static TextStyle get textfieldTextStyle1 => TextStyle(
       color: Colors.black,

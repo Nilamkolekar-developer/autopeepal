@@ -1,7 +1,13 @@
+import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
+import 'package:autopeepal/models/jobCard_model.dart';
+import 'package:autopeepal/themes/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class JobCardItem extends StatelessWidget {
-  const JobCardItem({super.key});
+  final JobCardListModel item;
+
+  const JobCardItem({super.key, required this.item});
 
   @override
   Widget build(BuildContext context) {
@@ -16,80 +22,78 @@ class JobCardItem extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// TITLE + STATUS
-          Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Vecv/6458789e7e76e6/74567456547',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            item.sessionId ?? "",
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
 
-          const SizedBox(height: 10),
-
-          /// JOB NUMBER
-
+          C10(),
           Row(
             children: [
               Image.asset(
                 'assets/new/Vector.png',
-                width: 16,
-                height: 16,
+                width: 18,
+                height: 18,
                 color: Colors.grey,
               ),
-              const SizedBox(width: 6),
-              const Text(
-                'MC76453346723623327',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              Spacer(),
-              CircleAvatar(
-                radius: 4,
-                backgroundColor: Color(0xFFF47A1F),
-              ),
-              SizedBox(width: 6),
-              Text(
-                'New',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.black54,
+              C5(),
+              Expanded(
+                child: Text(
+                  item.chasisId ?? "",
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ),
+              const CircleAvatar(
+                radius: 8,
+                backgroundColor: AppColors.primaryColor,
+              ),
+              C5(),
+              Text(
+                item.status ?? "",
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
               ),
             ],
           ),
 
-          const SizedBox(height: 6),
+          C5(),
 
-          /// VEHICLE + DATE
+          /// MODEL + DATE
           Row(
             children: [
               Image.asset(
                 'assets/new/Vector (1).png',
-                width: 16,
-                height: 16,
+                width: 18,
+                height: 18,
                 color: Colors.grey,
               ),
-              SizedBox(width: 6),
-              Text(
-                '65474874/ BSVI',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+              C5(),
+              Expanded(
+                child: Text(
+                  item.modelWithSubmodel ?? "",
+                  style: const TextStyle(fontSize: 13, color: Colors.black54),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              Spacer(),
-              Icon(Icons.calendar_today, size: 16, color: Colors.grey),
-              SizedBox(width: 6),
+              const Icon(Icons.calendar_today, size: 18, color: Colors.grey),
+              C5(),
               Text(
-                '01 May 2024',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+                item.showStartDate != null
+                    ? DateFormat('yyyy-MM-dd')
+                        .format(DateTime.parse(item.showStartDate.toString()))
+                    : "",
+                style: const TextStyle(fontSize: 13, color: Colors.black54),
               ),
             ],
           ),
-      
         ],
       ),
     );

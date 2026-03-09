@@ -24,4 +24,5 @@ class Routes {
   static const routineTest = '/routineTest';
   static const allDtcDetails = '/allDtcDetails';
   static const registerScreen = '/registerScreen';
+  static const createJobCardScreen = '/createJobCardScreen';
 }

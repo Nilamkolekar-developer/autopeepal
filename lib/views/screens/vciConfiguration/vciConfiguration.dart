@@ -1,12 +1,14 @@
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
+import 'package:autopeepal/logic/controller/vciConfiguration/vciConfigurationController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-// Replace this with your actual AppColors import
+
 
 class VCIConfiguration extends StatelessWidget {
-  const VCIConfiguration({super.key});
-
+   VCIConfiguration({super.key});
+final controller =Get.put(Vciconfigurationcontroller());
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -15,7 +17,7 @@ class VCIConfiguration extends StatelessWidget {
         title: const Text('Write SSID and PASSWORD'),
         backgroundColor: AppColors.primaryColor,
         iconTheme:
-            const IconThemeData(color: Colors.white), // 👈 back arrow color
+            const IconThemeData(color: Colors.white),
       ),
       body: Center(
         child: Padding(
@@ -24,6 +26,7 @@ class VCIConfiguration extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
+                controller:controller.ssidController.value,
                 cursorColor: Colors.black,
                 style: const TextStyle(
                   fontSize: 14,
@@ -38,6 +41,7 @@ class VCIConfiguration extends StatelessWidget {
 
               // Second TextField
               TextField(
+                controller:controller.passwordController.value,
                 cursorColor: Colors.black,
                 style: const TextStyle(
                   fontSize: 14,
@@ -61,7 +65,9 @@ class VCIConfiguration extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadiusGeometry.circular(6)),
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    controller.submit();
+                  },
                   child: const Text(
                     'Submit',
                     style: TextStyle(

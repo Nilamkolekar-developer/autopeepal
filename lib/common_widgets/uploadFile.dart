@@ -3,7 +3,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
-import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/common_widgets/label_value_widget.dart';
 import 'package:autopeepal/themes/app_textstyles.dart';
 
@@ -16,11 +15,11 @@ Widget imagePickerField({
 }) {
   Future<Uint8List?> fetchImageBytes(String url) async {
     try {
-      final String? token = await AppPreferences.getToken();
+     // final String? token = await AppPreferences.getToken();
       final bool isPrivate = url.contains('/private/files/');
       final headers = <String, String>{};
       if (isPrivate) {
-        headers['Authorization'] = '$token';
+        //headers['Authorization'] = '$token';
       }
 
       final response = await http.get(Uri.parse(url), headers: headers);

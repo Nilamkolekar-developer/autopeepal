@@ -5,6 +5,6 @@ import 'package:get/get.dart';
 class DiagnosticfunctionsBindings extends Bindings {
   @override
   void dependencies() {
-    Get.put(DiagnosticController());
+    Get.put(AppFeatureController());
   }
 }

@@ -1,4 +1,3 @@
-import 'package:autopeepal/common_widgets/commonLoader.dart';
 import 'package:autopeepal/common_widgets/customDropdown.dart';
 import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/common_widgets/custom_drawer.dart';
@@ -23,7 +22,7 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: AppColors.pagebgColor,
       key: scaffoldKey,
       appBar: appBar(
-        title: "ATPL Diagnostic Tool",
+        title: "ATPL Diagnostic Tool",isMenu: true,
         showSelectVci: true,
         onSelectVciTap: () {
           Get.toNamed(Routes.cliCard);
@@ -41,15 +40,20 @@ class DashboardScreen extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.bold),
           ),
           C8(),
-          CustomDropdownTextField(
-            selectedValue: controller.selectedModel,
-            items: controller.model,
-            hint: "Select Model",
-            textStyle: TextStyles.textfieldTextStyle,
-            iconColor: AppColors.primaryColor,
-            iconSize: 50,
-            title: 'Model',
-          ),
+          Obx(() => CustomDropdownTextField(
+                selectedValue: controller.selectedModel,
+                items: controller.modelList.map((m) => m.name ?? "").toList(),
+                hint: "Select Model",
+                textStyle: TextStyles.textfieldTextStyle,
+                iconColor: AppColors.primaryColor,
+                iconSize: 50,
+                title: 'Model',
+                enabled: true,
+                onTapDisabled: () {},
+                onItemSelected: (value) {
+                  controller.selectModel(value);
+                },
+              )),
           C20(),
           const Text(
             "Regulation",
@@ -58,7 +62,9 @@ class DashboardScreen extends StatelessWidget {
           C8(),
           Obx(() => CustomDropdownTextField(
                 selectedValue: controller.selectedRegulation,
-                items: controller.types,
+                items: controller.filteredSubModels
+                    .map((s) => "${s.name} (${s.modelYear})")
+                    .toList(),
                 hint: "Select Regulation",
                 textStyle: TextStyles.textfieldTextStyle,
                 iconColor: AppColors.primaryColor,
@@ -70,12 +76,27 @@ class DashboardScreen extends StatelessWidget {
                     context: context,
                     builder: (context) => CustomPopup(
                       title: "Alert",
-                      message: "Please select Model",
-                      onButtonPressed: () {
-                        Navigator.pop(context);
-                      },
+                      message: "Please select Model first",
+                      onButtonPressed: () => Get.back(),
                     ),
                   );
+                },
+                onItemSelected: (value) {
+                  final parts = value.split(" (");
+                  final year = parts.last.replaceAll(")", "").trim();
+                  final subModel =
+                      controller.filteredSubModels.firstWhereOrNull(
+                    (s) => s.modelYear?.trim() == year,
+                  );
+
+                  if (subModel != null) {
+                    controller.selectSubModel(subModel);
+                    controller.selectedRegulation.value = value;
+                  } else {
+                    print("⚠️ SubModel not found for selection: $value");
+                    controller.selectedSubModel.value = null;
+                    controller.selectedRegulation.value = '';
+                  }
                 },
               )),
           Padding(
@@ -100,14 +121,15 @@ class DashboardScreen extends StatelessWidget {
                         _connectionButton(
                           icon: Icons.usb,
                           label: "USB",
-                          onTap: () {
-                            Get.toNamed(Routes.usbWebScreen);
+                          onTap: () async {
+                            await controller.usbConnect(context);
                           },
                         ),
                         // _connectionButton(
                         //   icon: Icons.wifi,
                         //   label: "WiFi",
                         //   onTap: () {
+                        //     controller.wifiConnect(context);
                         //     Get.toNamed(Routes.wifiScreen);
                         //   },
                         // ),
@@ -117,44 +139,8 @@ class DashboardScreen extends StatelessWidget {
                             onTap: () async {
                               print("📶 WiFi tapped");
 
-                              Get.dialog(
-                                const CommonLoader(message: "Scanning..."),
-                                barrierDismissible: false,
-                              );
-
-                              bool deviceFound = false;
-                              await controller.mdnsDiscoveryService
-                                  .startDiscovery();
-                              final subscription = controller
-                                  .mdnsDiscoveryService.discoveredServices
-                                  .listen((device) {
-                                print("✅ Device detected during tap: $device");
-                                deviceFound = true;
-                              });
-
-                              await Future.delayed(const Duration(seconds: 5));
-
-                              await subscription.cancel();
-
-                              if (Get.isDialogOpen ?? false) {
-                                Get.back();
-                              }
-
-                              if (deviceFound) {
-                                print("🚀 Redirecting to WiFi screen");
-                                Get.toNamed(Routes.wifiScreen);
-                              } else {
-                                print("❌ No device found");
-
-                                Get.dialog(
-                                  CustomPopup(
-                                    title: "Failed",
-                                    message: "Dongle not found",
-                                    onButtonPressed: () => Get.back(),
-                                  ),
-                                );
-                              }
-                            }),
+                              await controller.wifiConnect(context);
+                            })
                       ],
                     ),
                   ],
@@ -168,8 +154,6 @@ class DashboardScreen extends StatelessWidget {
       ),
     );
   }
-
-    
 
   Widget _connectionButton({
     required IconData icon,
