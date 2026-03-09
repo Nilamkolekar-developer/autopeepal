@@ -217,76 +217,6 @@ class DashboardController extends GetxController {
     }
   }
 
-  Future<void> wifiConnect1(BuildContext context) async {
-    try {
-      // 🔴 Validation: Model & SubModel
-      if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
-        showDialog(
-          context: context,
-          builder: (context) => CustomPopup(
-            title: "Alert",
-            message: "Please Select model and submodel",
-            onButtonPressed: () => Get.back(),
-          ),
-        );
-
-        return;
-      }
-
-      // 🔴 Validation: VCI
-      if (selectedVciType.value.isEmpty ||
-          selectedVciType.value == "Select VCI") {
-        showDialog(
-          context: context,
-          builder: (context) => CustomPopup(
-            title: "Alert",
-            message: "Please Select VCI Type",
-            onButtonPressed: () => Get.back(),
-          ),
-        );
-      }
-
-      // 🟡 Loading
-      isLoading.value = true;
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      // 🔌 Save connection type
-      await AppPreferences.setConnectedVia("WIFI");
-      Get.dialog(
-        const CommonLoader(message: "Scanning..."),
-        barrierDismissible: false,
-      );
-
-      final connectionWifi = ConnectionWifi();
-      final wifiDeviceList = await connectionWifi.getDeviceList();
-
-      if (wifiDeviceList != null && wifiDeviceList.isNotEmpty) {
-        if (context.mounted) {
-          Get.toNamed(Routes.wifiScreen);
-        }
-      } else {
-        showDialog(
-          context: context,
-          builder: (context) => CustomPopup(
-            title: "Failed",
-            message: "Dongle not found",
-            onButtonPressed: () => Get.back(),
-          ),
-        );
-      }
-    } catch (e, stack) {
-      debugPrint("❌ WifiConnect error: $e");
-      debugPrintStack(stackTrace: stack);
-    } finally {
-      isLoading.value = false;
-
-//       // Make sure loader is dismissed in finally
-      if (Get.isDialogOpen ?? false) {
-        Get.back();
-      }
-    }
-  }
-
   Future<void> wifiConnect(BuildContext context) async {
     try {
       // 🔴 Validation: Model & SubModel
@@ -679,4 +609,29 @@ class DashboardController extends GetxController {
       Get.back(); // closes CommonLoader
     }
   }
+
+ Future<void> goToJobcardPage() async {
+  try {
+    isLoading.value = true;
+
+    // Show loader
+    if (!(Get.isDialogOpen ?? false)) {
+      Get.dialog(
+        const CommonLoader(message: "Connecting..."),
+        barrierDismissible: false,
+      );
+    }
+
+    await Future.delayed(const Duration(milliseconds: 50));
+    await Get.toNamed(Routes.jobCard, arguments: modelList);
+
+    if (Get.isDialogOpen ?? false) Get.back();
+  } catch (e) {
+    // Close loader if exception happens
+    if (Get.isDialogOpen ?? false) Get.back();
+    print("Exception: $e");
+  } finally {
+    isLoading.value = false;
+  }
+}
 }

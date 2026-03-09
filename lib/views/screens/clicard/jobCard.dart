@@ -26,53 +26,58 @@ class JobCardPage extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-
-          Expanded(
-            child: Obx(() {
-              if (controller.isBusy.value) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              if (controller.jobCardList.isEmpty) {
-                return const Center(child: Text("No Job Cards Found"));
-              }
-
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: controller.jobCardList.length,
-                itemBuilder: (context, index) {
-                  final item = controller.jobCardList[index];
-
-                  return InkWell(
-                    onTap: () {
-                      controller.jobcardSelect(item);
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              // Padding(
+              //   padding: const EdgeInsets.all(16),
+              //   child: TextField(
+              //     decoration: InputDecoration(
+              //       hintText: 'Search',
+              //       prefixIcon: const Icon(Icons.search),
+              //       border: OutlineInputBorder(
+              //         borderRadius: BorderRadius.circular(8),
+              //       ),
+              //       enabledBorder: OutlineInputBorder(
+              //         borderRadius: BorderRadius.circular(8),
+              //         borderSide: BorderSide(color: Colors.grey.shade300),
+              //       ),
+              //       contentPadding: const EdgeInsets.symmetric(vertical: 12),
+              //     ),
+              //   ),
+              // ),
+          
+              Expanded(
+                child: Obx(() {
+                  if (controller.isBusy.value) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+              
+                  if (controller.jobCardList.isEmpty) {
+                    return const Center(child: Text("No Job Cards Found"));
+                  }
+              
+                  return ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    itemCount: controller.jobCardList.length,
+                    itemBuilder: (context, index) {
+                      final item = controller.jobCardList[index];
+              
+                      return InkWell(
+                        onTap: () {
+                          controller.jobcardSelect(item);
+                        },
+                        child: JobCardItem(item: item),
+                      );
                     },
-                    child: JobCardItem(item: item),
                   );
-                },
-              );
-            }),
-          )
-        ],
+                }),
+              )
+            ],
+          ),
+        ),
       ),
 
       floatingActionButton: FloatingActionButton(

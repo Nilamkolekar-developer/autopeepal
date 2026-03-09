@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/app.dart';
 import 'package:autopeepal/common_widgets/commonLoader.dart';
+import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/doipConfigFile_model.dart';
@@ -19,21 +20,36 @@ import 'package:autopeepal/utils/save_local_data.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get_storage/get_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginController extends GetxController {
+  final GetDeviceUniqueId getDeviceUniqueId = GetDeviceUniqueId();
   @override
   void onInit() {
     super.onInit();
+    loadSavedUserCredentials();
+    saveLocalData = SaveLocalData();
+  }
 
-    String? savedUser = box.read('username');
-    String? savedPass = box.read('password');
+  Future<void> loadSavedUserCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
 
-    if (savedUser != null && savedPass != null) {
-      usernameController.value.text = savedUser;
-      passwordController.value.text = savedPass;
-      rememberMe.value = true;
+      // 1. Check if user credentials exist
+      String savedUser = prefs.getString("user_id") ?? "";
+      String savedPass = prefs.getString("password") ?? "";
+
+      if (savedUser.isNotEmpty && savedPass.isNotEmpty) {
+        // 2. Update the text controllers
+        usernameController.value.text = savedUser;
+        passwordController.value.text = savedPass;
+
+        // 3. Set the checkbox to true since we have saved data
+        isRememberMeChecked.value = true;
+        print("[LOGIN] Credentials loaded for: $savedUser");
+      }
+    } catch (e) {
+      print("[LOGIN] Error loading saved credentials: $e");
     }
   }
 
@@ -46,212 +62,55 @@ class LoginController extends GetxController {
   Rx<TextEditingController> verifyOTPController = TextEditingController().obs;
   RxBool hidePassword = true.obs;
   RxString verifyEmail = "".obs;
-  RxBool rememberMe = false.obs;
+  RxBool isRememberMeChecked = false.obs;
   UserResModel? userResModel;
   UserModel? userRequestModel;
-  final box = GetStorage();
+  SaveLocalData? saveLocalData;
 
-  void saveCredentials() {
-    box.write('username', usernameController.value.text);
-    box.write('password', passwordController.value.text);
-  }
-
-  void clearSavedCredentials() {
-    box.remove('username');
-    box.remove('password');
-  }
-
-  // Future<void> loginMethod() async {
-  //   try {
-  //     await Future.delayed(const Duration(milliseconds: 50));
-  //     final loader = CommonLoader(message: "Signing In...");
-  //     Get.dialog(loader, barrierDismissible: false);
-
-  //     // ================= VALIDATION =================
-  //     if (usernameController.value.text.trim().isEmpty &&
-  //         passwordController.value.text.trim().isEmpty) {
-  //       Get.dialog(
-  //         CustomPopup(
-  //           title: "Alert",
-  //           message: "Enter user name and password.",
-  //           onButtonPressed: () => Get.back(),
-  //         ),
-  //         barrierDismissible: false,
-  //       );
-
-  //       return;
-  //     } else if (usernameController.value.text.trim().isEmpty) {
-  //       Get.dialog(
-  //         CustomPopup(
-  //           title: "Alert",
-  //           message: "Enter user name.",
-  //           onButtonPressed: () => Get.back(),
-  //         ),
-  //         barrierDismissible: false,
-  //       );
-
-  //       return;
-  //     } else if (passwordController.value.text.trim().isEmpty) {
-  //       Get.dialog(
-  //         CustomPopup(
-  //           title: "Alert",
-  //           message: "Enter user password",
-  //           onButtonPressed: () => Get.back(),
-  //         ),
-  //         barrierDismissible: false,
-  //       );
-
-  //       return;
-  //     }
-
-  //     // ================= DEVICE INFO =================
-  //     final deviceId = await GetDeviceUniqueId.getId();
-  //     debugPrint("DEVICE ID: $deviceId");
-
-  //     String platform = "";
-  //     if (Platform.isAndroid) {
-  //       platform = "android";
-  //     } else if (Platform.isIOS) {
-  //       platform = "ios";
-  //     } else if (Platform.isWindows) {
-  //       platform = "windows";
-  //     }
-
-  //     final userRequestModel = UserModel(
-  //       username: usernameController.value.text.trim(),
-  //       password: passwordController.value.text.trim(),
-  //       deviceType: platform,
-  //       macId: deviceId,
-  //     );
-
-  //     // ================= NETWORK CHECK =================
-  //     final connectivityResult = await Connectivity().checkConnectivity();
-  //     final isReachable = connectivityResult != ConnectivityResult.none;
-
-  //     bool isLoggedIn = false;
-
-  //     // Inside loginMethod()
-  //     if (isReachable) {
-  //       isLoggedIn = await loginOnline(userRequestModel);
-
-  //       // ADD THIS: If online login fails due to API error, try offline fallback
-  //       if (!isLoggedIn) {
-  //         debugPrint(
-  //             "[LOGIN] Online attempt failed. Trying offline fallback...");
-  //         isLoggedIn = await loginOffline(userRequestModel);
-  //       }
-  //     } else {
-  //       isLoggedIn = await loginOffline(userRequestModel);
-  //     }
-  //     // ================= POST LOGIN =================
-  //     if (isLoggedIn && userResModel != null) {
-  //       final prefs = await SharedPreferences.getInstance();
-
-  //       if (rememberMe.value) {
-  //         await prefs.setString("user_id", userRequestModel.username);
-  //         await prefs.setString("password", userRequestModel.password);
-
-  //         await SaveLocalData.saveData(
-  //           "RememberIsChecked",
-  //           jsonEncode({
-  //             "username": userRequestModel.username,
-  //             "password": userRequestModel.password,
-  //             "device_type": platform,
-  //             "mac_id": deviceId,
-  //             "RememberIsChecked": true,
-  //           }),
-  //         );
-  //       } else {
-  //         await prefs.setString("user_id", "");
-  //         await prefs.setString("password", "");
-
-  //         await SaveLocalData.saveData(
-  //           "RememberIsChecked",
-  //           jsonEncode({
-  //             "RememberIsChecked": false,
-  //           }),
-  //         );
-  //       }
-
-  //       // ================= SAVE SESSION =================
-  //       prefs.setString("macId", deviceId);
-  //       prefs.setString("UserName", userRequestModel.username);
-  //       prefs.setString("MasterLoginUserBY",
-  //           "${userResModel!.firstName} ${userResModel!.lastName}");
-  //       prefs.setString("rolewhilelogin", userResModel!.role ?? "");
-  //       prefs.setInt("oemId", userResModel!.profile?.oem?.id ?? 0);
-
-  //       // ================= GLOBAL APP DATA =================
-  //       await AppPreferences.saveLicences(userResModel!.licences!.toJson());
-  //       await AppPreferences.saveVehicleModels(
-  //         userResModel!.profile!.workshopGroupModels!
-  //             .map((e) => e.toJson())
-  //             .toList(),
-  //       );
-
-  //       // ================= NAVIGATION =================
-  //       Get.toNamed(Routes.dashboardScreen);
-  //     }
-  //   } catch (e) {
-  //     Get.dialog(
-  //       CustomPopup(
-  //         title: "Login Error",
-  //         message: e.toString(),
-  //         onButtonPressed: () => Get.back(),
-  //       ),
-  //       barrierDismissible: false,
-  //     );
-  //   } finally {
-  //     isLoading.value = false;
-  //   }
-  // }
-
-    Future<void> loginMethod() async {
+  Future<void> loginMethod() async {
     try {
       await Future.delayed(const Duration(milliseconds: 50));
 
+      print("[LOGIN] Starting validation...");
+
       // ================= VALIDATION =================
-      if (usernameController.value.text.trim().isEmpty &&
-          passwordController.value.text.trim().isEmpty) {
+      final username = usernameController.value.text.trim();
+      final password = passwordController.value.text.trim();
+
+      if (username.isEmpty && password.isEmpty) {
+        print("[LOGIN] Both username and password empty");
         await Get.dialog(
           AlertDialog(
             title: const Text("Alert"),
             content: const Text("Enter user name and password."),
             actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text("OK"),
-              )
+              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
             ],
           ),
           barrierDismissible: false,
         );
         return;
-      } else if (usernameController.value.text.trim().isEmpty) {
+      } else if (username.isEmpty) {
+        print("[LOGIN] Username empty");
         await Get.dialog(
           AlertDialog(
             title: const Text("Alert"),
             content: const Text("Enter user name."),
             actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text("OK"),
-              )
+              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
             ],
           ),
           barrierDismissible: false,
         );
         return;
-      } else if (passwordController.value.text.trim().isEmpty) {
+      } else if (password.isEmpty) {
+        print("[LOGIN] Password empty");
         await Get.dialog(
           AlertDialog(
             title: const Text("Alert"),
             content: const Text("Enter user password."),
             actions: [
-              TextButton(
-                onPressed: () => Get.back(),
-                child: const Text("OK"),
-              )
+              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
             ],
           ),
           barrierDismissible: false,
@@ -261,11 +120,12 @@ class LoginController extends GetxController {
 
       // ================= LOADER =================
       isLoading.value = true;
+      print("[LOGIN] Showing loader...");
       final loader = CommonLoader(message: "Signing In...");
       Get.dialog(loader, barrierDismissible: false);
 
       // ================= DEVICE INFO =================
-      final deviceId = await GetDeviceUniqueId.getId();
+      final deviceId = await getDeviceUniqueId.getId();
       String platform = "";
       if (Platform.isAndroid) {
         platform = "android";
@@ -274,10 +134,11 @@ class LoginController extends GetxController {
       } else if (Platform.isWindows) {
         platform = "windows";
       }
+      print("[LOGIN] Device info - ID: $deviceId, Platform: $platform");
 
       final userRequestModel = UserModel(
-        username: usernameController.value.text.trim(),
-        password: passwordController.value.text.trim(),
+        username: username,
+        password: password,
         deviceType: platform,
         macId: deviceId,
       );
@@ -287,63 +148,74 @@ class LoginController extends GetxController {
       final isReachable = connectivityResult != ConnectivityResult.none;
 
       bool isLoggedIn = false;
-      if (isReachable) {
-        // Try online login first
-        isLoggedIn = await AuthApiService.login(userRequestModel)
-            .then((res) {
-          userResModel = res;
-          return res.message == "success";
-        });
 
-        // Fallback to offline if online fails
-        if (!isLoggedIn) {
-          debugPrint("[LOGIN] Online attempt failed. Trying offline fallback...");
+// Update this section in loginMethod()
+      if (isReachable) {
+        try {
+          print("[LOGIN] Attempting online login...");
+          // 🔹 Call internal loginOnline which handles API AND data saving
+          isLoggedIn = await loginOnline(userRequestModel);
+        } catch (e) {
+          print("[LOGIN] Online login failed ($e). Switching to offline...");
+          // 🔹 Fallback if the internet is "on" but the server is unreachable
           isLoggedIn = await loginOffline(userRequestModel);
         }
       } else {
-        // No internet, go offline
+        print("[LOGIN] No internet. Trying offline login...");
         isLoggedIn = await loginOffline(userRequestModel);
       }
 
       // ================= POST LOGIN =================
+      print("[LOGIN] Is logged in: $isLoggedIn, userResModel: $userResModel");
       if (isLoggedIn && userResModel != null) {
         final prefs = await SharedPreferences.getInstance();
 
-        if (rememberMe.value) {
-          await prefs.setString("user_id", userRequestModel.username);
-          await prefs.setString("password", userRequestModel.password);
+        print("[LOGIN] Saving remember me preferences...");
+        if (isRememberMeChecked.value) {
+          await prefs.setString("user_id", username);
+          await prefs.setString("password", password);
 
-          await SaveLocalData.saveData(
-            "RememberIsChecked",
-            jsonEncode({
-              "username": userRequestModel.username,
-              "password": userRequestModel.password,
-              "device_type": platform,
-              "mac_id": deviceId,
-              "RememberIsChecked": true,
-            }),
-          );
+          if (saveLocalData != null) {
+            await saveLocalData!.saveData(
+              "RememberIsChecked",
+              jsonEncode({
+                "username": username,
+                "password": password,
+                "device_type": platform,
+                "mac_id": deviceId,
+                "RememberIsChecked": true,
+              }),
+            );
+          } else {
+            print("[LOGIN] Warning: saveLocalData is null!");
+          }
         } else {
           await prefs.setString("user_id", "");
           await prefs.setString("password", "");
 
-          await SaveLocalData.saveData(
-            "RememberIsChecked",
-            jsonEncode({"RememberIsChecked": false}),
-          );
+          if (saveLocalData != null) {
+            await saveLocalData!.saveData(
+              "RememberIsChecked",
+              jsonEncode({"RememberIsChecked": false}),
+            );
+          } else {
+            print("[LOGIN] Warning: saveLocalData is null!");
+          }
         }
 
-        // ================= SAVE SESSION =================
+        print("[LOGIN] Saving session info...");
         await prefs.setString("macId", deviceId);
-        await prefs.setString("UserName", userRequestModel.username);
+        await prefs.setString("UserName", username);
         await prefs.setString(
-            "MasterLoginUserBY",
-            "${userResModel!.firstName ?? ""} ${userResModel!.lastName ?? ""}");
+          "MasterLoginUserBY",
+          "${userResModel!.firstName ?? ""} ${userResModel!.lastName ?? ""}",
+        );
         await prefs.setString("rolewhilelogin", userResModel!.role ?? "");
         await prefs.setInt("oemId", userResModel!.profile?.oem?.id ?? 0);
 
-        // ================= GLOBAL APP DATA =================
-        await AppPreferences.saveLicences(userResModel!.licences?.toJson() ?? {});
+        print("[LOGIN] Saving global app data...");
+        await AppPreferences.saveLicences(
+            userResModel!.licences?.toJson() ?? {});
         await AppPreferences.saveVehicleModels(
           userResModel!.profile?.workshopGroupModels
                   ?.map((e) => e.toJson())
@@ -351,10 +223,11 @@ class LoginController extends GetxController {
               [],
         );
 
-        // ================= NAVIGATION =================
-        Get.offAllNamed(Routes.dashboardScreen,arguments: (userResModel!));
+        print("[LOGIN] Navigating to dashboard...");
+        Get.offAllNamed(Routes.dashboardScreen, arguments: (userResModel!));
       }
-    } catch (e) {
+    } catch (e, s) {
+      print("[LOGIN] Error: $e\nStackTrace: $s");
       await Get.dialog(
         AlertDialog(
           title: const Text("Login Error"),
@@ -366,185 +239,187 @@ class LoginController extends GetxController {
         barrierDismissible: false,
       );
     } finally {
+      print("[LOGIN] Hiding loader...");
       isLoading.value = false;
-      if (Get.isDialogOpen ?? false) Get.back(); // close loader
+      if (Get.isDialogOpen ?? false) Get.back();
     }
   }
 
-  // Future<bool> loginOnline(UserModel userRequestModel) async {
-  //   try {
-  //     bool returnValue = false;
-  //     print(
-  //         "[LOGIN] Starting online login for user: ${userRequestModel.username}");
-
-  //     userResModel = await AuthApiService.login(userRequestModel);
-
-  //     if (userResModel != null &&
-  //         userResModel!.token != null &&
-  //         userResModel!.userId != null) {
-  //       print("[LOGIN] Login successful, saving data...");
-
-  //       // Save OEM ID
-  //       final prefs = await SharedPreferences.getInstance();
-  //       final previousOem = prefs.getInt("oemId") ?? 0;
-  //       final currentOem = userResModel!.profile?.oem?.id ?? 0;
-  //       await AppPreferences.setInt("oemId", currentOem);
-
-  //       // Save tokens
-  //       await AppPreferences.saveTokens(
-  //         accessToken: userResModel!.token?.access ?? '',
-  //         refreshToken: userResModel!.token?.refresh ?? '',
-  //       );
-
-  //       // Save local data
-  //       await SaveLocalData.saveData(
-  //         "UserDetail_LocalData",
-  //         jsonEncode(userResModel!.toJson()),
-  //       );
-  //       await SaveLocalData.saveData(
-  //         "UserRequest_LocalData",
-  //         jsonEncode(userRequestModel.toJson()),
-  //       );
-
-  //       // Local model data check (optional)
-  //       String? modelLocalList = await SaveLocalData.getData("MODEL_LocalList");
-  //       String? iorLocalList = await SaveLocalData.getData("IOR_LocalList");
-  //       String? actuatorLocalList =
-  //           await SaveLocalData.getData("Actuator_LocalList");
-  //       String? freezeFrameLocalList =
-  //           await SaveLocalData.getData("FreezeFrame_LocalList");
-
-  //       // ignore: unnecessary_null_comparison
-  //       if (modelLocalList == null ||
-  //           // ignore: unnecessary_null_comparison
-  //           iorLocalList == null ||
-  //           // ignore: unnecessary_null_comparison
-  //           actuatorLocalList == null ||
-  //           // ignore: unnecessary_null_comparison
-  //           freezeFrameLocalList == null ||
-  //           previousOem != currentOem) {
-  //         print(
-  //             "[LOGIN] Local data missing or OEM changed. Updating local data...");
-  //         // If you have updateModelToLocal(), call it here
-  //         await updateModelToLocal();
-  //       } else {
-  //         print("[LOGIN] Using existing local data");
-  //         // Optional: await loginOffline(userRequestModel);
-  //       }
-
-  //       // ✅ Mark login success
-  //       returnValue = true;
-  //     } else {
-  //       print(
-  //           "[LOGIN] Login failed: Invalid response or missing token/user_id");
-  //       Get.snackbar("Error", userResModel?.message ?? "Login failed");
-  //       returnValue = false;
-  //     }
-
-  //     print("[LOGIN] loginOnline ended with returnValue: $returnValue");
-  //     return returnValue;
-  //   } catch (e) {
-  //     print("[LOGIN] Exception during loginOnline: $e");
-  //      Get.dialog(
-  //         CustomPopup(
-  //           title: "Alert",
-  //           message:" $e",
-  //           onButtonPressed: () => Get.back(),
-  //         ),
-  //         barrierDismissible: false,
-  //       );
-  //     Get.snackbar("Error", e.toString());
-  //     return false;
-  //   }
-  // }
-
   Future<bool> loginOnline(UserModel userRequestModel) async {
-  try {
-    bool returnValue = false;
+    try {
+      bool returnValue = false;
+      print(
+          "[LOGIN] Starting online login for user: ${userRequestModel.username}");
 
-    // Initialize response
-    userResModel = UserResModel();
+      userResModel = await AuthApiService.login(userRequestModel);
 
-    // Call your API service
-    userResModel = await AuthApiService.login(userRequestModel);
+      if (userResModel != null &&
+          userResModel!.token != null &&
+          userResModel!.userId != null) {
+        print("[LOGIN] Login successful, saving data...");
 
-    if (userResModel?.message == "success") {
-      // Save global app data
-      App.oemId = userResModel?.profile?.oem?.id ?? 0;
-      App.jwtToken = userResModel?.token?.access ?? '';
+        // Save OEM ID
+        final prefs = await SharedPreferences.getInstance();
+        final previousOem = prefs.getInt("oemId") ?? 0;
+        final currentOem = userResModel!.profile?.oem?.id ?? 0;
+        await AppPreferences.setInt("oemId", currentOem);
 
-      // Save user and request to local storage
-      await SaveLocalData.saveData(
-        "UserDetailL_LocalData",
-        jsonEncode(userResModel?.toJson()),
-      );
-      await SaveLocalData.saveData(
-        "UserRequest_LocalData",
-        jsonEncode(userRequestModel.toJson()),
-      );
+        // Save tokens
+        await AppPreferences.saveTokens(
+          accessToken: userResModel!.token?.access ?? '',
+          refreshToken: userResModel!.token?.refresh ?? '',
+        );
 
-      // Read previous OEM
-      final prefs = await SharedPreferences.getInstance();
-      int previousOem = prefs.getInt("oemId") ?? 0;
+        // Save local data
+        await saveLocalData!.saveData(
+          "UserDetail_LocalData",
+          jsonEncode(userResModel!.toJson()),
+        );
+        await saveLocalData!.saveData(
+          "UserRequest_LocalData",
+          jsonEncode(userRequestModel.toJson()),
+        );
 
-      // Get local cached model data
-      final modelLocalList = await SaveLocalData.getData("MODEL_LocalList");
-      final iorLocalList = await SaveLocalData.getData("IOR_LocalList");
-      final actuatorLocalList = await SaveLocalData.getData("Actuator_LocalList");
-      final freezeFrameLocalList =
-          await SaveLocalData.getData("FreezeFrame_LocalList");
+        // Local model data check (optional)
+        String? modelLocalList = await saveLocalData!.getData("MODEL_LocalList");
+        String? iorLocalList = await saveLocalData!.getData("IOR_LocalList");
+        String? actuatorLocalList =
+            await saveLocalData!.getData("Actuator_LocalList");
+        String? freezeFrameLocalList =
+            await saveLocalData!.getData("FreezeFrame_LocalList");
 
-      // Check if local data needs updating
-      if (modelLocalList.trim().isEmpty ||
-          iorLocalList.trim().isEmpty ||
-          actuatorLocalList.trim().isEmpty ||
-          freezeFrameLocalList.trim().isEmpty ||
-          previousOem != (userResModel?.profile?.oem?.id ?? 0)) {
-        // Show loader text
-        // You can bind this to a controller variable
-        debugPrint("Updating Local Data...");
-        returnValue = await updateModelToLocal();
+        // ignore: unnecessary_null_comparison
+        if (modelLocalList == null ||
+            // ignore: unnecessary_null_comparison
+            iorLocalList == null ||
+            // ignore: unnecessary_null_comparison
+            actuatorLocalList == null ||
+            // ignore: unnecessary_null_comparison
+            freezeFrameLocalList == null ||
+            previousOem != currentOem) {
+          print(
+              "[LOGIN] Local data missing or OEM changed. Updating local data...");
+          // If you have updateModelToLocal(), call it here
+          await updateModelToLocal();
+        } else {
+          print("[LOGIN] Using existing local data");
+          // Optional: await loginOffline(userRequestModel);
+        }
+
+        // ✅ Mark login success
+        returnValue = true;
       } else {
-        // If local data is valid, fallback to offline login
-        returnValue = await loginOffline(userRequestModel);
+        print(
+            "[LOGIN] Login failed: Invalid response or missing token/user_id");
+        Get.snackbar("Error", userResModel?.message ?? "Login failed");
+        returnValue = false;
       }
-    } else {
-      // Show error dialog
+
+      print("[LOGIN] loginOnline ended with returnValue: $returnValue");
+      return returnValue;
+    } catch (e) {
+      print("[LOGIN] Exception during loginOnline: $e");
+       Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message:" $e",
+            onButtonPressed: () => Get.back(),
+          ),
+          barrierDismissible: false,
+        );
+      Get.snackbar("Error", e.toString());
+      return false;
+    }
+  }
+
+  Future<bool> loginOnline1(UserModel userRequestModel) async {
+    try {
+      bool returnValue = false;
+
+      // Initialize response
+      userResModel = UserResModel();
+
+      // Call your API service
+      userResModel = await AuthApiService.login(userRequestModel);
+
+      if (userResModel?.message == "success") {
+        // Save global app data
+        App.oemId = userResModel?.profile?.oem?.id ?? 0;
+        App.jwtToken = userResModel?.token?.access ?? '';
+
+        // Save user and request to local storage
+        await saveLocalData!.saveData(
+          "UserDetailL_LocalData",
+          jsonEncode(userResModel?.toJson()),
+        );
+        await saveLocalData!.saveData(
+          "UserRequest_LocalData",
+          jsonEncode(userRequestModel.toJson()),
+        );
+
+        // Read previous OEM
+        final prefs = await SharedPreferences.getInstance();
+        int previousOem = prefs.getInt("oemId") ?? 0;
+
+        // Get local cached model data
+        final modelLocalList = await saveLocalData!.getData("MODEL_LocalList");
+        final iorLocalList = await saveLocalData!.getData("IOR_LocalList");
+        final actuatorLocalList =
+            await saveLocalData!.getData("Actuator_LocalList");
+        final freezeFrameLocalList =
+            await saveLocalData!.getData("FreezeFrame_LocalList");
+
+        // Check if local data needs updating
+        if (modelLocalList.trim().isEmpty ||
+            iorLocalList.trim().isEmpty ||
+            actuatorLocalList.trim().isEmpty ||
+            freezeFrameLocalList.trim().isEmpty ||
+            previousOem != (userResModel?.profile?.oem?.id ?? 0)) {
+          // Show loader text
+          // You can bind this to a controller variable
+          debugPrint("Updating Local Data...");
+          returnValue = await updateModelToLocal();
+        } else {
+          // If local data is valid, fallback to offline login
+          returnValue = await loginOffline(userRequestModel);
+        }
+      } else {
+        // Show error dialog
+        await Get.dialog(
+          AlertDialog(
+            title: const Text("Error"),
+            content: Text(userResModel?.message ?? "Login failed"),
+            actions: [
+              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
+            ],
+          ),
+          barrierDismissible: false,
+        );
+        returnValue = false;
+      }
+
+      return returnValue;
+    } catch (e) {
       await Get.dialog(
         AlertDialog(
           title: const Text("Error"),
-          content: Text(userResModel?.message ?? "Login failed"),
+          content: Text(e.toString()),
           actions: [
             TextButton(onPressed: () => Get.back(), child: const Text("OK"))
           ],
         ),
         barrierDismissible: false,
       );
-      returnValue = false;
+      return false;
     }
-
-    return returnValue;
-  } catch (e) {
-    await Get.dialog(
-      AlertDialog(
-        title: const Text("Error"),
-        content: Text(e.toString()),
-        actions: [
-          TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-        ],
-      ),
-      barrierDismissible: false,
-    );
-    return false;
   }
-}
 
   Future<bool> updateModelToLocal() async {
     bool returnValue = false;
 
     try {
       // ================= GET LOCAL DATA =================
-      String? localData = await SaveLocalData.getData("MODEL_LocalList");
+      String? localData = await saveLocalData!.getData("MODEL_LocalList");
 
       late AllModelsModel result;
 
@@ -554,7 +429,7 @@ class LoginController extends GetxController {
 
         if (result.message == "success") {
           String modelLocalList = jsonEncode(result.toJson());
-          await SaveLocalData.saveData("MODEL_LocalList", modelLocalList);
+          await saveLocalData!.saveData("MODEL_LocalList", modelLocalList);
           print("[LOCAL] Saved MODEL_LocalList");
         } else {
           await Get.defaultDialog(
@@ -652,7 +527,7 @@ class LoginController extends GetxController {
             // Save FIRST result (same as your C# logic)
             final pidJson = jsonEncode(pids.results![0].toJson());
 
-            await SaveLocalData.saveData(
+            await saveLocalData!.saveData(
               "PidDataset_${pids.results![0].id}",
               pidJson,
             );
@@ -702,7 +577,7 @@ class LoginController extends GetxController {
             // Save FIRST result (same behavior as C#)
             final dtcJson = jsonEncode(dtcs.results![0].toJson());
 
-            await SaveLocalData.saveData(
+            await saveLocalData!.saveData(
               "DtcDataset_${dtcs.results![0].id}",
               dtcJson,
             );
@@ -769,7 +644,7 @@ class LoginController extends GetxController {
         final String sequenceContent =
             await services.downloadFileContent(ecu.sequenceFile ?? '');
 
-        await SaveLocalData.saveData(
+        await saveLocalData!.saveData(
           "flashRecord_sequence_file_${ecu.id}",
           sequenceContent,
         );
@@ -781,7 +656,7 @@ class LoginController extends GetxController {
             final String fileContent =
                 await services.downloadFileContent(file.dataFile ?? '');
 
-            await SaveLocalData.saveData(
+            await saveLocalData!.saveData(
               "file_data_file_${file.id}",
               fileContent,
             );
@@ -802,7 +677,7 @@ class LoginController extends GetxController {
   Future<bool> updateIorListToLocal() async {
     try {
       // 🔹 Read local data (empty means not saved yet)
-      final String localData = await SaveLocalData.getData("IOR_LocalList");
+      final String localData = await saveLocalData!.getData("IOR_LocalList");
 
       // 🔹 If not available locally, fetch from API
       if (localData.trim().isEmpty) {
@@ -811,7 +686,7 @@ class LoginController extends GetxController {
 
         if (res.message == "success") {
           final String iorLocalJson = jsonEncode(res.toJson());
-          await SaveLocalData.saveData("IOR_LocalList", iorLocalJson);
+          await saveLocalData!.saveData("IOR_LocalList", iorLocalJson);
           return true;
         } else {
           await Get.defaultDialog(
@@ -837,7 +712,7 @@ class LoginController extends GetxController {
     try {
       // 🔹 Read local cache
       final String localData =
-          await SaveLocalData.getData("Actuator_LocalList");
+          await saveLocalData!.getData("Actuator_LocalList");
 
       // 🔹 If not cached locally, fetch from API
       if (localData.trim().isEmpty) {
@@ -846,7 +721,7 @@ class LoginController extends GetxController {
 
         if (res.message == "success") {
           final String actuatorLocalJson = jsonEncode(res.toJson());
-          await SaveLocalData.saveData(
+          await saveLocalData!.saveData(
             "Actuator_LocalList",
             actuatorLocalJson,
           );
@@ -886,7 +761,7 @@ class LoginController extends GetxController {
         for (final subModel in subModels) {
           // 🔹 Read local cache
           final String localData =
-              await SaveLocalData.getData("GD_LocalList_${subModel.id}");
+              await saveLocalData!.getData("GD_LocalList_${subModel.id}");
 
           // 🔹 If not cached, fetch from API
           if (localData.trim().isEmpty) {
@@ -895,7 +770,7 @@ class LoginController extends GetxController {
             if (res.message == "success") {
               final String gdLocalJson = jsonEncode(res.toJson());
 
-              await SaveLocalData.saveData(
+              await saveLocalData!.saveData(
                 "GD_LocalList_${subModel.id}",
                 gdLocalJson,
               );
@@ -926,7 +801,7 @@ class LoginController extends GetxController {
     try {
       // 🔹 Read local cache
       final String localData =
-          await SaveLocalData.getData("FreezeFrame_LocalList");
+          await saveLocalData!.getData("FreezeFrame_LocalList");
 
       // 🔹 If not cached, fetch from API
       if (localData.trim().isEmpty) {
@@ -936,7 +811,7 @@ class LoginController extends GetxController {
         if (res.message == "success") {
           final String freezeFrameLocalJson = jsonEncode(res.toJson());
 
-          await SaveLocalData.saveData(
+          await saveLocalData!.saveData(
             "FreezeFrame_LocalList",
             freezeFrameLocalJson,
           );
@@ -965,7 +840,7 @@ class LoginController extends GetxController {
     try {
       // 🔹 Read local cache
       final String localData =
-          await SaveLocalData.getData("DoipConfig_LocalList");
+          await saveLocalData!.getData("DoipConfig_LocalList");
 
       // 🔹 If not cached, fetch from API
       if (localData.trim().isEmpty) {
@@ -975,7 +850,7 @@ class LoginController extends GetxController {
         if (res.message == "success") {
           final String doipConfigLocalJson = jsonEncode(res.toJson());
 
-          await SaveLocalData.saveData(
+          await saveLocalData!.saveData(
             "DoipConfig_LocalList",
             doipConfigLocalJson,
           );
@@ -1004,7 +879,7 @@ class LoginController extends GetxController {
     try {
       // 🔹 Read local cache
       final String localData =
-          await SaveLocalData.getData("ListNumber_LocalList");
+          await saveLocalData!.getData("ListNumber_LocalList");
 
       // 🔹 If not cached, fetch from API
       if (localData.trim().isEmpty) {
@@ -1014,7 +889,7 @@ class LoginController extends GetxController {
         if (res.message == "success") {
           final String listNumberLocalJson = jsonEncode(res.toJson());
 
-          await SaveLocalData.saveData(
+          await saveLocalData!.saveData(
             "ListNumber_LocalList",
             listNumberLocalJson,
           );
@@ -1038,33 +913,37 @@ class LoginController extends GetxController {
       return false;
     }
   }
+
 Future<bool> loginOffline(UserModel userRequestModel) async {
   try {
-    // 🔹 Get local cached model data
-    final modelLocalList = await SaveLocalData.getData("MODEL_LocalList");
-    final iorLocalList = await SaveLocalData.getData("IOR_LocalList");
-    final actuatorLocalList = await SaveLocalData.getData("Actuator_LocalList");
-    final freezeFrameLocalList =
-        await SaveLocalData.getData("FreezeFrame_LocalList");
+    // 🔹 Get local cached model data safely
+    final modelLocalList = (await saveLocalData!.getData("MODEL_LocalList")) ?? "";
+    final iorLocalList = (await saveLocalData!.getData("IOR_LocalList")) ?? "";
+    final actuatorLocalList = (await saveLocalData!.getData("Actuator_LocalList")) ?? "";
+    final freezeFrameLocalList = (await saveLocalData!.getData("FreezeFrame_LocalList")) ?? "";
 
     // 🔹 Check if mandatory local data exists
-    if ((modelLocalList.trim()).isEmpty ||
-        (iorLocalList.trim()).isEmpty ||
-        (actuatorLocalList.trim() ).isEmpty ||
-        (freezeFrameLocalList.trim()).isEmpty) {
-      await Get.defaultDialog(
-        title: "Failed",
-        middleText: "Local data not completely updated.\nTry to login with internet.",
+    if (modelLocalList.isEmpty ||
+        iorLocalList.isEmpty ||
+        actuatorLocalList.isEmpty ||
+        freezeFrameLocalList.isEmpty) {
+      Get.dialog(
+        CustomPopup(
+          title: "Failed",
+          message: "Local data not completely updated.\nTry to login with internet",
+          onButtonPressed: () => Get.back(),
+        ),
+        barrierDismissible: false,
       );
-      await SaveLocalData.saveData("MODEL_LocalList", "");
+
+      // Clear incomplete cache
+      await saveLocalData!.saveData("MODEL_LocalList", "");
       return false;
     }
 
-    // 🔹 Get cached user login data
-    final responseData = await SaveLocalData.getData("UserDetailL_LocalData");
-    final requestData = await SaveLocalData.getData("UserRequest_LocalData");
-
-    if ((responseData.trim()).isEmpty || (requestData.trim()).isEmpty) {
+    // 🔹 Get cached user login request (username & password)
+    final requestData = (await saveLocalData!.getData("UserRequest_LocalData")) ?? "";
+    if (requestData.isEmpty) {
       await Get.defaultDialog(
         title: "Failed",
         middleText: "Try to login with internet.",
@@ -1072,15 +951,29 @@ Future<bool> loginOffline(UserModel userRequestModel) async {
       return false;
     }
 
-    // 🔹 Deserialize cached data
-    userResModel = UserResModel.fromJson(jsonDecode(responseData));
+    final cachedRequest = UserModel.fromJson(jsonDecode(requestData));
 
-    // 🔹 Check for valid token
-    if (userResModel?.token?.access != null && userResModel!.token!.access!.isNotEmpty) {
-      App.jwtToken = userResModel!.token!.access!;
-      App.oemId = userResModel!.profile?.oem?.id ?? 0;
+    // 🔹 Validate username & password
+    if (cachedRequest.username == userRequestModel.username &&
+        cachedRequest.password == userRequestModel.password) {
+      // ✅ Successful offline login, token may be null
+      final responseData = (await saveLocalData!.getData("UserDetailL_LocalData")) ?? "";
+      if (responseData.isNotEmpty) {
+        userResModel = UserResModel.fromJson(jsonDecode(responseData));
+        // Token is optional offline
+        if (userResModel?.token?.access != null) {
+          App.jwtToken = userResModel!.token!.access!;
+        }
+        App.oemId = userResModel!.profile?.oem?.id ?? 0;
+      }
+
+      print('[OFFLINE LOGIN] Success for ${userRequestModel.username}');
       return true;
     } else {
+      await Get.defaultDialog(
+        title: "Failed",
+        middleText: "Username or password does not match cached data.",
+      );
       return false;
     }
   } catch (e) {
@@ -1091,4 +984,6 @@ Future<bool> loginOffline(UserModel userRequestModel) async {
     return false;
   }
 }
+
+
 }

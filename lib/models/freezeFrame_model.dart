@@ -7,7 +7,7 @@ class FreezeFrameModel {
   String? message;
   List<FreezeFrameResult>? results;
 
-  FreezeFrameModel({this.count, this.next, this.previous, this.message, this.results});
+  FreezeFrameModel({this.count, this.next, this.previous, this.message, this.results, bool? isActive,});
 
   factory FreezeFrameModel.fromJson(Map<String, dynamic> json) => FreezeFrameModel(
         count: json['count'],
@@ -53,14 +53,16 @@ class FreezeFrameResult {
       };
 }
 
-class FreezeFrameCode extends ChangeNotifier {
+class FreezeFrameCode {
   int? id;
   String? code;
   String? desc;
   int? bytePosition;
-  int? priority;
   int? length;
+  int? priority;
   bool? bitcoded;
+  int? noofBits;
+  int? startBit;
   dynamic startBitPosition;
   dynamic endBitPosition;
   double? resolution;
@@ -76,9 +78,11 @@ class FreezeFrameCode extends ChangeNotifier {
     this.code,
     this.desc,
     this.bytePosition,
-    this.priority,
     this.length,
+    this.priority,
     this.bitcoded,
+    this.noofBits,
+    this.startBit,
     this.startBitPosition,
     this.endBitPosition,
     this.resolution,
@@ -90,43 +94,53 @@ class FreezeFrameCode extends ChangeNotifier {
     this.freezframeMessages,
   });
 
-  factory FreezeFrameCode.fromJson(Map<String, dynamic> json) => FreezeFrameCode(
-        id: json['id'],
-        code: json['code'],
-        desc: json['desc'],
-        bytePosition: json['byte_position'],
-        priority: json['priority'],
-        length: json['length'],
-        bitcoded: json['bitcoded'],
-        startBitPosition: json['start_bit_position'],
-        endBitPosition: json['end_bit_position'],
-        resolution: (json['resolution'] != null) ? json['resolution'].toDouble() : null,
-        offset: (json['offset'] != null) ? json['offset'].toDouble() : null,
-        messageType: json['message_type'],
-        unit: json['unit'],
-        endian: json['endian'],
-        numType: json['num_type'],
-        freezframeMessages: json['freezframe_messages'] ?? [],
-      );
+  factory FreezeFrameCode.fromJson(Map<String, dynamic> json) {
+    return FreezeFrameCode(
+      id: json['id'],
+      code: json['code'],
+      desc: json['desc'],
+      bytePosition: json['byte_position'],
+      length: json['length'],
+      priority: json['priority'],
+      bitcoded: json['bitcoded'],
+      noofBits: json['noofBits'],
+      startBit: json['startBit'],
+      startBitPosition: json['start_bit_position'],
+      endBitPosition: json['end_bit_position'],
+      resolution: (json['resolution'] as num?)?.toDouble(),
+      offset: (json['offset'] as num?)?.toDouble(),
+      messageType: json['message_type'],
+      unit: json['unit'],
+      endian: json['endian'],
+      numType: json['num_type'],
+      freezframeMessages: json['freezframe_messages'] != null
+          ? List<dynamic>.from(json['freezframe_messages'])
+          : [],
+    );
+  }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'code': code,
-        'desc': desc,
-        'byte_position': bytePosition,
-        'priority': priority,
-        'length': length,
-        'bitcoded': bitcoded,
-        'start_bit_position': startBitPosition,
-        'end_bit_position': endBitPosition,
-        'resolution': resolution,
-        'offset': offset,
-        'message_type': messageType,
-        'unit': unit,
-        'endian': endian,
-        'num_type': numType,
-        'freezframe_messages': freezframeMessages,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'code': code,
+      'desc': desc,
+      'byte_position': bytePosition,
+      'length': length,
+      'priority': priority,
+      'bitcoded': bitcoded,
+      'noofBits': noofBits,
+      'startBit': startBit,
+      'start_bit_position': startBitPosition,
+      'end_bit_position': endBitPosition,
+      'resolution': resolution,
+      'offset': offset,
+      'message_type': messageType,
+      'unit': unit,
+      'endian': endian,
+      'num_type': numType,
+      'freezframe_messages': freezframeMessages,
+    };
+  }
 }
 
 class FreezeFrameUIModel extends ChangeNotifier {

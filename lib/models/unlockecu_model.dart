@@ -1,5 +1,7 @@
 
 
+import 'package:autopeepal/models/all_models.dart';
+
 class UnlockEcuModel {
   int? count;
   dynamic next;
@@ -109,12 +111,4 @@ class ResultUnlock {
         'rx_frame': rxFrame,
         'is_active': isActive,
       };
-}
-
-/// Replace this with your actual Protocol model in Dart
-class Protocol {
-  Protocol();
-
-  factory Protocol.fromJson(Map<String, dynamic> json) => Protocol();
-  Map<String, dynamic> toJson() => {};
 }

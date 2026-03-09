@@ -4,7 +4,6 @@ import 'package:autopeepal/utils/ui_helper_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
-
 class CustomDropdownTextField extends StatelessWidget {
   final RxString selectedValue;
   final List<String> items;
@@ -74,77 +73,83 @@ class CustomDropdownTextField extends StatelessWidget {
               if (onTapDisabled != null) onTapDisabled!();
               return;
             }
-showDialog(
-  context: context,
-  builder: (context) {
-    final double maxHeight = MediaQuery.of(context).size.height * 0.5;
-    return Dialog(
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.primaryColor, width: 6),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: SizedBox(
-        height: maxHeight,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              width: double.infinity,
-              color: AppColors.primaryColor,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                title.toUpperCase(),
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
-              ),
-            ),
-
-            // Scrollable list fills remaining space
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(12),
-                itemCount: items.length,
-                itemBuilder: (context, index) {
-                  final item = items[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8.0),
-                    child: InkWell(
-                      onTap: () {
-                        selectedValue.value = item;
-                        if (onItemSelected != null) onItemSelected!(item);
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: AppColors.primaryColor.withOpacity(0.4),
-                          border: Border.all(color: Colors.grey.shade400),
-                        ),
-                        child: Text(
-                          item,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w500,
+            showDialog(
+              context: context,
+              builder: (context) {
+                final double maxHeight =
+                    MediaQuery.of(context).size.height * 0.5;
+                return Dialog(
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    side: const BorderSide(
+                        color: AppColors.primaryColor, width: 6),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SizedBox(
+                    height: maxHeight,
+                    child: Column(
+                      children: [
+                        // Header
+                        Container(
+                          width: double.infinity,
+                          color: AppColors.primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          child: Text(
+                            title.toUpperCase(),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 18,
+                            ),
                           ),
                         ),
-                      ),
+
+                        // Scrollable list fills remaining space
+                        Expanded(
+                          child: ListView.builder(
+                            padding: const EdgeInsets.all(12),
+                            itemCount: items.length,
+                            itemBuilder: (context, index) {
+                              final item = items[index];
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: InkWell(
+                                  onTap: () {
+                                    selectedValue.value = item;
+                                    if (onItemSelected != null)
+                                      onItemSelected!(item);
+                                    Navigator.pop(context);
+                                  },
+                                  child: Container(
+                                    width: double.infinity,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 14),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryColor
+                                          .withOpacity(0.4),
+                                      border: Border.all(
+                                          color: Colors.grey.shade400),
+                                    ),
+                                    child: Text(
+                                      item,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  },
-);
+                  ),
+                );
+              },
+            );
           },
         ),
       );
@@ -156,7 +161,199 @@ class CustomDropdownTextField1 extends StatelessWidget {
   final RxString selectedValue;
   final List<String> items;
   final String hint;
-  final String title; // used as label
+
+  final String? label; // label above textfield (optional)
+  final String? dialogTitle; // title inside dialog
+
+  final TextStyle? textStyle;
+  final Color? iconColor;
+  final double? iconSize;
+  final bool readOnly;
+  final bool enabled;
+  final VoidCallback? onTapDisabled;
+  final Function(String)? onItemSelected;
+
+  const CustomDropdownTextField1({
+    Key? key,
+    required this.selectedValue,
+    required this.items,
+    this.dialogTitle,
+    this.label,
+    this.hint = "Select",
+    this.textStyle,
+    this.iconColor,
+    this.iconSize,
+    this.readOnly = true,
+    this.enabled = true,
+    this.onTapDisabled,
+    this.onItemSelected,
+    required String title,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(() {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          /// OPTIONAL LABEL ABOVE TEXTFIELD
+          if (label != null) ...[
+            Text(
+              label!,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Colors.black,
+                fontFamily: "OpenSans-Regular",
+              ),
+            ),
+            C2(),
+          ],
+
+          TextField(
+            readOnly: readOnly,
+            controller: TextEditingController(
+                text: selectedValue.value.isEmpty ? "" : selectedValue.value),
+            style: TextStyles.textfieldTextStyle2,
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyles.hintStyle1,
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(5),
+                borderSide: BorderSide(color: AppColors.primaryColor),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(5),
+                borderSide: BorderSide(color: AppColors.primaryColor),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(5),
+                borderSide: BorderSide(color: AppColors.primaryColor, width: 1),
+              ),
+              suffixIcon: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: IntrinsicHeight(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 3),
+                        child: Container(
+                          width: 2,
+                          color: AppColors.primaryColor,
+                          margin: const EdgeInsets.only(right: 6),
+                        ),
+                      ),
+                      Icon(
+                        Icons.arrow_drop_down,
+                        color: iconColor ?? AppColors.primaryColor,
+                        size: iconSize ?? 50,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            onTap: () {
+              if (!enabled) {
+                if (onTapDisabled != null) onTapDisabled!();
+                return;
+              }
+
+              showDialog(
+                context: context,
+                builder: (context) {
+                  final double maxHeight =
+                      MediaQuery.of(context).size.height * 0.5;
+
+                  return Dialog(
+                    shape: RoundedRectangleBorder(
+                      side: const BorderSide(
+                          color: AppColors.primaryColor, width: 6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: SizedBox(
+                      height: maxHeight,
+                      child: Column(
+                        children: [
+                          /// DIALOG TITLE
+                          Container(
+                            width: double.infinity,
+                            color: AppColors.primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              dialogTitle ?? "".toUpperCase(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                              ),
+                            ),
+                          ),
+
+                          Expanded(
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(12),
+                              itemCount: items.length,
+                              itemBuilder: (context, index) {
+                                final item = items[index];
+
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: InkWell(
+                                    onTap: () {
+                                      selectedValue.value = item;
+                                      if (onItemSelected != null) {
+                                        onItemSelected!(item);
+                                      }
+                                      Navigator.pop(context);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryColor
+                                            .withOpacity(0.4),
+                                        border: Border.all(
+                                            color: Colors.grey.shade400),
+                                      ),
+                                      child: Text(
+                                        item,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      );
+    });
+  }
+}
+
+class CustomDropdownTextField2 extends StatelessWidget {
+  final RxString selectedValue;
+  final List<String> items;
+  final String hint;
+  final String? title; // used as label
   final TextStyle? textStyle;
   final Color? iconColor;
   final double? iconSize;
@@ -164,11 +361,11 @@ class CustomDropdownTextField1 extends StatelessWidget {
   final bool enabled;
   final VoidCallback? onTapDisabled;
 
-  const CustomDropdownTextField1({
+  const CustomDropdownTextField2({
     Key? key,
     required this.selectedValue,
     required this.items,
-    required this.title,
+    this.title,
     this.hint = "Select",
     this.textStyle,
     this.iconColor,
@@ -184,16 +381,6 @@ class CustomDropdownTextField1 extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label above the textfield
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w500,
-              color: Colors.black,
-              fontFamily: "OpenSans-Regular",
-            ),
-          ),
           C2(),
           TextField(
             readOnly: readOnly,
@@ -225,10 +412,8 @@ class CustomDropdownTextField1 extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                    
                       Padding(
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 3),
+                        padding: const EdgeInsets.symmetric(vertical: 3),
                         child: Container(
                           width: 2,
                           color: AppColors.primaryColor,
@@ -267,20 +452,20 @@ class CustomDropdownTextField1 extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: double.infinity,
-                            color: AppColors.primaryColor,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              title.toUpperCase(),
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ),
+                          // Container(
+                          //   width: double.infinity,
+                          //   color: AppColors.primaryColor,
+                          //   padding: const EdgeInsets.symmetric(vertical: 12),
+                          //   child: Text(
+                          //     title.toUpperCase(),
+                          //     textAlign: TextAlign.center,
+                          //     style: const TextStyle(
+                          //       color: Colors.white,
+                          //       fontWeight: FontWeight.bold,
+                          //       fontSize: 18,
+                          //     ),
+                          //   ),
+                          // ),
                           Flexible(
                             child: SingleChildScrollView(
                               child: Container(

@@ -105,7 +105,7 @@ class AppRoutes {
 
     GetPage(
       name: Routes.vciConfigurationScreen,
-      binding: DiagnosticfunctionsBindings(),
+      //binding: DiagnosticfunctionsBindings(),
       page: () => VCIConfiguration(),
     ),
 
