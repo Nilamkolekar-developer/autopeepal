@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class TerminalView extends StatelessWidget {
-  // Use Get.put to ensure the controller exists when this view loads
+
   final TerminalController controller = Get.put(TerminalController());
   final TextEditingController textController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
@@ -21,7 +21,7 @@ final Color primaryColor = const Color(0xFFFF7A00);
       body: SafeArea(
         child: Column(
           children: [
-            // 1. TERMINAL LOG AREA
+
             Expanded(
               child: Container(
                 width: double.infinity,
