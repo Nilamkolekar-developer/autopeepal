@@ -39,21 +39,21 @@ class DiagnosticFunctions extends StatelessWidget {
               color: Colors.white,
             ),
           ),
-           actions: [
+          actions: [
             IconButton(
               onPressed: () {
-               controller.checkSessionLogs();
+                controller.checkSessionLogs();
               },
               icon: Image.asset(
                 "assets/new/ic_session_log.png",
                 height: isMobile ? 35 : 50,
                 width: isMobile ? 35 : 50,
-                color: Colors.white, 
+                color: Colors.white,
               ),
             ),
             IconButton(
               onPressed: () {
-               controller. fotaCommand();
+                controller.fotaCommand();
               },
               icon: Image.asset(
                 "assets/new/ic_update_fw.png",
@@ -69,7 +69,6 @@ class DiagnosticFunctions extends StatelessWidget {
           child: SafeArea(
             child: Column(
               children: [
-             
                 Container(
                   margin:
                       const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
@@ -107,31 +106,32 @@ class DiagnosticFunctions extends StatelessWidget {
                 ),
                 verticalSpace(isMobile ? 15 : 30),
                 GestureDetector(
-  onTap: () async {
-    print("Disconnect icon tapped...");
-    await controller.disconnectDongle(context); // call our fixed function
-  },
-  child: Container(
-    padding: EdgeInsets.all(isMobile ? 14 : 24),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      shape: BoxShape.circle,
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.09),
-          blurRadius: isMobile ? 5 : 10,
-          offset: const Offset(0, 10),
-        ),
-      ],
-    ),
-    child: Image.asset(
-      "assets/new/ic_disconnect.png",
-      height: isMobile ? 40 : 50,
-      width: isMobile ? 50 : 50,
-      fit: BoxFit.contain,
-    ),
-  ),
-),
+                  onTap: () async {
+                    print("Disconnect icon tapped...");
+                    await controller
+                        .disconnectDongle(context); // call our fixed function
+                  },
+                  child: Container(
+                    padding: EdgeInsets.all(isMobile ? 14 : 24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.09),
+                          blurRadius: isMobile ? 5 : 10,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Image.asset(
+                      "assets/new/ic_disconnect.png",
+                      height: isMobile ? 40 : 50,
+                      width: isMobile ? 50 : 50,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
                 C10(),
                 const Text(
                   "Click Here To Disconnect",
@@ -241,20 +241,14 @@ class DiagnosticFunctions extends StatelessWidget {
             Expanded(
               flex: 3,
               child: Center(
-                child: Text(
-                  status == "Connected"
-                      ? "ECU Connected"
-                      : "Dongle Disconnected", // default for everything else
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    color: getStatusColor(status),
-                  ),
-
-                  textAlign: TextAlign.center,
-                  softWrap: true, // allow wrapping
+                  child: Text(
+                controller.getStatusText(status),
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  color: getStatusColor(status),
                 ),
-              ),
+              )),
             ),
           ],
         ),
@@ -267,7 +261,7 @@ class DiagnosticFunctions extends StatelessWidget {
     switch (status) {
       case "Connected":
         return Colors.green.shade700;
-      
+
       case "Dongle Disconnected":
         return Colors.red;
       default:

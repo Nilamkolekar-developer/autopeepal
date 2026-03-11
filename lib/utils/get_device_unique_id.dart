@@ -1,3 +1,5 @@
+import 'dart:io';
+
 class GetDeviceUniqueId {
   // /// This mimics your C# method exactly
   // static Future<String> getId() async {
@@ -91,11 +93,16 @@ class GetDeviceUniqueId {
 //     return "Invalid Device Id";
 //   }
 // }
+  // Future<String> getId() async {
+  //   try {
+  //     return "1234567890";
+  //   } catch (e) {
+  //     return "1234567890";
+  //   }
+  // }
   Future<String> getId() async {
-    try {
-      return "1234567890";
-    } catch (e) {
-      return "1234567890";
-    }
-  }
+  if (Platform.isWindows) return "1234567890";
+  // Android / iOS logic
+  return "1234567890"; // fallback
+}
 }

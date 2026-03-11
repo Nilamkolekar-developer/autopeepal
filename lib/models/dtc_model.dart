@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:autopeepal/models/all_models.dart';
 import 'package:flutter/material.dart';
 
 class IvnDtc {
@@ -272,6 +273,7 @@ class DtcResults {
       };
 }
 
+
 class DtcCode {
   int? id;
   String? code;
@@ -280,13 +282,20 @@ class DtcCode {
   String? statusActivation;
   String? lampActivation;
 
-  DtcCode(
-      {this.id,
-      this.code,
-      this.description,
-      this.isActive,
-      this.statusActivation,
-      this.lampActivation});
+  // Add these fields for UI color mapping
+  Color? statusActivationColor;
+  Color? lampActivationColor;
+
+  DtcCode({
+    this.id,
+    this.code,
+    this.description,
+    this.isActive,
+    this.statusActivation,
+    this.lampActivation,
+    this.statusActivationColor,
+    this.lampActivationColor,
+  });
 
   factory DtcCode.fromJson(Map<String, dynamic> json) => DtcCode(
         id: json['id'],
@@ -304,6 +313,7 @@ class DtcCode {
         'is_active': isActive,
         'status_activation': statusActivation,
         'lamp_activation': lampActivation,
+        // colors are for runtime/UI, usually not serialized
       };
 }
 
@@ -430,22 +440,32 @@ class ClearDtcResponseModel {
   String? ecuResponseStatus;
   String? ecuResponse;
   String? actualDataBytes;
+  String? sentBytes;
 
-  ClearDtcResponseModel(
-      {this.ecuResponseStatus, this.ecuResponse, this.actualDataBytes});
+  ClearDtcResponseModel({
+    this.ecuResponseStatus,
+    this.ecuResponse,
+    this.actualDataBytes,
+    this.sentBytes,
+  });
 
-  factory ClearDtcResponseModel.fromJson(Map<String, dynamic> json) =>
-      ClearDtcResponseModel(
-        ecuResponseStatus: json['ECUResponseStatus'],
-        ecuResponse: json['ECUResponse'],
-        actualDataBytes: json['ActualDataBytes'],
-      );
+  factory ClearDtcResponseModel.fromJson(Map<String, dynamic> json) {
+    return ClearDtcResponseModel(
+      ecuResponseStatus: json['ecuResponseStatus'],
+      ecuResponse: json['ecuResponse'],
+      actualDataBytes: json['actualDataBytes'],
+      sentBytes: json['sentBytes'],
+    );
+  }
 
-  Map<String, dynamic> toJson() => {
-        'ECUResponseStatus': ecuResponseStatus,
-        'ECUResponse': ecuResponse,
-        'ActualDataBytes': actualDataBytes,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'ecuResponseStatus': ecuResponseStatus,
+      'ecuResponse': ecuResponse,
+      'actualDataBytes': actualDataBytes,
+      'sentBytes': sentBytes,
+    };
+  }
 }
 
 class IvnReadDtcResponseModel {
@@ -528,14 +548,4 @@ class FrameStatu {
         'digit': digit,
         'enum': enumValue,
       };
-}
-
-// ------------------ FrameId ------------------
-
-// ------------------ Placeholder classes ------------------
-
-class Protocol {
-  Protocol();
-  factory Protocol.fromJson(Map<String, dynamic> json) => Protocol();
-  Map<String, dynamic> toJson() => {};
 }

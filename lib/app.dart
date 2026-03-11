@@ -27,7 +27,7 @@ class App {
   static String jwtToken = '';
   static String connectedVia = '';
   static int oemId = 0;
-  static int subModelId = 0;
+  static int subModelId = 81;
   static String firmwareVersion = '';
   static String sessionId = '';
 

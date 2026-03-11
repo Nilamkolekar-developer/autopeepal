@@ -79,13 +79,14 @@ class LoginController extends GetxController {
 
       if (username.isEmpty && password.isEmpty) {
         print("[LOGIN] Both username and password empty");
+
         await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Enter user name and password."),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+          CustomPopup(
+            title: "Alert",
+            message: "Enter user name and password.",
+            onButtonPressed: () {
+              Get.back();
+            },
           ),
           barrierDismissible: false,
         );
@@ -93,28 +94,30 @@ class LoginController extends GetxController {
       } else if (username.isEmpty) {
         print("[LOGIN] Username empty");
         await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Enter user name."),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+          CustomPopup(
+            title: "Alert",
+            message: "Enter user name",
+            onButtonPressed: () {
+              Get.back();
+            },
           ),
           barrierDismissible: false,
         );
+
         return;
       } else if (password.isEmpty) {
         print("[LOGIN] Password empty");
         await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Enter user password."),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+          CustomPopup(
+            title: "Alert",
+            message: "Enter user password.",
+            onButtonPressed: () {
+              Get.back();
+            },
           ),
           barrierDismissible: false,
         );
+
         return;
       }
 
@@ -229,12 +232,12 @@ class LoginController extends GetxController {
     } catch (e, s) {
       print("[LOGIN] Error: $e\nStackTrace: $s");
       await Get.dialog(
-        AlertDialog(
-          title: const Text("Login Error"),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-          ],
+        CustomPopup(
+          title: "Login Error",
+          message: e.toString(),
+          onButtonPressed: () {
+            Get.back();
+          },
         ),
         barrierDismissible: false,
       );
@@ -281,7 +284,8 @@ class LoginController extends GetxController {
         );
 
         // Local model data check (optional)
-        String? modelLocalList = await saveLocalData!.getData("MODEL_LocalList");
+        String? modelLocalList =
+            await saveLocalData!.getData("MODEL_LocalList");
         String? iorLocalList = await saveLocalData!.getData("IOR_LocalList");
         String? actuatorLocalList =
             await saveLocalData!.getData("Actuator_LocalList");
@@ -311,7 +315,17 @@ class LoginController extends GetxController {
       } else {
         print(
             "[LOGIN] Login failed: Invalid response or missing token/user_id");
-        Get.snackbar("Error", userResModel?.message ?? "Login failed");
+        await Get.dialog(
+          CustomPopup(
+            title: "Error",
+            message: userResModel?.message ?? "Login failed",
+            onButtonPressed: () {
+              Get.back();
+            },
+          ),
+          barrierDismissible: false,
+        );
+
         returnValue = false;
       }
 
@@ -319,16 +333,20 @@ class LoginController extends GetxController {
       return returnValue;
     } catch (e) {
       print("[LOGIN] Exception during loginOnline: $e");
-       Get.dialog(
-          CustomPopup(
-            title: "Alert",
-            message:" $e",
-            onButtonPressed: () => Get.back(),
-          ),
-          barrierDismissible: false,
-        );
-      Get.snackbar("Error", e.toString());
+      Get.dialog(
+        CustomPopup(
+          title: "Alert",
+          message: " $e",
+          onButtonPressed: () => Get.back(),
+        ),
+        barrierDismissible: false,
+      );
+
       return false;
+    } finally {
+      isLoading.value = false;
+      if (Get.isDialogOpen ?? false) Get.back();
+      print("🔹 usbConnect finished");
     }
   }
 
@@ -385,32 +403,33 @@ class LoginController extends GetxController {
         }
       } else {
         // Show error dialog
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Error"),
-            content: Text(userResModel?.message ?? "Login failed"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Error",
+            message: userResModel?.message ?? "Login failed",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
+
         returnValue = false;
       }
 
       return returnValue;
     } catch (e) {
-      await Get.dialog(
-        AlertDialog(
-          title: const Text("Error"),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-          ],
+      Get.dialog(
+        CustomPopup(
+          title: "Error",
+          message: e.toString(),
+          onButtonPressed: () => Get.back(),
         ),
         barrierDismissible: false,
       );
+
       return false;
+    } finally {
+      if (Get.isDialogOpen ?? false) Get.back();
+      print("🔹 usbConnect finished");
     }
   }
 
@@ -746,56 +765,150 @@ class LoginController extends GetxController {
     }
   }
 
+  // Future<bool> updateGDToLocal(List<ModelResult> modelList) async {
+  //   try {
+  //     bool returnValue = true;
+
+  //     if (modelList.isEmpty) return true;
+
+  //     final AuthApiService services = AuthApiService();
+
+  //     for (final model in modelList) {
+  //       final subModels = model.subModels;
+  //       if (subModels == null || subModels.isEmpty) continue;
+
+  //       for (final subModel in subModels) {
+  //         // 🔹 Read local cache
+  //         final String localData =
+  //             await saveLocalData!.getData("GD_LocalList_${subModel.id}");
+
+  //         // 🔹 If not cached, fetch from API
+  //         if (localData.trim().isEmpty) {
+  //           final GdModelGD res = await services.getGD(subModel.id!);
+
+  //           if (res.message == "success") {
+  //             final String gdLocalJson = jsonEncode(res.toJson());
+
+  //             await saveLocalData!.saveData(
+  //               "GD_LocalList_${subModel.id}",
+  //               gdLocalJson,
+  //             );
+
+  //             returnValue = true;
+  //           } else {
+  //             await Get.defaultDialog(
+  //               title: "Error in Saving GD Data",
+  //               middleText: res.message ?? "Unknown error",
+  //             );
+  //             return false; // ❌ fail fast
+  //           }
+  //         }
+  //       }
+  //     }
+
+  //     return returnValue;
+  //   } catch (e) {
+  //     await Get.defaultDialog(
+  //       title: "Exception in Saving GD Data",
+  //       middleText: e.toString(),
+  //     );
+  //     return false;
+  //   }
+  // }
+
   Future<bool> updateGDToLocal(List<ModelResult> modelList) async {
-    try {
-      bool returnValue = true;
+  try {
+    print("🔹 updateGDToLocal started");
+    print("🔹 Total Models: ${modelList.length}");
 
-      if (modelList.isEmpty) return true;
+    bool returnValue = true;
 
-      final AuthApiService services = AuthApiService();
+    if (modelList.isEmpty) {
+      print("⚠️ modelList is empty");
+      return true;
+    }
 
-      for (final model in modelList) {
-        final subModels = model.subModels;
-        if (subModels == null || subModels.isEmpty) continue;
+    final AuthApiService services = AuthApiService();
 
-        for (final subModel in subModels) {
-          // 🔹 Read local cache
-          final String localData =
-              await saveLocalData!.getData("GD_LocalList_${subModel.id}");
+    for (final model in modelList) {
+      print("🔹 Processing Model: ${model.id}");
 
-          // 🔹 If not cached, fetch from API
-          if (localData.trim().isEmpty) {
-            final GdModelGD res = await services.getGD(subModel.id!);
+      final subModels = model.subModels;
 
-            if (res.message == "success") {
-              final String gdLocalJson = jsonEncode(res.toJson());
-
-              await saveLocalData!.saveData(
-                "GD_LocalList_${subModel.id}",
-                gdLocalJson,
-              );
-
-              returnValue = true;
-            } else {
-              await Get.defaultDialog(
-                title: "Error in Saving GD Data",
-                middleText: res.message ?? "Unknown error",
-              );
-              return false; // ❌ fail fast
-            }
-          }
-        }
+      if (subModels == null || subModels.isEmpty) {
+        print("⚠️ No subModels for model: ${model.id}");
+        continue;
       }
 
-      return returnValue;
-    } catch (e) {
-      await Get.defaultDialog(
-        title: "Exception in Saving GD Data",
-        middleText: e.toString(),
-      );
-      return false;
+      print("🔹 Total SubModels: ${subModels.length}");
+
+      for (final subModel in subModels) {
+        print("--------------------------------------------------");
+        print("🔹 Processing SubModel ID: ${subModel.id}");
+
+        String key = "GD_LocalList_${subModel.id}";
+        print("🔹 Checking local cache key: $key");
+
+        /// 🔹 Read local cache
+        final String localData =
+            await saveLocalData!.getData(key);
+
+        print("🔹 Local data length: ${localData.length}");
+
+        /// 🔹 If not cached, fetch from API
+        if (localData.trim().isEmpty) {
+          print("⚠️ No local GD found. Calling API for SubModel: ${subModel.id}");
+
+          final GdModelGD res = await services.getGD(subModel.id!);
+
+          print("🔹 API Response Message: ${res.message}");
+
+          if (res.message == "success") {
+            print("✅ GD API Success for SubModel: ${subModel.id}");
+            print("🔹 Total GD Results: ${res.results?.length}");
+
+            final String gdLocalJson = jsonEncode(res.toJson());
+
+            print("🔹 Saving GD data locally with key: $key");
+
+            await saveLocalData!.saveData(
+              key,
+              gdLocalJson,
+            );
+
+            print("✅ GD saved successfully for key: $key");
+
+            returnValue = true;
+          } else {
+            print("❌ API returned error: ${res.message}");
+
+            await Get.defaultDialog(
+              title: "Error in Saving GD Data",
+              middleText: res.message ?? "Unknown error",
+            );
+
+            return false;
+          }
+        } else {
+          print("✅ GD already exists locally for key: $key");
+        }
+      }
     }
+
+    print("✅ updateGDToLocal completed");
+    return returnValue;
+  } catch (e, stack) {
+    print("❌ Exception in updateGDToLocal: $e");
+    print("📍 StackTrace: $stack");
+
+    await Get.defaultDialog(
+      title: "Exception in Saving GD Data",
+      middleText: e.toString(),
+    );
+
+    return false;
   }
+}
 
   Future<bool> updateFreezeFrameListToLocal() async {
     try {
@@ -914,76 +1027,81 @@ class LoginController extends GetxController {
     }
   }
 
-Future<bool> loginOffline(UserModel userRequestModel) async {
-  try {
-    // 🔹 Get local cached model data safely
-    final modelLocalList = (await saveLocalData!.getData("MODEL_LocalList")) ?? "";
-    final iorLocalList = (await saveLocalData!.getData("IOR_LocalList")) ?? "";
-    final actuatorLocalList = (await saveLocalData!.getData("Actuator_LocalList")) ?? "";
-    final freezeFrameLocalList = (await saveLocalData!.getData("FreezeFrame_LocalList")) ?? "";
+  Future<bool> loginOffline(UserModel userRequestModel) async {
+    try {
+      // 🔹 Get local cached model data safely
+      final modelLocalList =
+          (await saveLocalData!.getData("MODEL_LocalList")) ?? "";
+      final iorLocalList =
+          (await saveLocalData!.getData("IOR_LocalList")) ?? "";
+      final actuatorLocalList =
+          (await saveLocalData!.getData("Actuator_LocalList")) ?? "";
+      final freezeFrameLocalList =
+          (await saveLocalData!.getData("FreezeFrame_LocalList")) ?? "";
 
-    // 🔹 Check if mandatory local data exists
-    if (modelLocalList.isEmpty ||
-        iorLocalList.isEmpty ||
-        actuatorLocalList.isEmpty ||
-        freezeFrameLocalList.isEmpty) {
-      Get.dialog(
-        CustomPopup(
-          title: "Failed",
-          message: "Local data not completely updated.\nTry to login with internet",
-          onButtonPressed: () => Get.back(),
-        ),
-        barrierDismissible: false,
-      );
+      // 🔹 Check if mandatory local data exists
+      if (modelLocalList.isEmpty ||
+          iorLocalList.isEmpty ||
+          actuatorLocalList.isEmpty ||
+          freezeFrameLocalList.isEmpty) {
+        Get.dialog(
+          CustomPopup(
+            title: "Failed",
+            message:
+                "Local data not completely updated.\nTry to login with internet",
+            onButtonPressed: () => Get.back(),
+          ),
+          barrierDismissible: false,
+        );
 
-      // Clear incomplete cache
-      await saveLocalData!.saveData("MODEL_LocalList", "");
-      return false;
-    }
-
-    // 🔹 Get cached user login request (username & password)
-    final requestData = (await saveLocalData!.getData("UserRequest_LocalData")) ?? "";
-    if (requestData.isEmpty) {
-      await Get.defaultDialog(
-        title: "Failed",
-        middleText: "Try to login with internet.",
-      );
-      return false;
-    }
-
-    final cachedRequest = UserModel.fromJson(jsonDecode(requestData));
-
-    // 🔹 Validate username & password
-    if (cachedRequest.username == userRequestModel.username &&
-        cachedRequest.password == userRequestModel.password) {
-      // ✅ Successful offline login, token may be null
-      final responseData = (await saveLocalData!.getData("UserDetailL_LocalData")) ?? "";
-      if (responseData.isNotEmpty) {
-        userResModel = UserResModel.fromJson(jsonDecode(responseData));
-        // Token is optional offline
-        if (userResModel?.token?.access != null) {
-          App.jwtToken = userResModel!.token!.access!;
-        }
-        App.oemId = userResModel!.profile?.oem?.id ?? 0;
+        // Clear incomplete cache
+        await saveLocalData!.saveData("MODEL_LocalList", "");
+        return false;
       }
 
-      print('[OFFLINE LOGIN] Success for ${userRequestModel.username}');
-      return true;
-    } else {
+      // 🔹 Get cached user login request (username & password)
+      final requestData =
+          (await saveLocalData!.getData("UserRequest_LocalData")) ?? "";
+      if (requestData.isEmpty) {
+        await Get.defaultDialog(
+          title: "Failed",
+          middleText: "Try to login with internet.",
+        );
+        return false;
+      }
+
+      final cachedRequest = UserModel.fromJson(jsonDecode(requestData));
+
+      // 🔹 Validate username & password
+      if (cachedRequest.username == userRequestModel.username &&
+          cachedRequest.password == userRequestModel.password) {
+        // ✅ Successful offline login, token may be null
+        final responseData =
+            (await saveLocalData!.getData("UserDetailL_LocalData")) ?? "";
+        if (responseData.isNotEmpty) {
+          userResModel = UserResModel.fromJson(jsonDecode(responseData));
+          // Token is optional offline
+          if (userResModel?.token?.access != null) {
+            App.jwtToken = userResModel!.token!.access!;
+          }
+          App.oemId = userResModel!.profile?.oem?.id ?? 0;
+        }
+
+        print('[OFFLINE LOGIN] Success for ${userRequestModel.username}');
+        return true;
+      } else {
+        await Get.defaultDialog(
+          title: "Failed",
+          middleText: "Username or password does not match cached data.",
+        );
+        return false;
+      }
+    } catch (e) {
       await Get.defaultDialog(
-        title: "Failed",
-        middleText: "Username or password does not match cached data.",
+        title: "Error",
+        middleText: e.toString(),
       );
       return false;
     }
-  } catch (e) {
-    await Get.defaultDialog(
-      title: "Error",
-      middleText: e.toString(),
-    );
-    return false;
   }
-}
-
-
 }

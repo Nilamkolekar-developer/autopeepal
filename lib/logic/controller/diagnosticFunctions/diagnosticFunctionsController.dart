@@ -66,7 +66,7 @@ SaveLocalData? saveLocalData;
     }
 
     await initFeatures();
-    await checkConnection();
+     checkConnection();
   }
 
   initFeatures() {
@@ -105,129 +105,264 @@ SaveLocalData? saveLocalData;
   }
 
   Future<void> onFeatureTap(FeatureModel feature, BuildContext context) async {
+  try {
     isBusy.value = true;
-    loaderText.value = 'Loading...';
+    loaderText.value = "Loading...";
+
     isPageLoaded = false;
 
     while (_isCheckingEcuStatus) {
-      await Future.delayed(Duration(seconds: 1));
+      debugPrint("Waiting for check ECU status to complete");
+      await Future.delayed(const Duration(seconds: 1));
     }
 
     switch (feature.name) {
       case 'DTC':
-        Get.toNamed(Routes.dtcScreen); // no widget here
+        await Get.toNamed(Routes.dtcScreen,arguments: {"onlyActive": true});
         break;
+
       case 'All DTC Details':
-        Get.toNamed(Routes.allDtcDetails);
+        await Get.toNamed(Routes.dtcScreen,arguments: {"onlyActive": false});
         break;
+
       case 'Live Parameter':
-        Get.toNamed(Routes.liveParameter);
+        await Get.toNamed(Routes.liveParameter);
         break;
+
       case 'Write Parameter':
-        Get.toNamed(Routes.writeParameter);
+        await Get.toNamed(Routes.writeParameter);
         break;
+
       case 'ECU Flashing':
-        Get.toNamed(Routes.ecuFlashing);
+        await Get.toNamed(Routes.ecuFlashing);
         break;
+
       case 'Routine Test':
-        Get.toNamed(Routes.routineTest);
+        await Get.toNamed(Routes.routineTest);
         break;
+
       case 'ECU Information':
-        Get.toNamed(Routes.ecuInformation);
-        break;
-      case 'IVN':
-        //Get.toNamed(Routes.ivn);
+        await Get.toNamed(Routes.ecuInformation);
         break;
     }
 
+    /// ⭐ RESTART ECU MONITORING AFTER RETURN
+    checkConnection();
+
+  } catch (e) {
+    debugPrint("Feature Navigation Error: $e");
+    checkConnection();
+  } finally {
     isBusy.value = false;
   }
+}
+
+  // Future<void> disconnectDongle(BuildContext context) async {
+  //   print("Opening disconnect dialog...");
+
+  //   final answer = await showDialog<bool>(
+  //     context: context,
+  //     barrierDismissible: false,
+  //     builder: (context) => CustomPopup1(
+  //       title: "Alert",
+  //       message: "Do you want to disconnect dongle?",
+  //       showYesNo: true,
+  //       onYesTap: () => Navigator.of(context, rootNavigator: true).pop(true),
+  //       onNoTap: () => Navigator.of(context, rootNavigator: true).pop(false),
+  //     ),
+  //   );
+
+  //   if (answer == true) {
+  //     isPageLoaded = false;
+  //     print("Background loop stopped.");
+
+  //     try {
+  //       isBusy.value = true;
+  //       loaderText.value = 'Disconnecting...';
+  //       while (_isCheckingEcuStatus) {
+  //         await Future.delayed(const Duration(milliseconds: 500));
+  //       }
+
+  //       print("Starting hardware disconnect...");
+  //       await App.dllFunctions!.disconnectVCI1().timeout(
+  //             const Duration(seconds: 5),
+  //             onTimeout: () => print("Hardware disconnect timed out"),
+  //           );
+  //       await saveLocalData!.getData('UserDetailL_LocalData');
+  //     } catch (e) {
+  //       print("Error during disconnect: $e");
+  //     } finally {
+  //       isBusy.value = false;
+  //       print("Navigating to dashboard...");
+  //       Get.offAllNamed(Routes.dashboardScreen);
+  //     }
+  //   }
+  // }
 
   Future<void> disconnectDongle(BuildContext context) async {
-    print("Opening disconnect dialog...");
+  debugPrint("Opening disconnect dialog...");
 
-    final answer = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => CustomPopup1(
-        title: "Alert",
-        message: "Do you want to disconnect dongle?",
-        showYesNo: true,
-        onYesTap: () => Navigator.of(context, rootNavigator: true).pop(true),
-        onNoTap: () => Navigator.of(context, rootNavigator: true).pop(false),
-      ),
-    );
+  final answer = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (context) => CustomPopup1(
+      title: "Alert",
+      message: "Do you want to disconnect dongle?",
+      showYesNo: true,
+      onYesTap: () => Navigator.of(context, rootNavigator: true).pop(true),
+      onNoTap: () => Navigator.of(context, rootNavigator: true).pop(false),
+    ),
+  );
 
-    if (answer == true) {
-      isPageLoaded = false;
-      print("Background loop stopped.");
+  if (answer != true) return;
 
-      try {
-        isBusy.value = true;
-        loaderText.value = 'Disconnecting...';
-        while (_isCheckingEcuStatus) {
-          await Future.delayed(const Duration(milliseconds: 500));
-        }
+  try {
+    /// Stop ECU monitoring loop
+    isPageLoaded = false;
+    debugPrint("ECU monitoring stopped.");
 
-        print("Starting hardware disconnect...");
-        await App.dllFunctions!.disconnectVCI1().timeout(
-              const Duration(seconds: 5),
-              onTimeout: () => print("Hardware disconnect timed out"),
-            );
-        await saveLocalData!.getData('UserDetailL_LocalData');
-      } catch (e) {
-        print("Error during disconnect: $e");
-      } finally {
-        isBusy.value = false;
-        print("Navigating to dashboard...");
-        Get.offAllNamed(Routes.dashboardScreen);
-      }
+    isBusy.value = true;
+    loaderText.value = "Disconnecting...";
+
+    /// Wait if ECU status check is currently running
+    while (_isCheckingEcuStatus) {
+      await Future.delayed(const Duration(milliseconds: 300));
     }
-  }
 
-  checkConnection() async {
-    isPageLoaded = true;
+    debugPrint("Starting hardware disconnect...");
 
-    await App.dllFunctions!.setDongleProperties(
-      StaticData.ecuInfo[0].protocol.autopeepal ?? '',
-      StaticData.ecuInfo[0].txHeader ?? '',
-      StaticData.ecuInfo[0].rxHeader ?? '',
+    await App.dllFunctions!.disconnectVCI1().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        debugPrint("Disconnect timeout");
+      },
     );
 
-    while (isPageLoaded) {
-      _isCheckingEcuStatus = true;
+    /// Load stored user data
+    await saveLocalData?.getData('UserDetailL_LocalData');
 
-      String ecuStatus = await App.dllFunctions!.checkEcuStatus();
+  } catch (e) {
+    debugPrint("Disconnect error: $e");
+  } finally {
+    isBusy.value = false;
 
-      _isCheckingEcuStatus = false;
+    debugPrint("Navigating to dashboard");
 
-      if (ecuStatus.isNotEmpty) {
-        if (ecuStatus.contains("ECUERROR_NORESPONSEFROMECU")) {
-          isDongleDisconnected.value = false;
-          isEcuConnected.value = false;
-          isEcuDisconnected.value = true;
-          status.value = "ECU Disconnected";
-        } else if (ecuStatus.contains("No Resp From Dongle")) {
-          isDongleDisconnected.value = true;
-          isEcuConnected.value = false;
-          isEcuDisconnected.value = false;
-          status.value = "Dongle Disconnected";
-        } else {
-          isDongleDisconnected.value = false;
-          isEcuConnected.value = true;
-          isEcuDisconnected.value = false;
-          status.value = "Connected";
-        }
-      } else {
+    /// Clear navigation stack
+    Get.offAllNamed(Routes.dashboardScreen);
+  }
+}
+
+  // checkConnection() async {
+  //   isPageLoaded = true;
+
+  //   await App.dllFunctions!.setDongleProperties(
+  //     StaticData.ecuInfo[0].protocol!.autopeepal ?? '',
+  //     StaticData.ecuInfo[0].txHeader ?? '',
+  //     StaticData.ecuInfo[0].rxHeader ?? '',
+  //   );
+
+  //   while (isPageLoaded) {
+  //     _isCheckingEcuStatus = true;
+
+  //     String ecuStatus = await App.dllFunctions!.checkEcuStatus();
+
+  //     _isCheckingEcuStatus = false;
+
+  //     if (ecuStatus.isNotEmpty) {
+  //       if (ecuStatus.contains("ECUERROR_NORESPONSEFROMECU")) {
+  //         isDongleDisconnected.value = false;
+  //         isEcuConnected.value = false;
+  //         isEcuDisconnected.value = true;
+  //         status.value = "ECU Disconnected";
+  //       } else if (ecuStatus.contains("No Resp From Dongle")) {
+  //         isDongleDisconnected.value = true;
+  //         isEcuConnected.value = false;
+  //         isEcuDisconnected.value = false;
+  //         status.value = "Dongle Disconnected";
+  //       } else {
+  //         isDongleDisconnected.value = false;
+  //         isEcuConnected.value = true;
+  //         isEcuDisconnected.value = false;
+  //         status.value = "Connected";
+  //       }
+  //     } else {
+  //       isDongleDisconnected.value = true;
+  //       isEcuConnected.value = false;
+  //       isEcuDisconnected.value = false;
+  //       status.value = "Dongle Disconnected";
+  //     }
+  //     await Future.delayed(const Duration(seconds: 3));
+  //   }
+  // }
+Future<void> checkConnection() async {
+  isPageLoaded = true;
+
+  await App.dllFunctions!.setDongleProperties(
+    StaticData.ecuInfo[0].protocol!.autopeepal ?? '',
+    StaticData.ecuInfo[0].txHeader ?? '',
+    StaticData.ecuInfo[0].rxHeader ?? '',
+  );
+
+  while (isPageLoaded) {
+    _isCheckingEcuStatus = true;
+
+    String? ecuStatus = await App.dllFunctions!.checkEcuStatus();
+
+    _isCheckingEcuStatus = false;
+
+    print("ECU STATUS RAW: $ecuStatus");
+
+    if (ecuStatus.trim().isNotEmpty) {
+
+      if (ecuStatus.contains("ECUERROR_NORESPONSEFROMECU")) {
+        isDongleDisconnected.value = false;
+        isEcuConnected.value = false;
+        isEcuDisconnected.value = true;
+        status.value = "ECU Disconnected";
+      }
+
+      else if (ecuStatus.contains("No Resp From Dongle")) {
         isDongleDisconnected.value = true;
         isEcuConnected.value = false;
         isEcuDisconnected.value = false;
         status.value = "Dongle Disconnected";
       }
-      await Future.delayed(const Duration(seconds: 3));
-    }
-  }
 
+      else {
+        isDongleDisconnected.value = false;
+        isEcuConnected.value = true;
+        isEcuDisconnected.value = false;
+        status.value = "Connected";
+      }
+
+    } else {
+      /// SAME AS C# ELSE BLOCK
+      isDongleDisconnected.value = true;
+      isEcuConnected.value = false;
+      isEcuDisconnected.value = false;
+      status.value = "Dongle Disconnected";
+    }
+
+    await Future.delayed(const Duration(seconds: 3));
+  }
+}
+
+String getStatusText(String status) {
+  switch (status) {
+    case "Connected":
+      return "ECU Connected";
+
+    case "ECU Disconnected":
+      return "ECU Disconnected";
+
+    case "Dongle Disconnected":
+      return "Dongle Disconnected";
+
+    default:
+      return "Unknown";
+  }
+}
   bool isPaused = false;
   Future<void> checkSessionLogs() async {
     try {
