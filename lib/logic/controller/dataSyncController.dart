@@ -525,65 +525,152 @@ class DataSyncController extends GetxController {
     }
   }
 
+  // Future<bool> updateGDToLocal(
+  //     BuildContext context, List<ModelResult> modelList) async {
+  //   try {
+  //     bool returnValue = true;
+
+  //     for (var model in modelList) {
+  //       final subModels = model.subModels ?? [];
+  //       for (var subModel in subModels) {
+  //         final res = await services.getGD(subModel.id ?? 0);
+
+  //         if (res.message == "success") {
+  //           final gdLocalList = jsonEncode(res);
+  //           await saveLocalData!
+  //               .saveData("GD_LocalList_${subModel.id}", gdLocalList);
+  //           returnValue = true;
+  //         } else {
+  //           if (context.mounted) {
+  //             await showDialog(
+  //               context: context,
+  //               builder: (context) => AlertDialog(
+  //                 title: const Text("Error in Saving GD Data"),
+  //                 content: Text(res.message ?? ''),
+  //                 actions: [
+  //                   TextButton(
+  //                     onPressed: () => Navigator.of(context).pop(),
+  //                     child: const Text("OK"),
+  //                   ),
+  //                 ],
+  //               ),
+  //             );
+  //           }
+  //           return false;
+  //         }
+  //       }
+  //     }
+
+  //     return returnValue;
+  //   } catch (e) {
+  //     debugPrint("Exception in Saving GD Data: $e");
+
+  //     if (context.mounted) {
+  //       await showDialog(
+  //         context: context,
+  //         builder: (context) => AlertDialog(
+  //           title: const Text("Exception in Saving GD Data"),
+  //           content: Text(e.toString()),
+  //           actions: [
+  //             TextButton(
+  //               onPressed: () => Navigator.of(context).pop(),
+  //               child: const Text("OK"),
+  //             ),
+  //           ],
+  //         ),
+  //       );
+  //     }
+
+  //     return false;
+  //   }
+  // }
+
   Future<bool> updateGDToLocal(
-      BuildContext context, List<ModelResult> modelList) async {
-    try {
-      bool returnValue = true;
+    BuildContext context, List<ModelResult> modelList) async {
+  try {
+    print("🔹 updateGDToLocal started");
+    print("🔹 Total Models: ${modelList.length}");
 
-      for (var model in modelList) {
-        final subModels = model.subModels ?? [];
-        for (var subModel in subModels) {
-          final res = await services.getGD(subModel.id ?? 0);
+    bool returnValue = true;
 
-          if (res.message == "success") {
-            final gdLocalList = jsonEncode(res);
-            await saveLocalData!
-                .saveData("GD_LocalList_${subModel.id}", gdLocalList);
-            returnValue = true;
-          } else {
-            if (context.mounted) {
-              await showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Error in Saving GD Data"),
-                  content: Text(res.message ?? ''),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text("OK"),
-                    ),
-                  ],
-                ),
-              );
-            }
-            return false;
+    for (var model in modelList) {
+      print("🔹 Processing Model ID: ${model.id}");
+
+      final subModels = model.subModels ?? [];
+      print("🔹 Total SubModels: ${subModels.length}");
+
+      for (var subModel in subModels) {
+        print("------------------------------------------------");
+        print("🔹 Processing SubModel ID: ${subModel.id}");
+
+        print("📡 Calling GD API for SubModel: ${subModel.id}");
+
+        final res = await services.getGD(subModel.id ?? 0);
+
+        print("📥 API Response Message: ${res.message}");
+        print("📥 GD Result Count: ${res.results?.length}");
+
+        if (res.message == "success") {
+          print("✅ GD API Success for SubModel: ${subModel.id}");
+
+          final gdLocalList = jsonEncode(res);
+
+          print("💾 Saving GD locally with key: GD_LocalList_${subModel.id}");
+
+          await saveLocalData!
+              .saveData("GD_LocalList_${subModel.id}", gdLocalList);
+
+          print("✅ GD saved successfully for key: GD_LocalList_${subModel.id}");
+
+          returnValue = true;
+        } else {
+          print("❌ API returned error: ${res.message}");
+
+          if (context.mounted) {
+            await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text("Error in Saving GD Data"),
+                content: Text(res.message ?? ''),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text("OK"),
+                  ),
+                ],
+              ),
+            );
           }
+          return false;
         }
       }
-
-      return returnValue;
-    } catch (e) {
-      debugPrint("Exception in Saving GD Data: $e");
-
-      if (context.mounted) {
-        await showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text("Exception in Saving GD Data"),
-            content: Text(e.toString()),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text("OK"),
-              ),
-            ],
-          ),
-        );
-      }
-
-      return false;
     }
+
+    print("✅ updateGDToLocal completed successfully");
+    return returnValue;
+  } catch (e, stack) {
+    debugPrint("❌ Exception in Saving GD Data: $e");
+    debugPrint("📍 StackTrace: $stack");
+
+    if (context.mounted) {
+      await showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Exception in Saving GD Data"),
+          content: Text(e.toString()),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return false;
   }
+}
 
   Future<bool> updateDoipConfigToLocal(BuildContext context) async {
     try {

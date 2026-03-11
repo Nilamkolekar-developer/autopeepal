@@ -33,7 +33,7 @@ class CreateJobCardScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    buildFieldWithLabel(controller: controller.jobCardId.value),
+                    buildFieldWithLabel(controller: controller.jobCardId.value,readOnly: true),
                     C20(),
                     Obx(() => CustomDropdownTextField1(
                           selectedValue: controller.selectedModel,
@@ -145,6 +145,7 @@ class CreateJobCardScreen extends StatelessWidget {
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
     String hint = "",
+    bool readOnly = false
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,11 +155,13 @@ class CreateJobCardScreen extends StatelessWidget {
           style: TextStyles.labelStyle, // Add a custom style for label
         ),
         TextField(
+          
           controller: controller,
           style: TextStyles.textfieldTextStyle2,
           cursorColor: Colors.black,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          readOnly:readOnly,
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: TextStyles.hintStyle1,

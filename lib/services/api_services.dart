@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/api/app_envirments.dart';
 import 'package:autopeepal/api/app_urls.dart';
+import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/checkJobCard_model.dart';
@@ -31,8 +32,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class AuthApiService {
-
-
 //   static Future<UserResModel> login(UserModel model) async {
 //     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
 //     UserResModel loginResponse = UserResModel();
@@ -94,70 +93,117 @@ class AuthApiService {
 //     return loginResponse;
 //   }
 
-static Future<UserResModel> login(UserModel model) async {
-  final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
-  UserResModel loginResponse = UserResModel();
+  static Future<UserResModel> login(UserModel model) async {
+    final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
+    UserResModel loginResponse = UserResModel();
 
-  try {
-    // Serialize request body
-    final jsonBody = jsonEncode(model.toJson());
-    print("[LOGIN] Sending request to: $url");
-    print("[LOGIN] Request Body: $jsonBody");
+    try {
+      // Serialize request body
+      final jsonBody = jsonEncode(model.toJson());
+      print("[LOGIN] Sending request to: $url");
+      print("[LOGIN] Request Body: $jsonBody");
 
-    // HTTP POST request
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonBody,
-    );
-
-    // Log response status and body
-    print("[LOGIN] Response Status Code: ${response.statusCode}");
-    print("[LOGIN] Response Body: ${response.body}");
-
-    if (response.statusCode == 200) {
-      // Deserialize response
-      loginResponse = UserResModel.fromJson(jsonDecode(response.body));
-      print("[LOGIN] Parsed user response: $loginResponse");
-
-      // Save token in SharedPreferences
-      if (loginResponse.token != null) {
-        print("[LOGIN] Saving tokens to SharedPreferences");
-        await AppPreferences.saveTokens(
-          accessToken: loginResponse.token?.access ?? '',
-          refreshToken: loginResponse.token?.refresh ?? '',
-        );
-      }
-
-      // Save basic user info
-      print("[LOGIN] Saving user info to SharedPreferences");
-      await AppPreferences.saveUser(
-        userId: loginResponse.userId.toString(),
-        name: "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
-        email: loginResponse.user ?? '',
+      // HTTP POST request
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonBody,
       );
 
-      // Set message as success
-      loginResponse.message = "success";
-      print("[LOGIN] Login successful");
-    } else if (response.statusCode == 401) {
-      loginResponse.message = 'Invalid username or password';
-      print("[LOGIN] Login failed: Invalid username or password");
-    } else if (response.statusCode == 403) {
-      loginResponse.message = 'Device not authorized';
-      print("[LOGIN] Login failed: Device not authorized");
-    } else {
-      loginResponse.message = 'Login failed (${response.statusCode})';
-      print("[LOGIN] Login failed with status: ${response.statusCode}");
-    }
-  } catch (e, st) {
-    loginResponse.message = "Exception @AuthApiService.login(): $e";
-    print("[LOGIN] Exception occurred: $e");
-    print("[LOGIN] StackTrace: $st");
-  }
+      // Log response status and body
+      print("[LOGIN] Response Status Code: ${response.statusCode}");
+      print("[LOGIN] Response Body: ${response.body}");
 
-  return loginResponse;
-}
+      if (response.statusCode == 200) {
+        // Deserialize response
+        loginResponse = UserResModel.fromJson(jsonDecode(response.body));
+        print("[LOGIN] Parsed user response: $loginResponse");
+
+        // Save token in SharedPreferences
+        if (loginResponse.token != null) {
+          print("[LOGIN] Saving tokens to SharedPreferences");
+          await AppPreferences.saveTokens(
+            accessToken: loginResponse.token?.access ?? '',
+            refreshToken: loginResponse.token?.refresh ?? '',
+          );
+        }
+
+        // Save basic user info
+        print("[LOGIN] Saving user info to SharedPreferences");
+        await AppPreferences.saveUser(
+          userId: loginResponse.userId.toString(),
+          name:
+              "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
+          email: loginResponse.user ?? '',
+        );
+
+        // Set message as success
+        loginResponse.message = "success";
+
+        print("[LOGIN] Login successful");
+      } else if (response.statusCode == 401) {
+        loginResponse.message = 'Invalid username or password';
+      //    await Get.dialog(
+      //   CustomPopup(
+      //     title: "StatusCode:401",
+      //     message: "Invalid username or password",
+      //     onButtonPressed: () {
+      //       Get.back();
+      //     },
+      //   ),
+      //   barrierDismissible: false,
+      // );
+        print("[LOGIN] Login failed: Invalid username or password");
+      } else if (response.statusCode == 403) {
+        loginResponse.message = 'Device not authorized';
+        await Get.dialog(
+          CustomPopup(
+            title: "statuscode : 403",
+            message: "Device not authorized",
+            onButtonPressed: () {
+              Get.back();
+            },
+          ),
+          barrierDismissible: false,
+        );
+        print("[LOGIN] Login failed: Device not authorized");
+      } else {
+        loginResponse.message = 'Login failed (${response.statusCode})';
+          await Get.dialog(
+        CustomPopup(
+          title: "Login failed",
+          message: "${response.statusCode}",
+          onButtonPressed: () {
+            Get.back();
+          },
+        ),
+        barrierDismissible: false,
+      );
+        print("[LOGIN] Login failed with status: ${response.statusCode}");
+      }
+    } catch (e, st) {
+      loginResponse.message = "Exception @AuthApiService.login(): $e";
+      await Get.dialog(
+        CustomPopup(
+          title: "Exception @AuthApiService.login()",
+          message: "$e",
+          onButtonPressed: () {
+            Get.back();
+          },
+        ),
+        barrierDismissible: false,
+      );
+      print("[LOGIN] Exception occurred: $e");
+      print("[LOGIN] StackTrace: $st");
+    }
+    finally {
+     
+      if (Get.isDialogOpen ?? false) Get.back();
+      print("🔹 usbConnect finished");
+    }
+
+    return loginResponse;
+  }
 
   static Future<AllModelsModel> getAllModels([int? oemId]) async {
     final allModels = AllModelsModel();
@@ -577,52 +623,50 @@ STATUS CODE: ${response.statusCode}
   //   }
   // }
 
+  Future<MainResultClass?> sendJobCard(SendJobcardData model) async {
+    final token = await AppPreferences.getAccessToken();
+    try {
+      final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.sendJobCard);
+      print("🌐 API URL: $url");
 
+      final jsonBody = jsonEncode(model.toJson());
 
-Future<MainResultClass?> sendJobCard(SendJobcardData model) async {
-  final token = await AppPreferences.getAccessToken();
-  try {
-     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.sendJobCard);
-    print("🌐 API URL: $url");
+      print("📤 Sending JobCard Data:");
+      print(jsonBody);
 
-    final jsonBody = jsonEncode(model.toJson());
-
-    print("📤 Sending JobCard Data:");
-    print(jsonBody);
-
-    final response = await http.post(
-      url,
-      headers: {
+      final response = await http.post(
+        url,
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': 'JWT $token',
         },
-      body: jsonBody,
-    );
+        body: jsonBody,
+      );
 
-    print("📥 Status Code: ${response.statusCode}");
-    print("📥 Response Body: ${response.body}");
+      print("📥 Status Code: ${response.statusCode}");
+      print("📥 Response Body: ${response.body}");
 
-    MainResultClass result = MainResultClass();
+      MainResultClass result = MainResultClass();
 
-    if (response.statusCode == 400) {
-      /// Same JobCard case
-      final data = jsonDecode(response.body);
-      result.sameJobcard = SameJobcard.fromJson(data);
-      result.createJobcard = null;
-    } else {
-      /// Success case
-      final data = jsonDecode(response.body);
-      result.sameJobcard = null;
-      result.createJobcard = JobCardModel.fromJson(data);
+      if (response.statusCode == 400) {
+        /// Same JobCard case
+        final data = jsonDecode(response.body);
+        result.sameJobcard = SameJobcard.fromJson(data);
+        result.createJobcard = null;
+      } else {
+        /// Success case
+        final data = jsonDecode(response.body);
+        result.sameJobcard = null;
+        result.createJobcard = JobCardModel.fromJson(data);
+      }
+
+      return result;
+    } catch (e, stackTrace) {
+      print("❌ Exception in sendJobCard: $e");
+      print("📍 StackTrace: $stackTrace");
+      return null;
     }
-
-    return result;
-  } catch (e, stackTrace) {
-    print("❌ Exception in sendJobCard: $e");
-    print("📍 StackTrace: $stackTrace");
-    return null;
   }
-}
 
   Future<List<ExistJobCardResult>?> getExistJobCard(
       String token, String jobCardNumber) async {

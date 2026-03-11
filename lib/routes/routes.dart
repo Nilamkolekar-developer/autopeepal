@@ -31,6 +31,9 @@ import 'package:autopeepal/views/screens/diagnostic_functions/dtcScreen.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/ecuFlashing.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/ecuInformation.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/firmwareVersions.dart';
+import 'package:autopeepal/views/screens/diagnostic_functions/freezeFramePage.dart';
+import 'package:autopeepal/views/screens/diagnostic_functions/gdImageZoomPage.dart';
+import 'package:autopeepal/views/screens/diagnostic_functions/getGdInfoPage.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/liveParameter.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/routineTesScreen.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/sessionLogs.dart';
@@ -124,7 +127,7 @@ class AppRoutes {
     GetPage(
       name: Routes.ecuInformation,
       binding: EcuinformationBindings(),
-      page: () => EcuInformation(),
+      page: () => EcuInformationScreen(),
     ),
 
     GetPage(
@@ -173,6 +176,22 @@ class AppRoutes {
       name: Routes.createJobCardScreen,
       //binding: RegisterBindings(),
       page: () => CreateJobCardScreen(),
+    ),
+    GetPage(
+      name: Routes.gdInfo,
+      //binding: RegisterBindings(),
+      page: () => GDInfoPage(),
+    ),
+    GetPage(
+      name: Routes.freezeFrame,
+      //binding: RegisterBindings(),
+      page: () => FreezeFramePage(),
+    ),
+
+    GetPage(
+      name: Routes.gdZoomImage,
+      //binding: RegisterBindings(),
+      page: () => GdImageZoomPage(),
     ),
   ];
 }

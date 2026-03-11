@@ -25,4 +25,8 @@ class Routes {
   static const allDtcDetails = '/allDtcDetails';
   static const registerScreen = '/registerScreen';
   static const createJobCardScreen = '/createJobCardScreen';
+   static const gdInfo = '/gdInfo';
+  static const freezeFrame = '/freezeFrame';
+   static const gdZoomImage = '/gdZoomImage';
+
 }

@@ -21,6 +21,26 @@ class AppPreferences {
 static const String _savedUserKey = 'user_id';
 static const String _savedPassKey = 'password';
 
+// ================= GD DATA =================
+
+static Future<void> saveGDLocalList(int subModelId, Map<String, dynamic> json) async {
+  final prefs = await SharedPreferences.getInstance();
+
+  String key = "GD_LocalList_$subModelId";
+
+  await prefs.setString(key, jsonEncode(json));
+
+  print("✅ GD data saved with key: $key");
+}
+
+static Future<String?> getGDLocalList(int subModelId) async {
+  final prefs = await SharedPreferences.getInstance();
+
+  String key = "GD_LocalList_$subModelId";
+
+  return prefs.getString(key);
+}
+
   static Future<void> setConnectedVia(String value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_connectedViaKey, value);

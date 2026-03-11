@@ -1,5 +1,3 @@
-
-
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/flashRecord_model.dart';
 import 'package:autopeepal/models/liveParameter_model.dart';
@@ -16,8 +14,8 @@ class StaticData {
 /// ECU DATA SET
 /// =======================================================
 class EcuDataSet {
-  int ecuID;
-  String ecuName;
+  int? ecuID;
+  String? ecuName;
   String? chasisId;
 
   int? dtcDatasetId;
@@ -33,7 +31,7 @@ class EcuDataSet {
 
   String? txHeader;
   String? rxHeader;
-  Protocol protocol;
+  Protocol? protocol;
 
   String? channelId;
   String? modelName;
@@ -46,9 +44,9 @@ class EcuDataSet {
   int? noOfInjectors;
 
   EcuDataSet({
-    required this.ecuID,
-    required this.ecuName,
-    required this.protocol,
+    this.ecuID,
+    this.ecuName,
+    this.protocol,
     this.chasisId,
     this.dtcDatasetId,
     this.pidDatasetId,
@@ -100,7 +98,6 @@ class EcuDataSet {
   }
 }
 
-
 /// =======================================================
 /// SESSION STATIC DATA
 /// =======================================================
@@ -134,8 +131,7 @@ class SessionResponseJobCardModel {
     this.requestStatus,
   });
 
-  factory SessionResponseJobCardModel.fromJson(
-      Map<String, dynamic> json) {
+  factory SessionResponseJobCardModel.fromJson(Map<String, dynamic> json) {
     return SessionResponseJobCardModel(
       id: json['id'],
       remoteSessionId: json['remote_session_id'],

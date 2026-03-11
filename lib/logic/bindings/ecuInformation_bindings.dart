@@ -4,6 +4,6 @@ import 'package:get/get.dart';
 class EcuinformationBindings extends Bindings {
   @override
   void dependencies() {
-    Get.put(Ecuinformationcontroller());
+    Get.put(EcuInformationController());
   }
 }

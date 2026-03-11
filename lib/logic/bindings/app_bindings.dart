@@ -3,6 +3,7 @@ import 'package:autopeepal/logic/controller/dataSyncController.dart';
 import 'package:get/get.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
 import 'package:ap_dongle_comm/utils/commController.dart';
+import 'package:ecu_seedkey/ecu_seedkey.dart';
 
 class AppBinding extends Bindings {
   @override
@@ -21,13 +22,13 @@ class AppBinding extends Bindings {
       ),
       permanent: true,
     );
-    Get.put<UDSDiagnostic>(
-      UDSDiagnostic(
-        Get.find<DongleComm>(), // 1st argument
-        (seed) => seed * 2, // 2nd argument, example seedKeyCalculator
-      ),
-      permanent: true,
-    );
+ Get.put<UDSDiagnostic>(
+  UDSDiagnostic(
+    Get.find<DongleComm>(), // 1st argument
+    ECUCalculateSeedkey(),   // 2nd argument
+  ),
+  permanent: true,
+);
     Get.put(DataSyncController(),permanent: true);
   }
   

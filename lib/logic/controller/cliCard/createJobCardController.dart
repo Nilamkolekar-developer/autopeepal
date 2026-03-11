@@ -39,9 +39,9 @@ class CreateJobcardController extends GetxController {
   }
 
   String formatDate(DateTime? date) {
-  if (date == null) return "";
-  return DateFormat('dd-MM-yyyy').format(date);
-}
+    if (date == null) return "";
+    return DateFormat('dd-MM-yyyy').format(date);
+  }
 
   // Selected dropdown values
   RxString selectedModel = ''.obs;
@@ -154,116 +154,6 @@ class CreateJobcardController extends GetxController {
     }
   }
 
-//   Future<void> submit() async {
-//   try {
-
-//     if (selectedModel.value.isEmpty) {
-//       Get.snackbar("Alert", "Please select Model");
-//       return;
-//     }
-
-//     if (selectedSubModel.value == null) {
-//       Get.snackbar("Alert", "Please select Regulation");
-//       return;
-//     }
-
-//     RegExp pattern = RegExp(r'^[a-zA-Z0-9]*$');
-
-//     if (regNo.value.text.length < 10 || !pattern.hasMatch(regNo.value.text)) {
-//       Get.snackbar("Alert", "Please enter valid Registration Number");
-//       return;
-//     }
-
-//     if (chassisNo.value.text.length < 17 ||
-//         !pattern.hasMatch(chassisNo.value.text)) {
-//       Get.snackbar("Alert", "Please enter valid Chassis Number");
-//       return;
-//     }
-
-//     if (engineNo.value.text.isEmpty ||
-//         !pattern.hasMatch(engineNo.value.text)) {
-//       Get.snackbar("Alert", "Please enter valid Engine Number");
-//       return;
-//     }
-
-//     if (kmCovered.value.text.isEmpty ||
-//         int.tryParse(kmCovered.value.text) == null) {
-//       Get.snackbar("Alert", "Please enter valid distance covered");
-//       return;
-//     }
-
-//     if (complaint.value.text.isEmpty) {
-//       Get.snackbar("Alert", "Please enter Complaint");
-//       return;
-//     }
-
-//     isBusy.value = true;
-
-//     var connectivity = await Connectivity().checkConnectivity();
-
-//     if (connectivity != ConnectivityResult.none) {
-//       String deviceId = await GetDeviceUniqueId.getId();
-
-//       SendJobcardData sendJobcardData = SendJobcardData(
-//         chasisId: chassisNo.value.text,
-//         complaints: complaint.value.text,
-//         date: DateTime.now().toString(),
-//         engineNo: engineNo.value.text,
-//         kmCovered: kmCovered.value.text,
-//         vehicleModelId: selectedSubModel.value!.id.toString(),
-//         model: selectedModel.value,
-//         vehModDes: "test",
-//         status: "new",
-//         jobCardName: jobCardId.value.text,
-//         submodel: "Na",
-//         vehicleSegment: "Na",
-//         jobCardStatus: "new",
-//         deviceMacId: deviceId,
-//         fertCode: "1233",
-//         registrationNo: regNo.value.text,
-//         sessionType: "regular",
-//         source: "gen",
-//       );
-
-//       var response = await services.sendJobCard(sendJobcardData);
-
-//       if (response != null && response.createJobcard != null) {
-
-//         Get.snackbar("Success", "Jobcard created successfully");
-
-//         Get.toNamed(
-//   Routes.jobCardDetails,
-//   arguments: response.createJobcard,
-// );
-
-//       } else if (response != null && response.sameJobcard != null) {
-
-//         Get.snackbar("Alert", "This jobcard number already exists");
-
-//       } else {
-
-//         Get.snackbar("Alert", "Job Card Not Created");
-
-//       }
-
-//     } else {
-
-//       Get.snackbar("Alert", "Please connect to internet");
-
-//     }
-
-//   } catch (e) {
-
-//     print(e);
-//     Get.snackbar("Exception", e.toString());
-
-//   } finally {
-
-//     isBusy.value = false;
-
-//   }
-// }
-
   Future<void> submitJobCard() async {
     try {
       isBusy.value = true;
@@ -272,13 +162,11 @@ class CreateJobcardController extends GetxController {
 
       // ignore: unnecessary_null_comparison
       if (selectedModel.value == null) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please select Model"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please select Model",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -287,13 +175,11 @@ class CreateJobcardController extends GetxController {
       }
 
       if (selectedSubModel.value == null) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please select Regulation"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please select SubModel",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -304,13 +190,11 @@ class CreateJobcardController extends GetxController {
       RegExp pattern = RegExp(r'^[a-zA-Z0-9]*$');
 
       if (regNo.value.text.length < 10 || !pattern.hasMatch(regNo.value.text)) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please enter valid Registration Number"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please enter valid Registration Number",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -320,13 +204,11 @@ class CreateJobcardController extends GetxController {
 
       if (chassisNo.value.text.length < 17 ||
           !pattern.hasMatch(chassisNo.value.text)) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please enter valid Chassis Numberr"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please enter valid Chassis Numberr",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -336,13 +218,11 @@ class CreateJobcardController extends GetxController {
 
       if (engineNo.value.text.isEmpty ||
           !pattern.hasMatch(engineNo.value.text)) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please enter valid Engine Number"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please enter valid Engine Number",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -352,13 +232,11 @@ class CreateJobcardController extends GetxController {
 
       if (kmCovered.value.text.isEmpty ||
           int.tryParse(kmCovered.value.text) == null) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please enter valid distance covered"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please enter valid distance covered",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -367,13 +245,11 @@ class CreateJobcardController extends GetxController {
       }
 
       if (complaint.value.text.isEmpty) {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please enter Complaint"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please enter Complaint",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
@@ -483,14 +359,11 @@ class CreateJobcardController extends GetxController {
                 noOfInjectors: ecu.noOfInjectors,
               ));
             }
-            await Get.dialog(
-              AlertDialog(
-                title: const Text("Alert"),
-                content: const Text("Jobcard created successfully"),
-                actions: [
-                  TextButton(
-                      onPressed: () => Get.back(), child: const Text("OK"))
-                ],
+            Get.dialog(
+              CustomPopup(
+                title: "Alert",
+                message: "Jobcard created successfully",
+                onButtonPressed: () => Get.back(),
               ),
               barrierDismissible: false,
             );
@@ -500,55 +373,46 @@ class CreateJobcardController extends GetxController {
               arguments: jobCardListModel,
             );
           } else if (createJobCard.sameJobcard != null) {
-            await Get.dialog(
-              AlertDialog(
-                title: const Text("Alert"),
-                content: const Text("This jobcard number is already exist"),
-                actions: [
-                  TextButton(
-                      onPressed: () => Get.back(), child: const Text("OK"))
-                ],
+            Get.dialog(
+              CustomPopup(
+                title: "Alert",
+                message: "This jobcard number is already exist",
+                onButtonPressed: () => Get.back(),
               ),
               barrierDismissible: false,
             );
           }
         } else {
-          await Get.dialog(
-            AlertDialog(
-              title: const Text("Alert"),
-              content:
-                  const Text("Please Check Server API!! Job Card Not Created"),
-              actions: [
-                TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-              ],
+          Get.dialog(
+            CustomPopup(
+              title: "Alert",
+              message: "Please Check Server API!! Job Card Not Created",
+              onButtonPressed: () => Get.back(),
             ),
             barrierDismissible: false,
           );
         }
       } else {
-        await Get.dialog(
-          AlertDialog(
-            title: const Text("Alert"),
-            content: const Text("Please connect to internet"),
-            actions: [
-              TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-            ],
+        Get.dialog(
+          CustomPopup(
+            title: "Alert",
+            message: "Please connect to internet",
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
       }
     } catch (e) {
-      await Get.dialog(
-        AlertDialog(
-          title: const Text("Exception @CreateJobcard"),
-          content: Text(e.toString()),
-          actions: [
-            TextButton(onPressed: () => Get.back(), child: const Text("OK"))
-          ],
+      Get.dialog(
+        CustomPopup(
+          title: "Exception @CreateJobcard",
+          message: e.toString(),
+          onButtonPressed: () => Get.back(),
         ),
         barrierDismissible: false,
       );
     } finally {
+      if (Get.isDialogOpen ?? false) Get.back();
       isBusy.value = false;
     }
   }

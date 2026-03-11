@@ -8,6 +8,7 @@ import 'package:autopeepal/app.dart';
 import 'package:autopeepal/services/connectionWifiService.dart';
 import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
+import 'package:ecu_seedkey/ecu_seedkey.dart';
 import 'package:get/get.dart';
 
 import 'package:usb_serial/usb_serial.dart';
@@ -71,7 +72,7 @@ class ConnectionUSB {
 
       dongleCommWin = DongleComm(channelId: "00", isChannel: true);
       dongleCommWin!.comm = comm;
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
 
       print("🔐 Starting Security Access on Mobile...");
      // Fluttertoast.showToast(msg: "Requesting Security Access...");
@@ -109,7 +110,7 @@ class ConnectionUSB {
       } else {
         return ["false", "USB Port not found"];
       }
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!,ECUCalculateSeedkey());
       print("Requesting Security Access...");
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
       if (securityAccess != null &&
@@ -188,7 +189,7 @@ class ConnectionUSB {
       } else {
         return ["false", "USB Port not available"];
       }
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
       String? fwVersion = await dongleCommWin!.rp1210ReadVersion();
       if (fwVersion.trim().isNotEmpty) {
         App.dllFunctions = DLLFunctions(

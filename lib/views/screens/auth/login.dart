@@ -80,6 +80,7 @@ class LoginScreen extends StatelessWidget {
         C8(),
         Obx(
           () => TextField(
+            cursorColor: Colors.black,
             controller: controller.passwordController.value,
             obscureText: controller.hidePassword.value,
             style: const TextStyle(

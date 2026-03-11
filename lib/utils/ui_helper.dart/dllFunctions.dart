@@ -8,6 +8,7 @@ import 'package:ap_diagnostic/enum/seedkeyIndexType.dart';
 import 'package:ap_diagnostic/enum/writeParameter.dart';
 import 'package:ap_diagnostic/models/flashingMtrixModel.dart';
 import 'package:ap_diagnostic/models/freezeFrameModel.dart';
+import 'package:ap_diagnostic/models/readDtcResponseModel.dart';
 import 'package:ap_diagnostic/models/readParameterPIDModel.dart';
 import 'package:ap_diagnostic/models/writeParameterPIDModel.dart';
 import 'package:ap_diagnostic/structure/flash_structures.dart';
@@ -18,7 +19,7 @@ import 'package:ap_dongle_comm/utils/enums/connectivity.dart';
 import 'package:ap_dongle_comm/utils/model/responseArrayStatusModel.dart';
 import 'package:ap_dongle_comm/utils/model/sessionLogModel.dart';
 import 'package:autopeepal/models/doipConfigFile_model.dart';
-import 'package:autopeepal/models/dtc_model.dart';
+import 'package:autopeepal/models/dtc_model.dart' hide ReadDtcResponseModel;
 import 'package:autopeepal/models/flashRecord_model.dart';
 import 'package:autopeepal/models/freezeFrame_model.dart'
     hide
@@ -41,76 +42,18 @@ class DLLFunctions {
   String rxHeaderTemp = '';
   int protocolValue = 0;
 
-  // =========================================================
-  // 1️⃣ SetDongleProperties (protocol + headers ONLY)
-  // C# : Task SetDongleProperties(string, string, string)
-  // =========================================================
-  Future<void> setDongleProperties(
-    String protocolName,
-    String txHeaderTemp,
-    String rxHeaderTemp,
-  ) async {
-    try {
-      final connectivity = mDongleComm.comm!.connectivity;
-
-      // RP1210 / CAN FD
-      if (connectivity == Connectivity.rp1210WiFi ||
-          connectivity == Connectivity.rp1210Usb ||
-          connectivity == Connectivity.canFdUsb ||
-          connectivity == Connectivity.canFdWiFi) {
-        final txArray = _hexToReversedUint32(txHeaderTemp);
-        final rxArray = _hexToReversedUint32(rxHeaderTemp);
-
-        await mDongleComm.rp1210SendCommand(
-          txArray,
-          rxArray,
-          SubCommandId.setMsgFilter,
-        );
-      }
-
-      // USB / WiFi / BLE
-      else if (connectivity == Connectivity.usb ||
-          connectivity == Connectivity.wiFi ||
-          connectivity == Connectivity.ble) {
-        final protocol = int.parse(protocolName, radix: 16);
-
-        await mDongleComm.dongleSetProtocol(protocol);
-        await mDongleComm.canSetTxHeader(txHeaderTemp);
-        await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
-      }
-    } catch (e) {
-      print("setDonglePropertiesWithHeaders error: $e");
-    }
-  }
-
   Future<String> setDongleProperties1() async {
     try {
-      // ===============================
-      // Read ECU info (same as C#)
-      // ===============================
       final ecu = StaticData.ecuInfo.first;
-
-      final String protocolNameValue = ecu.protocol.name!;
-      protocolValue = int.parse(ecu.protocol.autopeepal!, radix: 16);
-
-      // (kept for parity with C#, even if not used)
+      final String protocolNameValue = ecu.protocol!.name!;
+      protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
       protocolNameValue.replaceAll('-', '_');
-
       txHeaderTemp = ecu.txHeader!;
       rxHeaderTemp = ecu.rxHeader!;
-
-      // ===============================
-      // Set protocol & headers
-      // ===============================
       await mDongleComm.dongleSetProtocol(protocolValue);
       await mDongleComm.canSetTxHeader(txHeaderTemp);
       await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
       await mDongleComm.canStartPadding("00");
-      // await mDongleComm.canSetP2Max("2710"); // optional
-
-      // ===============================
-      // Read firmware version
-      // ===============================
       final Uint8List? firmwareBytes = await mDongleComm.getFirmwareVersion();
 
       final firmwareVersion = "${firmwareBytes![3].toString().padLeft(2, '0')}."
@@ -119,8 +62,90 @@ class DLLFunctions {
 
       return firmwareVersion;
     } catch (e) {
-      // Same behavior as C# (return empty string)
       return "";
+    }
+  }
+
+  Future<void> setDongleProperties(
+      String protocolName, String txHeaderTemp, String rxHeaderTemp) async {
+    try {
+      print("🔹 setDongleProperties called");
+      print("  protocolName: '$protocolName'");
+      print("  txHeaderTemp: '$txHeaderTemp'");
+      print("  rxHeaderTemp: '$rxHeaderTemp'");
+
+      // Ensure headers are not empty
+      if ((txHeaderTemp.isEmpty || rxHeaderTemp.isEmpty) &&
+          (protocolName.isEmpty)) {
+        print(
+            "⚠️ All headers and protocol are empty. Cannot set dongle properties.");
+        return;
+      }
+
+      // Get current connectivity type
+      final connectivity = mDongleComm.comm?.connectivity;
+      if (connectivity == null) {
+        print("⚠️ Dongle connectivity is null");
+        return;
+      }
+      print("🔹 Connectivity: $connectivity");
+
+      // RP1210 / CAN FD path
+      if (connectivity == Connectivity.rp1210WiFi ||
+          connectivity == Connectivity.rp1210Usb ||
+          connectivity == Connectivity.canFdUsb ||
+          connectivity == Connectivity.canFdWiFi) {
+        if (txHeaderTemp.isEmpty || rxHeaderTemp.isEmpty) {
+          print(
+              "⚠️ txHeaderTemp or rxHeaderTemp is empty, cannot convert to Uint32");
+          return;
+        }
+        final txArray = _hexToReversedUint32(txHeaderTemp);
+        final rxArray = _hexToReversedUint32(rxHeaderTemp);
+
+        print(
+            "🔹 Sending RP1210 command with txArray: $txArray, rxArray: $rxArray");
+        await mDongleComm.rp1210SendCommand(
+          txArray,
+          rxArray,
+          SubCommandId.setMsgFilter,
+        );
+        print("✅ RP1210 dongle properties set successfully");
+      }
+      // Standard USB / WiFi / BLE path
+      else if (connectivity == Connectivity.usb ||
+          connectivity == Connectivity.wiFi ||
+          connectivity == Connectivity.ble) {
+        if (protocolName.isEmpty) {
+          print("⚠️ protocolName is empty, skipping dongleSetProtocol");
+        } else {
+          try {
+            final protocol = int.parse(protocolName, radix: 16);
+            await mDongleComm.dongleSetProtocol(protocol);
+            print("✅ Dongle protocol set: $protocol");
+          } catch (e) {
+            print("❌ Failed to parse protocolName '$protocolName': $e");
+          }
+        }
+
+        if (txHeaderTemp.isNotEmpty) {
+          await mDongleComm.canSetTxHeader(txHeaderTemp);
+          print("✅ Tx Header set: $txHeaderTemp");
+        } else {
+          print("⚠️ Tx Header is empty, skipped canSetTxHeader");
+        }
+
+        if (rxHeaderTemp.isNotEmpty) {
+          await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
+          print("✅ Rx Header mask set: $rxHeaderTemp");
+        } else {
+          print("⚠️ Rx Header is empty, skipped canSetRxHeaderMask");
+        }
+      } else {
+        print("⚠️ Unsupported connectivity: $connectivity");
+      }
+    } catch (e) {
+      print("❌ Error in setDongleProperties: $e");
     }
   }
 
@@ -134,8 +159,8 @@ class DLLFunctions {
       final ecuList = StaticData.ecuInfo;
       final ecu = ecuList.first;
 
-      final String protocolNameValue = ecu.protocol.name!;
-      protocolValue = int.parse(ecu.protocol.autopeepal!, radix: 16);
+      final String protocolNameValue = ecu.protocol!.name!;
+      protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
 
       // parity with C#
       protocolNameValue.replaceAll('-', '_');
@@ -224,8 +249,8 @@ class DLLFunctions {
       // ===============================
       final ecu = StaticData.ecuInfo.first;
 
-      final String protocolNameValue = ecu.protocol.name!;
-      protocolValue = int.parse(ecu.protocol.autopeepal!, radix: 16);
+      final String protocolNameValue = ecu.protocol!.name!;
+      protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
 
       // (kept for parity with C#)
       protocolNameValue.replaceAll('-', '_');
@@ -358,25 +383,6 @@ class DLLFunctions {
     }
   }
 
-  // List<SessionLogsModel> getLogs() {
-  //   final logs = mDongleComm.logs; // <-- added missing semicolon
-  //   final List<SessionLogsModel> sessionLogsModel = [];
-
-  //   for (final item in logs!) {
-  //     sessionLogsModel.add(SessionLogsModel(
-  //       header: item.header,
-  //       message: item.message,
-  //       status: item.status == "NOERROR" ? '' : item.status,
-  //     ));
-  //   }
-
-  //   return sessionLogsModel;
-  // }
-
-  // void clearLogs() {
-  //   mDongleComm.logs = <SessionLogsModel>[];
-  // }
-
   List<SessionLogsModel> getLogs() {
     print("DLLFunctions.getLogs: Start");
 
@@ -408,21 +414,6 @@ class DLLFunctions {
     mDongleComm.logs = <SessionLogsModel>[];
     print("DLLFunctions.clearLogs: Logs cleared");
   }
-
-  // Future<String> getFirmware() async {
-  //   try {
-  //     final firmwareVersion = await mDongleComm.getFirmwareVersion();
-  //     final firmwareResult = firmwareVersion as Uint8List;
-
-  //     final ver = '${firmwareResult[3].toString().padLeft(2, '0')}.'
-  //         '${firmwareResult[4].toString().padLeft(2, '0')}.'
-  //         '${firmwareResult[5].toString().padLeft(2, '0')}';
-
-  //     return ver;
-  //   } catch (e) {
-  //     return '';
-  //   }
-  // }
 
   Future<String> getFirmware() async {
     try {
@@ -474,56 +465,118 @@ class DLLFunctions {
   }
 
   Future<ReadDtcResponseModel?> readDtc(String dtcIndex) async {
+    print("🔹 [readDtc] Start - Received index string: $dtcIndex");
+
     try {
-      // Parse string to enum directly — will throw if dtcIndex is invalid
-      final index = ReadDtcIndex.values.firstWhere(
+      // 1️⃣ Map string index to enum
+      ReadDtcIndex index = ReadDtcIndex.values.firstWhere(
         (e) => e.toString().split('.').last == dtcIndex,
+        orElse: () {
+          print("❌ No matching ReadDtcIndex enum found for: $dtcIndex");
+          throw Exception("Invalid DTC index: $dtcIndex");
+        },
       );
+      print("✅ [readDtc] Mapped string '$dtcIndex' to enum: $index");
 
-      // Call the async UDS diagnostic method
-      final readDTCResponse = await mUdsDiagnostic.readDTC(index);
+      // 2️⃣ Prepare response model
+      ReadDtcResponseModel readDtcResponseModel = ReadDtcResponseModel();
 
-      // Map to your response model
-      final readDtcResponseModel = ReadDtcResponseModel(
-        dtcs: readDTCResponse.dtcs,
-        status: readDTCResponse.status,
-        noOfDtc: readDTCResponse.noofdtc,
-      );
+      int attempt = 0;
+
+      // 3️⃣ Retry loop for BUSY or invalid dongle responses
+      do {
+        attempt++;
+        print("⏳ [readDtc] Attempt #$attempt to read DTC...");
+
+        // Call UDS diagnostic layer
+        final rawResponse = await mUdsDiagnostic.readDTC(index);
+
+        // Map raw response to our UI model
+        readDtcResponseModel.dtcs = rawResponse.dtcs;
+        readDtcResponseModel.status = rawResponse.status;
+        readDtcResponseModel.noofdtc = rawResponse.noofdtc;
+
+        print("📡 [readDtc] Status received: ${readDtcResponseModel.status}");
+        print(
+            "📡 [readDtc] Number of DTCs: ${readDtcResponseModel.dtcs?.length ?? 0}");
+
+        if (readDtcResponseModel.status ==
+                "GENERALERROR_INVALIDRESPFROMDONGLE" ||
+            readDtcResponseModel.status?.contains("BUSY") == true) {
+          print("⏳ [readDtc] ECU busy or invalid response, retrying...");
+          await Future.delayed(const Duration(milliseconds: 100));
+        } else {
+          break;
+        }
+      } while (attempt < 10);
+
+      if (readDtcResponseModel.dtcs != null) {
+        print(
+            "✅ [readDtc] Success - DTCs parsed: ${readDtcResponseModel.dtcs!.length}");
+      } else {
+        print("⚠️ [readDtc] Warning - dtcs array is null");
+      }
 
       return readDtcResponseModel;
-    } catch (e) {
-      // Return null if anything goes wrong, just like your C# catch
-      print('Error reading DTC: $e');
+    } catch (e, st) {
+      print("❌ [readDtc] EXCEPTION: $e");
+      print("❌ StackTrace: $st");
       return null;
     }
   }
 
-  Future<String?> clearDtc(String dtcIndex) async {
-    try {
-      String? status = "";
+ Future<String> clearDtc(String dtcIndexString) async {
+  try {
+    print("🔹 clearDtc() called");
+    print("🔹 Received dtcIndexString: $dtcIndexString");
 
-      // Parse the string index to your Enum
-      // In Dart, you'd typically use a lookup or .values.byName()
-      ClearDtcIndex index = ClearDtcIndex.values.byName(dtcIndex);
+    // Convert String -> Enum
+    ClearDtcIndex index = ClearDtcIndex.values.byName(dtcIndexString);
+    print("🔹 Converted Enum Index: $index");
 
-      // In Dart, 'await' is sufficient.
-      // If mUdsDiagnostic.clearDTC is CPU-intensive, use compute() or Isolate.run()
-      // but for I/O / Network, simple await is the standard.
+    int attempt = 0;
+    String status = "";
+
+    do {
+      attempt++;
+      print("⏳ [clearDtc] Attempt #$attempt");
+
+      // Call UDS layer
       final result = await mUdsDiagnostic.clearDTC(index);
 
-      // Instead of Serialize -> Deserialize, we typically access the map or use a Factory
-      // Assuming 'result' is a Map or an object with a toJson/toMap method
-      final responseJson = jsonEncode(result);
-      final responseData =
-          ClearDtcResponseModel.fromJson(jsonDecode(responseJson));
+      print("🔹 Raw result: $result");
 
-      status = responseData.ecuResponseStatus;
-      return status;
-    } catch (ex) {
-      // Return empty string on error as per original logic
-      return "";
-    }
+      // Convert result -> JSON
+      String res = jsonEncode(result);
+      var decoded = jsonDecode(res);
+
+      ClearDtcResponseModel response =
+          ClearDtcResponseModel.fromJson(decoded);
+
+      status = response.ecuResponseStatus ?? "";
+
+      print("📡 ECU Status: $status");
+
+      // Retry conditions
+      if (status == "GENERALERROR_INVALIDRESPFROMDONGLE" ||
+          status.contains("BUSY")) {
+        print("⏳ ECU busy / invalid response... retrying");
+        await Future.delayed(const Duration(milliseconds: 150));
+      } else {
+        break;
+      }
+    } while (attempt < 10);
+
+    print("✅ Final ClearDTC Status: $status");
+
+    return status;
+  } catch (e, stack) {
+    print("❌ Error in clearDtc()");
+    print("❌ Error: $e");
+    print("❌ StackTrace: $stack");
+    return "";
   }
+}
 
   Future<List<ReadPidPresponseModel>?> readPid(List<PidCode> pidList) async {
     try {
@@ -1035,32 +1088,32 @@ class DLLFunctions {
     }
   }
 
-  Future<String?> enterExtendedSession(
-      String writePidIndex, String seedKeyIndex) async {
-    try {
-      String status = "";
+  // Future<String?> enterExtendedSession(
+  //     String writePidIndex, String seedKeyIndex) async {
+  //   try {
+  //     String status = "";
 
-      WriteParameterIndex index =
-          WriteParameterIndex.values.firstWhere((e) => e.name == writePidIndex);
+  //     WriteParameterIndex index =
+  //         WriteParameterIndex.values.firstWhere((e) => e.name == writePidIndex);
 
-      SeedKeyIndexType seedIndex =
-          SeedKeyIndexType.values.firstWhere((e) => e.name == seedKeyIndex);
+  //     SeedKeyIndexType seedIndex =
+  //         SeedKeyIndexType.values.firstWhere((e) => e.name == seedKeyIndex);
 
-      final result =
-          await mUdsDiagnostic.enterExtendedSession(index, seedIndex);
+  //     final result =
+  //         await mUdsDiagnostic.enterExtendedSession(index, seedIndex);
 
-      Map<String, dynamic> json =
-          Map<String, dynamic>.from(result as Map<dynamic, dynamic>);
+  //     Map<String, dynamic> json =
+  //         Map<String, dynamic>.from(result as Map<dynamic, dynamic>);
 
-      ClearDtcResponseModel response = ClearDtcResponseModel.fromJson(json);
+  //     ClearDtcResponseModel response = ClearDtcResponseModel.fromJson(json);
 
-      status = response.ecuResponseStatus ?? "";
+  //     status = response.ecuResponseStatus ?? "";
 
-      return status;
-    } catch (e) {
-      return null;
-    }
-  }
+  //     return status;
+  //   } catch (e) {
+  //     return null;
+  //   }
+  // }
 
   Future<FreezeFrameResponseModel> getFreezeFrame(
       String dtcCode, FreezeFrameResult frameServerResult) async {
@@ -1213,8 +1266,6 @@ class DLLFunctions {
     }
   }
 
-
-
   Future<bool> writeSSID(String routerSSID) async {
     try {
       Uint8List? setHotspot =
@@ -1254,10 +1305,7 @@ class DLLFunctions {
       return false;
     }
   }
-
- }
-
-
+}
 
 Uint8List _hexToReversedUint32(String hex) {
   final value = int.parse(hex, radix: 16);

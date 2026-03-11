@@ -8,6 +8,7 @@ import 'package:autopeepal/app.dart';
 import 'package:autopeepal/services/hotspot_service.dart';
 import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
+import 'package:ecu_seedkey/ecu_seedkey.dart';
 import 'package:flutter/foundation.dart';
 
 CommController? comm;
@@ -59,7 +60,7 @@ class ConnectionWifi {
       print("Connecting to $ip:$port via WiFi...");
       await comm!.connectWifi(host: ip, port: port);
       print("WiFi connected.");
-      dSDiagnostic ??= UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      dSDiagnostic ??= UDSDiagnostic(dongleCommWin!,ECUCalculateSeedkey());
       print("UDSDiagnostic initialized.");
       print("Sending Security Access command...");
       await dongleCommWin!.securityAccess();
@@ -137,7 +138,10 @@ class ConnectionWifi {
       comm = CommController()..connectivity.value = connType;
       dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
       dongleCommWin!.comm = comm;
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+     dSDiagnostic ??= UDSDiagnostic(
+  dongleCommWin!,
+  ECUCalculateSeedkey(),
+);
 
       String fwVersion = "x.x.x";
 

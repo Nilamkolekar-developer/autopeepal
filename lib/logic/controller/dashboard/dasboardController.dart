@@ -202,8 +202,8 @@ class DashboardController extends GetxController {
       // Sort: move "EMS" to top
       if (StaticData.ecuInfo.length > 1) {
         StaticData.ecuInfo.sort((a, b) {
-          if ((a.ecuName.toUpperCase()) == 'EMS') return -1;
-          if ((b.ecuName.toUpperCase()) == 'EMS') return 1;
+          if ((a.ecuName!.toUpperCase()) == 'EMS') return -1;
+          if ((b.ecuName!.toUpperCase()) == 'EMS') return 1;
           return 0;
         });
       }
