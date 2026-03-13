@@ -1,162 +1,190 @@
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:autopeepal/common_widgets/customDropdown.dart';
 import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/writeParameterController.dart';
-import 'package:autopeepal/themes/app_textstyles.dart';
-import 'package:flutter/material.dart';
 import 'package:autopeepal/themes/app_colors.dart';
-import 'package:get/get.dart';
+import 'package:autopeepal/themes/app_textstyles.dart';
 
 class WriteParameter extends StatelessWidget {
   WriteParameter({super.key});
-  final controller = Get.put(Writeparametercontroller());
+  final controller = Get.put(WriteParameterController());
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.pagebgColor,
-      appBar: const CommonAppBar(
-        title: "Write parameter",
-        subtitle: "EMS",
-      ),
+      appBar: const CommonAppBar(title: "Write Parameter", subtitle: "EMS"),
+
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              /// 🔹 Dropdown
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 6),
-                child: CustomSearchDropdown(
-                  selectedValue: controller.selectedFile,
-                  items: controller.Files,
-                  iconSize: 50,
-                  showFolderIcon: false,
-                  hint: "Select a parameter to write",
-                ),
-              ),
+        child: Obx(() {
+          if (controller.isBusy.value) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-              C15(),
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                /// PID Dropdown
+                CustomSearchDropdown(
+                  selectedValue: controller.selectedPidName,
+                  items:
+                      controller.pidList.map((e) => e.shortName ?? "").toList(),
+                  hint: "Select PID",
+                  onChanged: (val) {
+                    if (controller.pidList.isEmpty) return;
 
-              Obx(() {
-                if (controller.selectedFile.value.isEmpty) {
-                  return const SizedBox.shrink();
-                }
+                    final selected = controller.pidList.firstWhere(
+                      (pid) => pid.shortName == val,
+                      orElse: () => controller.pidList.first,
+                    );
 
-                return Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  color: Colors.white,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 10,horizontal: 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          controller.selectedFile.value,
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87),
-                        ),
-                        C5(),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "Current Value :",
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500),
-                                  ),
-                                  C2(),
-                                  TextField(
-                                    style: TextStyles.textfieldTextStyle1,
-                                    cursorColor: Colors.black,
-                                    readOnly: true,
-                                    controller:
-                                        controller.currentValueController.value,
-                                    decoration: inputDecorationStyle.copyWith(
-                                        hintText: "Current value",
-                                        hintStyle: TextStyles.hintStyle1),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            C10(),
-
-                            /// New Value Column
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    "New Value :",
-                                    style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500),
-                                  ),
-                                  C2(),
-                                  TextField(
-                                    cursorColor: Colors.black,
-                                    style: TextStyles.textfieldTextStyle1,
-                                    controller:
-                                        controller.newValueController.value,
-                                    decoration: inputDecorationStyle1.copyWith(
-                                        hintText: "Enter new value",
-                                        hintStyle: TextStyles.hintStyle1),
-                                  ),
-                                ],
-                              ),
-                            ),
-                           
-                          ],
-                          
-                        ),
-                        C25()
-                      ],
-                    ),
-                  ),
-                );
-              }),
-
-              const Spacer(),
-
-              /// 🔹 Write Button
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: () {
-                    // 🔹 Call write function here
-                    print(
-                        "Write button pressed for file: ${controller.selectedFile.value} with new value: ${controller.newValueController.value.text}");
+                    controller.selectPidClicked(selected);
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+
+                C15(),
+
+                /// Selected PID Card
+                Obx(() {
+                  if ((controller.selectedPidName.value).isEmpty) {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Card(
+                    elevation: 4,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12)),
+                    color: Colors.white,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            controller.selectedPidName.value,
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          C5(),
+                          Row(
+                            children: [
+                              /// Current Value
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("Current Value:",
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w500)),
+                                    C2(),
+                                    Obx(() => TextField(
+                                          controller: controller
+                                              .currentValueController.value,
+                                          readOnly: true,
+                                          style: TextStyles.textfieldTextStyle1,
+                                          decoration:
+                                              inputDecorationStyle.copyWith(
+                                                  hintText: "Current value",
+                                                  hintStyle:
+                                                      TextStyles.hintStyle1),
+                                        )),
+                                  ],
+                                ),
+                              ),
+
+                              C10(),
+
+                              /// New Value
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text("New Value:",
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.w500)),
+                                    C2(),
+                                    Obx(() => TextField(
+                                          controller: controller
+                                              .newValueController.value,
+                                          onChanged: (val) {
+                                            // 1. Update the reactive string used for UI logic
+                                            controller.newValue.value = val;
+
+                                            if (controller
+                                                    .selectedPidCode
+                                                    ?.piCodeVariable
+                                                    ?.isNotEmpty ??
+                                                false) {
+                                              controller
+                                                  .selectedPidCode!
+                                                  .piCodeVariable!
+                                                  .first
+                                                  .writeValue
+                                                  .value = val;
+                                            }
+
+                                            print(
+                                                "User typed: $val, Variable updated: ${controller.selectedPidCode!.piCodeVariable!.first.writeValue.value}");
+                                          },
+                                          style: TextStyles.textfieldTextStyle1,
+                                          decoration:
+                                              inputDecorationStyle1.copyWith(
+                                                  hintText: "Enter new value",
+                                                  hintStyle:
+                                                      TextStyles.hintStyle1),
+                                        ))
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    "Write",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  );
+                }),
+
+                /// Space so button doesn't overlap scroll
+                const SizedBox(height: 100),
+              ],
+            ),
+          );
+        }),
+      ),
+
+      /// ✅ Bottom Write Button
+      bottomNavigationBar: SafeArea(
+        child: Obx(() {
+          if ((controller.selectedPidName.value).isEmpty) {
+            return const SizedBox.shrink();
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(12),
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
+                onPressed: () {
+                  controller.btnWriteClicked();
+                },
+                child: const Text(
+                  "Write",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
-            ],
-          ),
-        ),
+            ),
+          );
+        }),
       ),
     );
   }

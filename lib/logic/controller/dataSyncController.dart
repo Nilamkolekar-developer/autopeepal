@@ -525,66 +525,6 @@ class DataSyncController extends GetxController {
     }
   }
 
-  // Future<bool> updateGDToLocal(
-  //     BuildContext context, List<ModelResult> modelList) async {
-  //   try {
-  //     bool returnValue = true;
-
-  //     for (var model in modelList) {
-  //       final subModels = model.subModels ?? [];
-  //       for (var subModel in subModels) {
-  //         final res = await services.getGD(subModel.id ?? 0);
-
-  //         if (res.message == "success") {
-  //           final gdLocalList = jsonEncode(res);
-  //           await saveLocalData!
-  //               .saveData("GD_LocalList_${subModel.id}", gdLocalList);
-  //           returnValue = true;
-  //         } else {
-  //           if (context.mounted) {
-  //             await showDialog(
-  //               context: context,
-  //               builder: (context) => AlertDialog(
-  //                 title: const Text("Error in Saving GD Data"),
-  //                 content: Text(res.message ?? ''),
-  //                 actions: [
-  //                   TextButton(
-  //                     onPressed: () => Navigator.of(context).pop(),
-  //                     child: const Text("OK"),
-  //                   ),
-  //                 ],
-  //               ),
-  //             );
-  //           }
-  //           return false;
-  //         }
-  //       }
-  //     }
-
-  //     return returnValue;
-  //   } catch (e) {
-  //     debugPrint("Exception in Saving GD Data: $e");
-
-  //     if (context.mounted) {
-  //       await showDialog(
-  //         context: context,
-  //         builder: (context) => AlertDialog(
-  //           title: const Text("Exception in Saving GD Data"),
-  //           content: Text(e.toString()),
-  //           actions: [
-  //             TextButton(
-  //               onPressed: () => Navigator.of(context).pop(),
-  //               child: const Text("OK"),
-  //             ),
-  //           ],
-  //         ),
-  //       );
-  //     }
-
-  //     return false;
-  //   }
-  // }
-
   Future<bool> updateGDToLocal(
     BuildContext context, List<ModelResult> modelList) async {
   try {

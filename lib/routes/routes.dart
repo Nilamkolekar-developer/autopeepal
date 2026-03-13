@@ -124,11 +124,11 @@ class AppRoutes {
       page: () => FirmwareUpdatePage(),
     ),
 
-    GetPage(
-      name: Routes.ecuInformation,
-      binding: EcuinformationBindings(),
-      page: () => EcuInformationScreen(),
-    ),
+    // GetPage(
+    //   name: Routes.ecuInformation,
+    //   binding: EcuinformationBindings(),
+    //   page: () => EcuInformationScreen(),
+    // ),
 
     GetPage(
       name: Routes.dtcScreen,
