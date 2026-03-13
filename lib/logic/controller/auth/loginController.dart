@@ -1031,13 +1031,13 @@ class LoginController extends GetxController {
     try {
       // 🔹 Get local cached model data safely
       final modelLocalList =
-          (await saveLocalData!.getData("MODEL_LocalList")) ?? "";
+          (await saveLocalData!.getData("MODEL_LocalList"));
       final iorLocalList =
-          (await saveLocalData!.getData("IOR_LocalList")) ?? "";
+          (await saveLocalData!.getData("IOR_LocalList")) ;
       final actuatorLocalList =
-          (await saveLocalData!.getData("Actuator_LocalList")) ?? "";
+          (await saveLocalData!.getData("Actuator_LocalList"));
       final freezeFrameLocalList =
-          (await saveLocalData!.getData("FreezeFrame_LocalList")) ?? "";
+          (await saveLocalData!.getData("FreezeFrame_LocalList"));
 
       // 🔹 Check if mandatory local data exists
       if (modelLocalList.isEmpty ||
@@ -1061,7 +1061,7 @@ class LoginController extends GetxController {
 
       // 🔹 Get cached user login request (username & password)
       final requestData =
-          (await saveLocalData!.getData("UserRequest_LocalData")) ?? "";
+          (await saveLocalData!.getData("UserRequest_LocalData"));
       if (requestData.isEmpty) {
         await Get.defaultDialog(
           title: "Failed",
@@ -1077,7 +1077,7 @@ class LoginController extends GetxController {
           cachedRequest.password == userRequestModel.password) {
         // ✅ Successful offline login, token may be null
         final responseData =
-            (await saveLocalData!.getData("UserDetailL_LocalData")) ?? "";
+            (await saveLocalData!.getData("UserDetailL_LocalData"));
         if (responseData.isNotEmpty) {
           userResModel = UserResModel.fromJson(jsonDecode(responseData));
           // Token is optional offline

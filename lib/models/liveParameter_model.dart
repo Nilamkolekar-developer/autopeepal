@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:autopeepal/models/all_models.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get_rx/src/rx_types/rx_types.dart';
 
 class LiveParameterSelectModel {
   String? ecuName;
@@ -118,77 +119,303 @@ class PidCode {
       };
 }
 
+class Variables {
+  int id;
+  String name;
+  dynamic value;
+
+  Variables({
+    required this.id,
+    required this.name,
+    this.value,
+  });
+
+  factory Variables.fromJson(Map<String, dynamic> json) {
+    return Variables(
+      id: json['id'] ?? 0,
+      name: json['name'] ?? "",
+      value: json['value'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'value': value,
+    };
+  }
+}
+
+class Variable {
+  String? pidName;
+  int? pidNumber;
+  String? responseValue;
+
+  Variable({
+     this.pidName,
+     this.pidNumber,
+     this.responseValue,
+  });
+
+  /// Create a Variable from JSON
+  factory Variable.fromJson(Map<String, dynamic> json) {
+    return Variable(
+      pidName: json['pidName'] ?? "",
+      pidNumber: json['pidNumber'] ?? 0,
+      responseValue: json['responseValue'] ?? "",
+    );
+  }
+
+  /// Convert Variable to JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'pidName': pidName,
+      'pidNumber': pidNumber,
+      'responseValue': responseValue,
+    };
+  }
+}
+
+class ReadPidResponseModel {
+  String? status;
+   Uint8List?  dataArray;
+  int? pidId;
+  String? pidName;
+  String? responseValue;
+  String? unit;
+  List<Variable>? variables; // <-- Use the new 'Variable' class here
+
+  ReadPidResponseModel({
+     this.status,
+     this.dataArray,
+     this.pidId,
+     this.pidName,
+     this.responseValue,
+     this.unit,
+     this.variables,
+  });
+
+  factory ReadPidResponseModel.fromJson(Map<String, dynamic> json) {
+  return ReadPidResponseModel(
+    status: json['Status'] ?? "",
+    dataArray: json['DataArray'] == null
+        ? null
+        : Uint8List.fromList(List<int>.from(json['DataArray'])),
+    pidId: json['pid_id'] ?? 0,
+    pidName: json['pid_name'] ?? "",
+    responseValue: json['responseValue'] ?? "",
+    unit: json['unit'] ?? "",
+    variables: (json['Variables'] as List<dynamic>? ?? [])
+        .map((e) => Variable.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+  Map<String, dynamic> toJson() => {
+        'Status': status,
+        'DataArray': dataArray,
+        'pid_id': pidId,
+        'pid_name': pidName,
+        'responseValue': responseValue,
+        'unit': unit,
+        'Variables': variables?.map((e) => e.toJson()).toList(),
+      };
+}
+
 class PiCodeVariable {
-  int? id;
-  String? shortName;
-  bool? selected;
-  String? longName;
-  int? bytePosition;
-  int? length;
-  bool? bitcoded;
+    RxString showResolution = "".obs;
+  RxString writeValue = "".obs;
+  RxBool isResetRx = false.obs; // optional, for UI
+  Rx<Color> txtColor = Colors.black.obs;
+
+  int id = 0;
+
+  String shortName = "";
+  bool selected = false;
+
+  String longName = "";
+  int bytePosition = 0;
+  int length = 0;
+  bool bitcoded = false;
   int? startBitPosition;
   int? endBitPosition;
+  int? priority;
   double? resolution;
   double? offset;
   double? min;
   double? max;
-  String? messageType;
-  String? unit;
+  String messageType = "";
+  String unit = "";
+  String endian = "";
+  String numType = "";
+
+  List<dynamic> group = [];
+  List<dynamic> messages = [];
+  double dav = 0.0;
+
+ 
+  bool isUnitVisible = false;
+  double stepperValue = 0.0;
+  double userValue = 0.0;
+
+  
+  bool isReset = false;
+  String writeValueStatus = "";
+  int actuatorWriteValue = 0;
+
+  String index = "";
+  String parameterName = "";
 
   PiCodeVariable({
-    this.id,
-    this.shortName,
-    this.selected,
-    this.longName,
-    this.bytePosition,
-    this.length,
-    this.bitcoded,
+    this.id = 0,
+    String? shortName,
+    bool? selected,
+    this.longName = "",
+    this.bytePosition = 0,
+    this.length = 0,
+    this.bitcoded = false,
     this.startBitPosition,
     this.endBitPosition,
+    this.priority,
     this.resolution,
     this.offset,
     this.min,
     this.max,
-    this.messageType,
-    this.unit,
-  });
+    this.messageType = "",
+    this.unit = "",
+    this.endian = "",
+    this.numType = "",
+    List<dynamic>? group,
+    List<dynamic>? messages,
+    this.dav = 0.0,
+    String? showResolution,
+    bool? isUnitVisible,
+    double? stepperValue,
+    double? userValue,
+    String? writeValue,
+    bool? isReset,
+    String? writeValueStatus,
+    int? actuatorWriteValue,
+    Color? txtColor,
+    String? index,
+    String? parameterName,
+  }) {
+    this.shortName = shortName ?? "";
+    this.selected = selected ?? false;
+    this.group = group ?? [];
+    this.messages = messages ?? [];
+    this.showResolution.value = showResolution ?? "";
+  this.writeValue.value = writeValue ?? "";
+  this.isResetRx.value = isReset ?? false;
+  this.txtColor.value = txtColor ?? Colors.black;
+    this.isUnitVisible = isUnitVisible ?? false;
+    this.stepperValue = stepperValue ?? 0.0;
+    this.userValue = userValue ?? 0.0;
+    this.isReset = isReset ?? false;
+    this.writeValueStatus = (writeValueStatus ?? "");
+    this.actuatorWriteValue = actuatorWriteValue ?? 0;
+    this.txtColor.value = txtColor ?? Colors.black;
+    this.index = index ?? "";
+    this.parameterName = parameterName ?? "";
+  }
+  void updateWriteValueStatus() {
+    // Ensure writeValue is not null and has a value
+    final currentValue = writeValue;
 
-  factory PiCodeVariable.fromJson(Map<String, dynamic> json) => PiCodeVariable(
-        id: json['id'],
-        shortName: json['short_name'],
-        selected: json['selected'] ?? false,
-        longName: json['long_name'],
-        bytePosition: json['byte_position'],
-        length: json['length'],
-        bitcoded: json['bitcoded'],
-        startBitPosition: json['start_bit_position'],
-        endBitPosition: json['end_bit_position'],
-        resolution: (json['resolution'] as num?)?.toDouble(),
-        offset: (json['offset'] as num?)?.toDouble(),
-        min: (json['min'] as num?)?.toDouble(),
-        max: (json['max'] as num?)?.toDouble(),
-        messageType: json['message_type'],
-        unit: json['unit'],
-      );
+    try {
+      if (messageType == "CONTINUOUS") {
+        writeValueStatus = "(Range : $min - $max)";
+      } else if (messageType == "ASCII" ||
+          messageType == "BCD" ||
+          messageType == "HEX") {
+        // Make sure maxLength is an int, not RxString
+        writeValueStatus = "$currentValue.length/";
+      } else if (messageType == "IQA") {
+        writeValueStatus = "$currentValue.length/7";
+      }
+    } catch (e) {
+      print("Error in updateWriteValueStatus: $e");
+    }
+  }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'short_name': shortName,
-        'selected': selected,
-        'long_name': longName,
-        'byte_position': bytePosition,
-        'length': length,
-        'bitcoded': bitcoded,
-        'start_bit_position': startBitPosition,
-        'end_bit_position': endBitPosition,
-        'resolution': resolution,
-        'offset': offset,
-        'min': min,
-        'max': max,
-        'message_type': messageType,
-        'unit': unit,
-      };
+  /// --- JSON serialization ---
+  factory PiCodeVariable.fromJson(Map<String, dynamic> json) {
+    return PiCodeVariable(
+      id: json['id'] ?? 0,
+      shortName: json['short_name'] ?? "",
+      selected: json['Selected'] ?? false,
+      longName: json['long_name'] ?? "",
+      bytePosition: json['byte_position'] ?? 0,
+      length: json['length'] ?? 0,
+      bitcoded: json['bitcoded'] ?? false,
+      startBitPosition: json['start_bit_position'],
+      endBitPosition: json['end_bit_position'],
+      priority: json['priority'],
+      resolution: (json['resolution'] as num?)?.toDouble(),
+      offset: (json['offset'] as num?)?.toDouble(),
+      min: (json['min'] as num?)?.toDouble(),
+      max: (json['max'] as num?)?.toDouble(),
+      messageType: json['message_type'] ?? "",
+      unit: json['unit'] ?? "",
+      endian: json['endian'] ?? "",
+      numType: json['num_type'] ?? "",
+      group: json['group'] ?? [],
+      messages: json['messages'] ?? [],
+      dav: (json['dav'] as num?)?.toDouble() ?? 0.0,
+      showResolution: json['show_resolution'] ?? "",
+      isUnitVisible: json['isUnitVisible'] ?? false,
+      stepperValue: (json['stepper_value'] as num?)?.toDouble() ?? 0.0,
+      userValue: (json['user_value'] as num?)?.toDouble() ?? 0.0,
+      writeValue: json['write_value'] ?? "",
+      isReset: json['IsReset'] ?? false,
+      writeValueStatus: json['write_value_status'] ?? "",
+      actuatorWriteValue: json['actuator_write_value'] ?? 0,
+      txtColor:
+          json['txt_color'] != null ? Color(json['txt_color']) : Colors.black,
+      index: json['index'] ?? "",
+      parameterName: json['parameter_name'] ?? "",
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'short_name': shortName,
+      'Selected': selected,
+      'long_name': longName,
+      'byte_position': bytePosition,
+      'length': length,
+      'bitcoded': bitcoded,
+      'start_bit_position': startBitPosition,
+      'end_bit_position': endBitPosition,
+      'priority': priority,
+      'resolution': resolution,
+      'offset': offset,
+      'min': min,
+      'max': max,
+      'message_type': messageType,
+      'unit': unit,
+      'endian': endian,
+      'num_type': numType,
+      'group': group,
+      'messages': messages,
+      'dav': dav,
+      'show_resolution': showResolution,
+      'isUnitVisible': isUnitVisible,
+      'stepper_value': stepperValue,
+      'user_value': userValue,
+      'write_value': writeValue,
+      'IsReset': isReset,
+      'write_value_status': writeValueStatus,
+      'actuator_write_value': actuatorWriteValue,
+      'txt_color': txtColor.value.value,
+      'index': index,
+      'parameter_name': parameterName,
+    };
+  }
 }
+
 class PIDModel {
   int? count;
   dynamic next;
@@ -254,7 +481,8 @@ class PIDFrameDataset {
 
   PIDFrameDataset({this.id, this.frameName, this.frameId, this.frameIds});
 
-  factory PIDFrameDataset.fromJson(Map<String, dynamic> json) => PIDFrameDataset(
+  factory PIDFrameDataset.fromJson(Map<String, dynamic> json) =>
+      PIDFrameDataset(
         id: json['id'],
         frameName: json['frame_name'],
         frameId: json['frame_id'],
@@ -352,14 +580,14 @@ class PIDFrameId {
       };
 }
 
-
 class FrameOfPidMessage {
   String? code;
   String? message;
 
   FrameOfPidMessage({this.code, this.message});
 
-  factory FrameOfPidMessage.fromJson(Map<String, dynamic> json) => FrameOfPidMessage(
+  factory FrameOfPidMessage.fromJson(Map<String, dynamic> json) =>
+      FrameOfPidMessage(
         code: json['code'],
         message: json['message'],
       );
@@ -370,7 +598,7 @@ class FrameOfPidMessage {
       };
 }
 
-class EcusModel {
+class EcuModel {
   String? ecuName;
   ValueNotifier<double> opacity;
   List<PidCode> pidList;
@@ -380,7 +608,7 @@ class EcusModel {
   String? firingSequence;
   int? noOfInjectors;
 
-  EcusModel({
+  EcuModel({
     this.ecuName,
     double? opacity,
     List<PidCode>? pidList,
@@ -392,19 +620,25 @@ class EcusModel {
   })  : opacity = ValueNotifier<double>(opacity ?? 1.0),
         pidList = pidList ?? [];
 
-  factory EcusModel.fromJson(Map<String, dynamic> json) => EcusModel(
+  factory EcuModel.fromJson(Map<String, dynamic> json) => EcuModel(
         ecuName: json['ecu_name'],
-        opacity: (json['opacity'] != null) ? (json['opacity'] as num).toDouble() : 1.0,
+        opacity: (json['opacity'] != null)
+            ? (json['opacity'] as num).toDouble()
+            : 1.0,
         pidList: (json['pid_list'] as List<dynamic>?)
                 ?.map((e) => PidCode.fromJson(e))
                 .toList() ??
             [],
         txHeader: json['tx_header'],
         rxHeader: json['rx_header'],
-        protocol: json['protocol'] != null ? Protocol.fromJson(json['protocol']) : null,
+        protocol: json['protocol'] != null
+            ? Protocol.fromJson(json['protocol'])
+            : null,
         firingSequence: json['firing_sequence'],
         noOfInjectors: json['no_of_injectors'],
       );
+
+  get value => null;
 
   Map<String, dynamic> toJson() => {
         'ecu_name': ecuName,
@@ -432,7 +666,9 @@ class IvnEcusModel {
 
   factory IvnEcusModel.fromJson(Map<String, dynamic> json) => IvnEcusModel(
         ecuName: json['ecu_name'],
-        opacity: (json['opacity'] != null) ? (json['opacity'] as num).toDouble() : 1.0,
+        opacity: (json['opacity'] != null)
+            ? (json['opacity'] as num).toDouble()
+            : 1.0,
         pidList: (json['pid_list'] as List<dynamic>?)
                 ?.map((e) => PIDFrameId.fromJson(e))
                 .toList() ??
@@ -468,9 +704,7 @@ class Root {
       next: json['next'],
       previous: json['previous'],
       results: json['results'] != null
-          ? (json['results'] as List)
-              .map((e) => Results.fromJson(e))
-              .toList()
+          ? (json['results'] as List).map((e) => Results.fromJson(e)).toList()
           : [],
     );
   }
@@ -485,6 +719,7 @@ class Root {
     };
   }
 }
+
 class Results {
   int? id;
   String? code;
@@ -505,9 +740,7 @@ class Results {
       code: json['code'],
       description: json['description'],
       codes: json['codes'] != null
-          ? (json['codes'] as List)
-              .map((e) => PidCode.fromJson(e))
-              .toList()
+          ? (json['codes'] as List).map((e) => PidCode.fromJson(e)).toList()
           : [],
     );
   }
@@ -522,6 +755,7 @@ class Results {
     };
   }
 }
+
 class PidGroupModel extends ChangeNotifier {
   int id;
 
@@ -542,71 +776,6 @@ class PidGroupModel extends ChangeNotifier {
   }
 }
 
-class Variables {
-  // Define the fields of your Variables class here
-  // Example:
-  String? name;
-  String? value;
-
-  Variables({this.name, this.value});
-
-  factory Variables.fromJson(Map<String, dynamic> json) {
-    return Variables(
-      name: json['name'] as String?,
-      value: json['value'] as String?,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'value': value,
-      };
-}
-
-class ReadPidPresponseModel {
-  String? status;
-  String? dataArray;
-  int? pidId;
-  String? pidName;
-  String? responseValue;
-  String? unit;
-  List<Variables>? variables;
-
-  ReadPidPresponseModel({
-    this.status,
-    this.dataArray,
-    this.pidId,
-    this.pidName,
-    this.responseValue,
-    this.unit,
-    this.variables,
-  });
-
-  factory ReadPidPresponseModel.fromJson(Map<String, dynamic> json) {
-    return ReadPidPresponseModel(
-      status: json['Status'] as String?,
-      dataArray: json['DataArray'] as String?,
-      pidId: json['pid_id'] as int?,
-      pidName: json['pid_name'] as String?,
-      responseValue: json['responseValue'] as String?,
-      unit: json['unit'] as String?,
-      variables: json['Variables'] != null
-          ? List<Variables>.from(
-              (json['Variables'] as List).map((x) => Variables.fromJson(x)))
-          : null,
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'Status': status,
-        'DataArray': dataArray,
-        'pid_id': pidId,
-        'pid_name': pidName,
-        'responseValue': responseValue,
-        'unit': unit,
-        'Variables': variables?.map((x) => x.toJson()).toList(),
-      };
-}
 class TestRoutineResponseModel {
   String? ecuResponseStatus;
   String? ecuResponse;
@@ -635,6 +804,190 @@ class TestRoutineResponseModel {
       "ECUResponseStatus": ecuResponseStatus,
       "ECUResponse": ecuResponse,
       "ActualDataBytes": actualDataBytes?.toList(),
+    };
+  }
+}
+
+
+class WriteParameterPid {
+  String? writePamIndex;
+  String? seedKeyIndex;
+  String? ioCtrlPid;
+  String? writePid;
+  int? writeParaDataSize;
+  int? writeParaNo;
+  int? writeParaName;
+  Uint8List? writeInput;
+  String? readParameterPidDataType;
+  List<VariantDataLists>? variantList;
+  String? pid;
+  int? totalLen;
+  int? totalBytes;
+  int? startByte;
+  int? noOfBytes;
+  bool? isBitcoded;
+  int? startBit;
+  int? noofBits;
+  String? datatype;
+  double? resolution;
+  double? offset;
+  String? unit;
+  String? pidName;
+
+  WriteParameterPid({
+    this.writePamIndex,
+    this.seedKeyIndex,
+    this.ioCtrlPid,
+    this.writePid,
+    this.writeParaDataSize,
+    this.writeParaNo,
+    this.writeParaName,
+    this.writeInput,
+    this.readParameterPidDataType,
+    this.variantList,
+    this.pid,
+    this.totalLen,
+    this.totalBytes,
+    this.startByte,
+    this.noOfBytes,
+    this.isBitcoded,
+    this.startBit,
+    this.noofBits,
+    this.datatype,
+    this.resolution,
+    this.offset,
+    this.unit,
+    this.pidName,
+  });
+
+  factory WriteParameterPid.fromJson(Map<String, dynamic> json) {
+    return WriteParameterPid(
+      writePamIndex: json['writepamindex'],
+      seedKeyIndex: json['seedkeyindex'],
+      ioCtrlPid: json['io_ctrl_pid'],
+      writePid: json['write_pid'],
+      writeParaDataSize: json['writeparadatasize'],
+      writeParaNo: json['writeparano'],
+      writeParaName: json['writeparaName'],
+      // Handles conversion from List<int> to Uint8List
+      writeInput: json['writeinput'] != null 
+          ? Uint8List.fromList(List<int>.from(json['writeinput'])) 
+          : null,
+      readParameterPidDataType: json['ReadParameterPID_DataType'],
+      variantList: json['variantList'] != null
+          ? (json['variantList'] as List)
+              .map((i) => VariantDataLists.fromJson(i))
+              .toList()
+          : null,
+      pid: json['pid'],
+      totalLen: json['totalLen'],
+      totalBytes: json['totalBytes'],
+      startByte: json['startByte'],
+      noOfBytes: json['noOfBytes'],
+      isBitcoded: json['IsBitcoded'],
+      startBit: json['startBit'],
+      noofBits: json['noofBits'],
+      datatype: json['datatype'],
+      resolution: (json['resolution'] as num?)?.toDouble(),
+      offset: (json['offset'] as num?)?.toDouble(),
+      unit: json['unit'],
+      pidName: json['pidName'],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'writepamindex': writePamIndex,
+      'seedkeyindex': seedKeyIndex,
+      'io_ctrl_pid': ioCtrlPid,
+      'write_pid': writePid,
+      'writeparadatasize': writeParaDataSize,
+      'writeparano': writeParaNo,
+      'writeparaName': writeParaName,
+      // Uint8List converts nicely to a List for JSON
+      'writeinput': writeInput?.toList(),
+      'ReadParameterPID_DataType': readParameterPidDataType,
+      'variantList': variantList?.map((e) => e.toJson()).toList(),
+      'pid': pid,
+      'totalLen': totalLen,
+      'totalBytes': totalBytes,
+      'startByte': startByte,
+      'noOfBytes': noOfBytes,
+      'IsBitcoded': isBitcoded,
+      'startBit': startBit,
+      'noofBits': noofBits,
+      'datatype': datatype,
+      'resolution': resolution,
+      'offset': offset,
+      'unit': unit,
+      'pidName': pidName,
+    };
+  }
+}
+
+class VariantDataLists {
+  int? pidId;
+  String? pidName;
+  int? startByte;
+  int? noOfBytes;
+  bool? isBitcoded;
+  int? startBit;
+  int? noofBits;
+  String? datatype;
+  double? resolution;
+  double? offset;
+  String? unit;
+  String? beforeValue;
+
+  VariantDataLists({
+    this.pidId,
+    this.pidName,
+    this.startByte,
+    this.noOfBytes,
+    this.isBitcoded,
+    this.startBit,
+    this.noofBits,
+    this.datatype,
+    this.resolution,
+    this.offset,
+    this.unit,
+    this.beforeValue,
+  });
+
+  /// Factory constructor to create a VariantDataList from a JSON map
+  factory VariantDataLists.fromJson(Map<String, dynamic> json) {
+    return VariantDataLists(
+      pidId: json['pid_id'],
+      pidName: json['pid_name'],
+      startByte: json['startByte'],
+      noOfBytes: json['noOfBytes'],
+      isBitcoded: json['IsBitcoded'],
+      startBit: json['startBit'],
+      noofBits: json['noofBits'],
+      datatype: json['datatype'],
+      // Standard practice: parse numbers as double regardless if int or double in JSON
+      resolution: (json['resolution'] as num?)?.toDouble(),
+      offset: (json['offset'] as num?)?.toDouble(),
+      unit: json['unit'],
+      beforeValue: json['beforeValue'],
+    );
+  }
+
+  /// Converts the VariantDataList instance to a JSON map
+  Map<String, dynamic> toJson() {
+    return {
+      'pid_id': pidId,
+      'pid_name': pidName,
+      'startByte': startByte,
+      'noOfBytes': noOfBytes,
+      'IsBitcoded': isBitcoded,
+      'startBit': startBit,
+      'noofBits': noofBits,
+      'datatype': datatype,
+      'resolution': resolution,
+      'offset': offset,
+      'unit': unit,
+      'beforeValue': beforeValue,
     };
   }
 }

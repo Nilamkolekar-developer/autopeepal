@@ -1,3 +1,4 @@
+import 'package:autopeepal/models/ecu_model.dart';
 import 'package:flutter/material.dart';
 
 class IorTestModel {
@@ -218,17 +219,7 @@ class TestIo {
       };
 }
 
-class EcuModel {
-  String? name;
-  int? id;
 
-  EcuModel({this.name, this.id});
-
-  factory EcuModel.fromJson(Map<String, dynamic> json) =>
-      EcuModel(name: json['name'], id: json['id']);
-
-  Map<String, dynamic> toJson() => {'name': name, 'id': id};
-}
 
 
 

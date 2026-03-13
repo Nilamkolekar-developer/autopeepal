@@ -10,7 +10,8 @@ import 'package:ap_diagnostic/models/flashingMtrixModel.dart';
 import 'package:ap_diagnostic/models/freezeFrameModel.dart';
 import 'package:ap_diagnostic/models/readDtcResponseModel.dart';
 import 'package:ap_diagnostic/models/readParameterPIDModel.dart';
-import 'package:ap_diagnostic/models/writeParameterPIDModel.dart';
+import 'package:ap_diagnostic/models/writeParameterPIDModel.dart'
+   ;
 import 'package:ap_diagnostic/structure/flash_structures.dart';
 import 'package:ap_diagnostic/usd_diagnostic.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
@@ -525,179 +526,344 @@ class DLLFunctions {
     }
   }
 
- Future<String> clearDtc(String dtcIndexString) async {
-  try {
-    print("🔹 clearDtc() called");
-    print("🔹 Received dtcIndexString: $dtcIndexString");
-
-    // Convert String -> Enum
-    ClearDtcIndex index = ClearDtcIndex.values.byName(dtcIndexString);
-    print("🔹 Converted Enum Index: $index");
-
-    int attempt = 0;
-    String status = "";
-
-    do {
-      attempt++;
-      print("⏳ [clearDtc] Attempt #$attempt");
-
-      // Call UDS layer
-      final result = await mUdsDiagnostic.clearDTC(index);
-
-      print("🔹 Raw result: $result");
-
-      // Convert result -> JSON
-      String res = jsonEncode(result);
-      var decoded = jsonDecode(res);
-
-      ClearDtcResponseModel response =
-          ClearDtcResponseModel.fromJson(decoded);
-
-      status = response.ecuResponseStatus ?? "";
-
-      print("📡 ECU Status: $status");
-
-      // Retry conditions
-      if (status == "GENERALERROR_INVALIDRESPFROMDONGLE" ||
-          status.contains("BUSY")) {
-        print("⏳ ECU busy / invalid response... retrying");
-        await Future.delayed(const Duration(milliseconds: 150));
-      } else {
-        break;
-      }
-    } while (attempt < 10);
-
-    print("✅ Final ClearDTC Status: $status");
-
-    return status;
-  } catch (e, stack) {
-    print("❌ Error in clearDtc()");
-    print("❌ Error: $e");
-    print("❌ StackTrace: $stack");
-    return "";
-  }
-}
-
-  Future<List<ReadPidPresponseModel>?> readPid(List<PidCode> pidList) async {
+  Future<String> clearDtc(String dtcIndexString) async {
     try {
+      print("🔹 clearDtc() called");
+      print("🔹 Received dtcIndexString: $dtcIndexString");
+
+      // Convert String -> Enum
+      ClearDtcIndex index = ClearDtcIndex.values.byName(dtcIndexString);
+      print("🔹 Converted Enum Index: $index");
+
+      int attempt = 0;
+      String status = "";
+
+      do {
+        attempt++;
+        print("⏳ [clearDtc] Attempt #$attempt");
+
+        // Call UDS layer
+        final result = await mUdsDiagnostic.clearDTC(index);
+
+        print("🔹 Raw result: $result");
+
+        // Convert result -> JSON
+        String res = jsonEncode(result);
+        var decoded = jsonDecode(res);
+
+        ClearDtcResponseModel response =
+            ClearDtcResponseModel.fromJson(decoded);
+
+        status = response.ecuResponseStatus ?? "";
+
+        print("📡 ECU Status: $status");
+
+        // Retry conditions
+        if (status == "GENERALERROR_INVALIDRESPFROMDONGLE" ||
+            status.contains("BUSY")) {
+          print("⏳ ECU busy / invalid response... retrying");
+          await Future.delayed(const Duration(milliseconds: 150));
+        } else {
+          break;
+        }
+      } while (attempt < 10);
+
+      print("✅ Final ClearDTC Status: $status");
+
+      return status;
+    } catch (e, stack) {
+      print("❌ Error in clearDtc()");
+      print("❌ Error: $e");
+      print("❌ StackTrace: $stack");
+      return "";
+    }
+  }
+
+  Future<List<ReadPidResponseModel>?> readPid(List<PidCode> pidList) async {
+    try {
+      dynamic result;
+
+      // Build ReadParameterPID list
       List<ReadParameterPID> list = [];
 
       for (var item in pidList) {
         List<PidVariable> variables = [];
 
         for (var vari in item.piCodeVariable ?? []) {
-          // Calculate bit count: (end - start) + 1
           int startBit = vari.startBitPosition ?? 0;
           int endBit = vari.endBitPosition ?? 0;
           int noOfBits = endBit - startBit + 1;
 
           PidVariable pidVariable = PidVariable(
             datatype: vari.messageType,
-            isBitcoded: vari.bitcoded,
+            isBitcoded: vari.bitcoded ?? false,
             noofBits: noOfBits,
-            noOfBytes: vari.length,
-            offset: vari.offset,
-            resolution: vari.resolution,
+            noOfBytes: vari.length ?? 0,
+            offset: vari.offset?.toDouble() ?? 0.0,
+            resolution: vari.resolution?.toDouble() ?? 1.0,
             startBit: startBit,
-            startByte: vari.bytePosition,
-            pidNumber: vari.id,
-            pidName: vari.shortName,
-            messages: [],
+            startByte: vari.bytePosition ?? 0,
+            pidNumber: vari.id ?? 0,
+            pidName: vari.shortName ?? "",
+            messages: (vari.messages as List<dynamic>?)?.map((mes) {
+                  if (mes is SelectedParameterMessage) {
+                    return mes;
+                  } else if (mes is Map<String, dynamic>) {
+                    return SelectedParameterMessage.fromJson(mes);
+                  } else {
+                    return SelectedParameterMessage(
+                      code: mes['code'] ?? "",
+                      message: mes['message'] ?? "",
+                    );
+                  }
+                }).toList() ??
+                [],
           );
-
-          // Map messages if they exist
-          if (vari.messages != null && vari.messages!.isNotEmpty) {
-            pidVariable.messages = vari.messages!
-                .map((mes) => SelectedParameterMessage(
-                      code: mes.code,
-                      message: mes.message,
-                    ))
-                .toList();
-          }
 
           variables.add(pidVariable);
         }
 
         list.add(
           ReadParameterPID(
-            pidId: item.id,
+            pidId: item.id ?? 0,
             variables: variables,
-            totalLen: (item.code?.length ?? 0) ~/ 2, // integer division
-            pid: item.code,
+            totalLen: (item.code?.length ?? 0) ~/ 2,
+            pid: item.code ?? "",
           ),
         );
       }
 
-      // Call the diagnostic service
-      final result = await mUdsDiagnostic.readParameters(list.length, list);
+      // Call readParameters (simulating Task.Run in C#)
+      result = await mUdsDiagnostic.readParameters(list.length, list);
 
-      // Convert result to List of Models
-      // Assuming result is already a Map/List from a platform channel or library
+      if (result == null) return null;
+
+      // Convert result to JSON string then decode to List<ReadPidResponseModel>
       final String res = jsonEncode(result);
-      final List<dynamic> decodedList = jsonDecode(res);
+      final List<dynamic> resListDecoded = jsonDecode(res);
 
-      return decodedList
-          .map((json) => ReadPidPresponseModel.fromJson(json))
+      return resListDecoded
+          .map((json) => ReadPidResponseModel.fromJson(json))
           .toList();
     } catch (ex) {
-      print("Error reading PID: $ex");
+      print("Error reading PIDs: $ex"); // Log the actual exception
       return null;
     }
   }
 
-  Future<List<WriteParameterStatus>?> writePid(
-      String writePidIndex, List<WriteParameterPID> pidList) async {
-    try {
-      // Parse enum from string
-      final index = WriteParameterIndex.values
-          .firstWhere((e) => e.toString().split('.').last == writePidIndex);
+  // Future<List<WriteParameterStatus>?> writePid(
+  //     String writePidIndex, List<WriteParameterPid> pidList) async {
+  //   try {
+  //     // Parse the write parameter index enum
+  //     final WriteParameterIndex index = WriteParameterIndex.values
+  //         .firstWhere((e) => e.toString().split('.').last == writePidIndex);
 
-      // Deep copy / map variant lists
-      List<WriteParameterPID> list = pidList.map((item) {
-        List<VariantDataList> variantDataLists = item.variantList!
-            .map((v) => VariantDataList(
-                  datatype: v.datatype,
-                  isBitcoded: v.isBitcoded,
-                  noofBits: v.noofBits,
-                  noOfBytes: v.noOfBytes,
-                  offset: v.offset,
-                  pidId: v.pidId,
-                  pidName: v.pidName,
-                  resolution: v.resolution,
-                  startBit: v.startBit,
-                  startByte: v.startByte,
-                  unit: v.unit,
-                ))
-            .toList();
+  //     List<WriteParameterPID> list = [];
 
-        return WriteParameterPID(
-          seedKeyIndex: item.seedKeyIndex,
-          writePamIndex: item.writePamIndex,
-          writeInput: item.writeInput,
-          writeInputSize: item.writeInputSize,
-          writePid: item.writePid,
-          readParameterPidDataType: item.readParameterPidDataType,
-          pid: item.pid,
-          startByte: item.startByte,
-          totalBytes: item.totalBytes,
-          variantList: variantDataLists,
-        );
-      }).toList();
+  //     for (var item in pidList) {
+  //       // Parse seed key index enum
+  //       final SEEDKEYINDEXTYPE seedIndex = SEEDKEYINDEXTYPE.values.firstWhere(
+  //           (e) => e.toString().split('.').last == item.seedKeyIndex);
 
-      // Call diagnostic function
-      final result =
-          await mUdsDiagnostic.writeParameters(list.length, index, list);
+  //       final WriteParameterIndex writeIndex = WriteParameterIndex.values
+  //           .firstWhere(
+  //               (e) => e.toString().split('.').last == item.writePamIndex);
 
-      // Deserialize into Dart objects
-      final resList = result!
-          .map((e) => WriteParameterStatus.fromJson(e as Map<String, dynamic>))
-          .toList(growable: false);
+  //       // Debug print
+  //       print(
+  //           "🔹 PID: ${item.writePid}, SeedKeyIndex: $seedIndex, WriteParamIndex: $writeIndex");
 
-      return resList;
-    } catch (e) {
+  //       // Build variant data list
+  //       List<VariantDataList> variantDataLists = [];
+
+  //       for (var v in item.variantList ?? []) {
+  //         variantDataLists.add(VariantDataList(
+  //           datatype: v.datatype,
+  //           isBitcoded: v.isBitcoded,
+  //           noofBits: v.noofBits,
+  //           noOfBytes: v.noOfBytes,
+  //           offset: v.offset,
+  //           pidId: v.pidId,
+  //           pidName: v.pidName,
+  //           resolution: v.resolution,
+  //           startBit: v.startBit,
+  //           startByte: v.startByte,
+  //           unit: v.unit,
+  //         ));
+  //       }
+
+  //       list.add(WriteParameterPID(
+  //         seedKeyIndex: seedIndex,
+  //         writePamIndex: writeIndex,
+  //         writeInputSize: item.writeParaDataSize,
+  //         writeInput: item.writeInput,
+  //         writePid: item.writePid,
+  //         readParameterPidDataType: item.readParameterPidDataType,
+  //         pid: item.pid,
+  //         startByte: item.startByte,
+  //         totalBytes: item.totalBytes,
+  //         variantList: variantDataLists,
+  //       ));
+  //     }
+
+  //     // Call UDS diagnostic write method
+  //     final result =
+  //         await mUdsDiagnostic.writeParameters(pidList.length, index, list);
+
+  //     // Convert result to JSON string and back to List
+  //     final resJson = jsonEncode(result);
+  //     final resList = (jsonDecode(resJson) as List)
+  //         .map((e) => WriteParameterStatus.fromJson(e))
+  //         .toList();
+
+  //     return resList;
+  //   } catch (e) {
+  //     print("Error in writePid: $e");
+  //     return null;
+  //   }
+  // }
+
+
+Future<List<WriteParameterStatus>?> writePid(
+    String writePidIndex, List<WriteParameterPid> pidList) async {
+  try {
+
+    print("========== WRITE PID START ==========");
+    print("Incoming writePidIndex: $writePidIndex");
+    print("PID List Length: ${pidList.length}");
+
+    // Parse write parameter index
+    final WriteParameterIndex index = WriteParameterIndex.values
+        .firstWhere((e) => e.toString().split('.').last == writePidIndex);
+
+    print("Parsed WriteParameterIndex: $index");
+
+    List<WriteParameterPID> list = [];
+
+    for (var item in pidList) {
+
+      print("------------- PID ITEM -------------");
+      print("writePid: ${item.writePid}");
+      print("seedKeyIndex (raw): ${item.seedKeyIndex}");
+      print("writePamIndex (raw): ${item.writePamIndex}");
+      print("writeParaDataSize: ${item.writeParaDataSize}");
+      print("writeInput: ${item.writeInput}");
+      print("pid: ${item.pid}");
+      print("startByte: ${item.startByte}");
+      print("totalBytes: ${item.totalBytes}");
+
+      // Parse seed key index
+      final SEEDKEYINDEXTYPE seedIndex =
+          SEEDKEYINDEXTYPE.values.firstWhere(
+              (e) => e.toString().split('.').last == item.seedKeyIndex);
+
+      print("Parsed SeedKeyIndex Enum: $seedIndex");
+
+      // Parse write parameter index
+      final WriteParameterIndex writeIndex =
+          WriteParameterIndex.values.firstWhere(
+              (e) => e.toString().split('.').last == item.writePamIndex);
+
+      print("Parsed WriteParamIndex Enum: $writeIndex");
+
+      // Build variant data list
+      List<VariantDataList> variantDataLists = [];
+
+      if (item.variantList != null) {
+
+        print("Variant List Count: ${item.variantList!.length}");
+
+        for (var v in item.variantList!) {
+
+          print("  ---- Variant ----");
+          print("  pidId: ${v.pidId}");
+          print("  pidName: ${v.pidName}");
+          print("  datatype: ${v.datatype}");
+          print("  isBitcoded: ${v.isBitcoded}");
+          print("  noOfBits: ${v.noofBits}");
+          print("  noOfBytes: ${v.noOfBytes}");
+          print("  startByte: ${v.startByte}");
+          print("  startBit: ${v.startBit}");
+          print("  offset: ${v.offset}");
+          print("  resolution: ${v.resolution}");
+          print("  unit: ${v.unit}");
+
+          variantDataLists.add(VariantDataList(
+            datatype: v.datatype,
+            isBitcoded: v.isBitcoded,
+            noofBits: v.noofBits,
+            noOfBytes: v.noOfBytes,
+            offset: v.offset,
+            pidId: v.pidId,
+            pidName: v.pidName,
+            resolution: v.resolution,
+            startBit: v.startBit,
+            startByte: v.startByte,
+            unit: v.unit,
+          ));
+        }
+      }
+
+      list.add(WriteParameterPID(
+        seedKeyIndex: seedIndex,
+        writePamIndex: writeIndex,
+        writeInputSize: item.writeParaDataSize,
+        writeInput: item.writeInput,
+        writePid: item.writePid,
+        readParameterPidDataType: item.readParameterPidDataType,
+        pid: item.pid,
+        startByte: item.startByte,
+        totalBytes: item.totalBytes,
+        variantList: variantDataLists,
+      ));
+
+      print("PID Added to Write List");
+    }
+
+    print("Final WriteParameterPID List Length: ${list.length}");
+
+    print("Calling writeParameters()...");
+    print("Parameters:");
+    print("  PID Count: ${pidList.length}");
+    print("  Write Index: $index");
+
+    // Call UDS diagnostic write method
+    final result =
+        await mUdsDiagnostic.writeParameters(pidList.length, index, list);
+
+    print("Raw Result from writeParameters(): $result");
+
+    if (result == null) {
+      print("⚠ writeParameters returned NULL");
       return null;
     }
+
+    print("Converting result to JSON...");
+
+    final resJson = jsonEncode(result);
+
+    print("JSON Result: $resJson");
+
+    final resList = (jsonDecode(resJson) as List)
+        .map((e) => WriteParameterStatus.fromJson(e))
+        .toList();
+
+    print("Parsed WriteParameterStatus List Length: ${resList.length}");
+
+    print("========== WRITE PID END ==========");
+
+    return resList;
+
+  } catch (e, stack) {
+
+    print("❌ Error in writePid: $e");
+    print("StackTrace: $stack");
+
+    return null;
   }
+}
+
+
 
   String byteArrayToString(List<int> bytes) {
     return bytes
@@ -725,10 +891,10 @@ class DLLFunctions {
 
       // Replace "-" with "_" and parse enum
       sklFN = sklFN.replaceAll('-', '_');
-      final seedkeyindx = SeedKeyIndexType.values.firstWhere(
+      final seedkeyindx = SEEDKEYINDEXTYPE.values.firstWhere(
         (e) =>
             e.toString().split('.').last.toUpperCase() == sklFN.toUpperCase(),
-        orElse: () => SeedKeyIndexType.values.first, // default fallback
+        orElse: () => SEEDKEYINDEXTYPE.values.first, // default fallback
       );
 
       final flashConfig = FlashConfig(
@@ -832,7 +998,7 @@ class DLLFunctions {
         (e) => e.toString().split('.').last == writeParaIndex,
       );
 
-      final seedIndex = SeedKeyIndexType.values.firstWhere(
+      final seedIndex = SEEDKEYINDEXTYPE.values.firstWhere(
         (e) => e.toString().split('.').last == seedKeyIndex,
       );
 
@@ -872,7 +1038,7 @@ class DLLFunctions {
 
     try {
       // Parse enums
-      SeedKeyIndexType.values.firstWhere(
+      SEEDKEYINDEXTYPE.values.firstWhere(
         (e) => e.toString().split('.').last == seedKey,
       );
 
@@ -912,7 +1078,7 @@ class DLLFunctions {
 
     try {
       // Parse enums
-      SeedKeyIndexType seedIndex = SeedKeyIndexType.values.byName(seedKey);
+      SEEDKEYINDEXTYPE seedIndex = SEEDKEYINDEXTYPE.values.byName(seedKey);
       WriteParameterIndex writeIndex =
           WriteParameterIndex.values.byName(writeParaIndex);
 
@@ -1010,7 +1176,7 @@ class DLLFunctions {
     return utf8.decode(bytes);
   }
 
-  Future<List<ReadPidPresponseModel>?> ivnReadPid(
+  Future<List<ReadPidResponseModel>?> ivnReadPid(
       List<IVNSelectedPID> ivnPidList) async {
     try {
       List<IVNSelectedPID> list = [];
@@ -1060,8 +1226,8 @@ class DLLFunctions {
         list.cast<PIDFrameId>(),
       );
 
-      List<ReadPidPresponseModel> responseList = (result as List)
-          .map((e) => ReadPidPresponseModel.fromJson(e))
+      List<ReadPidResponseModel> responseList = (result as List)
+          .map((e) => ReadPidResponseModel.fromJson(e))
           .toList();
 
       return responseList;
@@ -1190,7 +1356,7 @@ class DLLFunctions {
     }
   }
 
-  Future<List<ReadPidPresponseModel>?> setRoutineValue(List<PidCode> pidList,
+  Future<List<ReadPidResponseModel>?> setRoutineValue(List<PidCode> pidList,
       String pidByAddrSeq, Uint8List actualResponse) async {
     try {
       dynamic result;
@@ -1255,9 +1421,9 @@ class DLLFunctions {
         actualResponse,
       );
 
-      List<ReadPidPresponseModel> responseList = (result as List)
+      List<ReadPidResponseModel> responseList = (result as List)
           .map((e) =>
-              ReadPidPresponseModel.fromJson(Map<String, dynamic>.from(e)))
+              ReadPidResponseModel.fromJson(Map<String, dynamic>.from(e)))
           .toList();
 
       return responseList;

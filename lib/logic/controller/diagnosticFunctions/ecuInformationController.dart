@@ -7,11 +7,11 @@ RxBool isBusy = false.obs;
   /// Selected Parameter List
   RxList<PidCode> selectedParameterList = <PidCode>[].obs;
 
-  /// ECU List
-  RxList<EcusModel> ecusList = <EcusModel>[].obs;
+  // /// ECU List
+  // RxList<EcusModel> ecusList = <EcusModel>[].obs;
 
-  /// Selected ECU
-  Rx<EcusModel?> selectedEcu = Rx<EcusModel?>(null);
+  // /// Selected ECU
+  // Rx<EcusModel?> selectedEcu = Rx<EcusModel?>(null);
 
   /// Error Message
   RxString errorMessage = "".obs;
