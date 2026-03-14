@@ -22,7 +22,8 @@ class DashboardScreen extends StatelessWidget {
       backgroundColor: AppColors.pagebgColor,
       key: scaffoldKey,
       appBar: appBar(
-        title: "ATPL Diagnostic Tool",isMenu: true,
+        title: "ATPL Diagnostic Tool",
+        isMenu: true,
         showSelectVci: true,
         onSelectVciTap: () {
           Get.toNamed(Routes.cliCard);
@@ -82,11 +83,9 @@ class DashboardScreen extends StatelessWidget {
                   );
                 },
                 onItemSelected: (value) {
-                  final parts = value.split(" (");
-                  final year = parts.last.replaceAll(")", "").trim();
                   final subModel =
                       controller.filteredSubModels.firstWhereOrNull(
-                    (s) => s.modelYear?.trim() == year,
+                    (s) => "${s.name} (${s.modelYear})" == value,
                   );
 
                   if (subModel != null) {

@@ -124,11 +124,11 @@ class WriteParameter extends StatelessWidget {
                                                   .piCodeVariable!
                                                   .first
                                                   .writeValue
-                                                  .value = val;
+                                                   = val;
                                             }
 
                                             print(
-                                                "User typed: $val, Variable updated: ${controller.selectedPidCode!.piCodeVariable!.first.writeValue.value}");
+                                                "User typed: $val, Variable updated: ${controller.selectedPidCode!.piCodeVariable!.first.writeValue}");
                                           },
                                           style: TextStyles.textfieldTextStyle1,
                                           decoration:
