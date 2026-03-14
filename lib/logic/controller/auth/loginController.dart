@@ -24,6 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginController extends GetxController {
   final GetDeviceUniqueId getDeviceUniqueId = GetDeviceUniqueId();
+  final AuthApiService services = AuthApiService();
   @override
   void onInit() {
     super.onInit();
@@ -248,188 +249,213 @@ class LoginController extends GetxController {
     }
   }
 
-  Future<bool> loginOnline(UserModel userRequestModel) async {
+  Future<void> loginMethod1() async {
     try {
-      bool returnValue = false;
-      print(
-          "[LOGIN] Starting online login for user: ${userRequestModel.username}");
+      await Future.delayed(const Duration(milliseconds: 50));
 
-      userResModel = await AuthApiService.login(userRequestModel);
+      // ================= 1. VALIDATION =================
+      final username = usernameController.value.text.trim();
+      final password = passwordController.value.text.trim();
 
-      if (userResModel != null &&
-          userResModel!.token != null &&
-          userResModel!.userId != null) {
-        print("[LOGIN] Login successful, saving data...");
-
-        // Save OEM ID
-        final prefs = await SharedPreferences.getInstance();
-        final previousOem = prefs.getInt("oemId") ?? 0;
-        final currentOem = userResModel!.profile?.oem?.id ?? 0;
-        await AppPreferences.setInt("oemId", currentOem);
-
-        // Save tokens
-        await AppPreferences.saveTokens(
-          accessToken: userResModel!.token?.access ?? '',
-          refreshToken: userResModel!.token?.refresh ?? '',
-        );
-
-        // Save local data
-        await saveLocalData!.saveData(
-          "UserDetail_LocalData",
-          jsonEncode(userResModel!.toJson()),
-        );
-        await saveLocalData!.saveData(
-          "UserRequest_LocalData",
-          jsonEncode(userRequestModel.toJson()),
-        );
-
-        // Local model data check (optional)
-        String? modelLocalList =
-            await saveLocalData!.getData("MODEL_LocalList");
-        String? iorLocalList = await saveLocalData!.getData("IOR_LocalList");
-        String? actuatorLocalList =
-            await saveLocalData!.getData("Actuator_LocalList");
-        String? freezeFrameLocalList =
-            await saveLocalData!.getData("FreezeFrame_LocalList");
-
-        // ignore: unnecessary_null_comparison
-        if (modelLocalList == null ||
-            // ignore: unnecessary_null_comparison
-            iorLocalList == null ||
-            // ignore: unnecessary_null_comparison
-            actuatorLocalList == null ||
-            // ignore: unnecessary_null_comparison
-            freezeFrameLocalList == null ||
-            previousOem != currentOem) {
-          print(
-              "[LOGIN] Local data missing or OEM changed. Updating local data...");
-          // If you have updateModelToLocal(), call it here
-          await updateModelToLocal();
-        } else {
-          print("[LOGIN] Using existing local data");
-          // Optional: await loginOffline(userRequestModel);
-        }
-
-        // ✅ Mark login success
-        returnValue = true;
-      } else {
-        print(
-            "[LOGIN] Login failed: Invalid response or missing token/user_id");
+      if (username.isEmpty || password.isEmpty) {
         await Get.dialog(
           CustomPopup(
-            title: "Error",
-            message: userResModel?.message ?? "Login failed",
-            onButtonPressed: () {
-              Get.back();
-            },
+            title: "Alert",
+            message: username.isEmpty && password.isEmpty
+                ? "Enter user name and password."
+                : (username.isEmpty
+                    ? "Enter user name"
+                    : "Enter user password."),
+            onButtonPressed: () => Get.back(),
           ),
           barrierDismissible: false,
         );
-
-        returnValue = false;
+        return;
       }
 
-      print("[LOGIN] loginOnline ended with returnValue: $returnValue");
-      return returnValue;
-    } catch (e) {
-      print("[LOGIN] Exception during loginOnline: $e");
-      Get.dialog(
+      // ================= 2. UI LOADER =================
+      isLoading.value = true;
+      Get.dialog(CommonLoader(message: "Signing In..."),
+          barrierDismissible: false);
+
+      // ================= 3. DEVICE INFO =================
+      final deviceId = await getDeviceUniqueId.getId();
+      String platform =
+          Platform.isAndroid ? "android" : (Platform.isIOS ? "ios" : "windows");
+
+      final userRequestModel = UserModel(
+        username: username,
+        password: password,
+        deviceType: platform,
+        macId: deviceId,
+      );
+
+      // ================= 4. LOGIN LOGIC (ONLINE vs OFFLINE) =================
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final isNetworkAvailable = connectivityResult != ConnectivityResult.none;
+
+      bool isLoggedIn = false;
+
+      if (isNetworkAvailable) {
+        print("[LOGIN] Network detected. Attempting online login...");
+        // Try online login first
+        isLoggedIn = await loginOnline(userRequestModel);
+
+        // 🔹 FALLBACK: If online login returned false (e.g. server timeout/SocketException),
+        // we try to log in using local cached data.
+        if (!isLoggedIn) {
+          print(
+              "[LOGIN] Online login failed/unreachable. Attempting offline fallback...");
+          isLoggedIn = await loginOffline(userRequestModel);
+        }
+      } else {
+        print("[LOGIN] No internet. Trying offline login...");
+        isLoggedIn = await loginOffline(userRequestModel);
+      }
+
+      // ================= 5. POST-LOGIN SUCCESS =================
+      if (isLoggedIn && userResModel != null) {
+        final prefs = await SharedPreferences.getInstance();
+
+        if (isRememberMeChecked.value) {
+          await prefs.setString("user_id", username);
+          await prefs.setString("password", password);
+
+          final rememberData = {
+            "username": username,
+            "password": password,
+            "device_type": platform,
+            "mac_id": deviceId,
+            "RememberIsChecked": isRememberMeChecked.value, // 🔹 .value used
+          };
+          await saveLocalData?.saveData(
+              "RememberIsChecked", jsonEncode(rememberData));
+        } else {
+          await saveLocalData?.saveData(
+              "RememberIsChecked", jsonEncode({"RememberIsChecked": false}));
+        }
+
+        // Save Session Data (Crucial for App State)
+        await prefs.setString("macId", deviceId);
+        await prefs.setString("UserName", username);
+        await prefs.setString(
+          "MasterLoginUserBY",
+          "${userResModel!.firstName ?? ""} ${userResModel!.lastName ?? ""}",
+        );
+        await prefs.setString("rolewhilelogin", userResModel!.role ?? "");
+        await prefs.setInt("oemId", userResModel!.profile?.oem?.id ?? 0);
+
+        // Save Global App Data
+        await AppPreferences.saveLicences(
+            userResModel!.licences?.toJson() ?? {});
+        await AppPreferences.saveVehicleModels(
+          userResModel!.profile?.workshopGroupModels
+                  ?.map((e) => e.toJson())
+                  .toList() ??
+              [],
+        );
+
+        print("[LOGIN] Success. Navigating to dashboard...");
+        Get.offAllNamed(Routes.dashboardScreen, arguments: (userResModel!));
+      } else {
+        // If we reach here, both online and offline attempts failed
+        print(
+            "[LOGIN] Login failed: Both online and offline attempts unsuccessful.");
+      }
+    } catch (e, s) {
+      print("[LOGIN] Global Error: $e\nStackTrace: $s");
+      await Get.dialog(
         CustomPopup(
-          title: "Alert",
-          message: " $e",
+          title: "Login Error",
+          message: "An unexpected error occurred. Please try again.",
           onButtonPressed: () => Get.back(),
         ),
         barrierDismissible: false,
       );
-
-      return false;
     } finally {
       isLoading.value = false;
+      // 🔹 Ensure loader is closed only once at the very end
       if (Get.isDialogOpen ?? false) Get.back();
-      print("🔹 usbConnect finished");
     }
   }
 
-  Future<bool> loginOnline1(UserModel userRequestModel) async {
+  Future<bool> loginOnline(UserModel userRequestModel) async {
     try {
       bool returnValue = false;
 
-      // Initialize response
-      userResModel = UserResModel();
-
-      // Call your API service
+      // 1. Call the API
+      // Ensure userResModel is declared at the class level in your controller
       userResModel = await AuthApiService.login(userRequestModel);
 
       if (userResModel?.message == "success") {
-        // Save global app data
+        // 2. Update Global State
         App.oemId = userResModel?.profile?.oem?.id ?? 0;
         App.jwtToken = userResModel?.token?.access ?? '';
 
-        // Save user and request to local storage
+        // 3. Save User Data for Offline Login
+        // ⚠️ Use "UserDetail_LocalData" (removed the extra 'L' to match loginOffline)
         await saveLocalData!.saveData(
-          "UserDetailL_LocalData",
-          jsonEncode(userResModel?.toJson()),
+          "UserDetail_LocalData",
+          jsonEncode(userResModel!.toJson()),
         );
+
         await saveLocalData!.saveData(
           "UserRequest_LocalData",
           jsonEncode(userRequestModel.toJson()),
         );
 
-        // Read previous OEM
+        // 4. Check for OEM change or missing data
         final prefs = await SharedPreferences.getInstance();
         int previousOem = prefs.getInt("oemId") ?? 0;
 
-        // Get local cached model data
-        final modelLocalList = await saveLocalData!.getData("MODEL_LocalList");
-        final iorLocalList = await saveLocalData!.getData("IOR_LocalList");
-        final actuatorLocalList =
+        // Get local cached data statuses
+        String modelLocalList = await saveLocalData!.getData("MODEL_LocalList");
+        String iorLocalList = await saveLocalData!.getData("IOR_LocalList");
+        String actuatorLocalList =
             await saveLocalData!.getData("Actuator_LocalList");
-        final freezeFrameLocalList =
+        String freezeFrameLocalList =
             await saveLocalData!.getData("FreezeFrame_LocalList");
 
-        // Check if local data needs updating
+        // Validation logic: if any data is missing OR if the OEM has changed, sync everything
         if (modelLocalList.trim().isEmpty ||
             iorLocalList.trim().isEmpty ||
             actuatorLocalList.trim().isEmpty ||
             freezeFrameLocalList.trim().isEmpty ||
-            previousOem != (userResModel?.profile?.oem?.id ?? 0)) {
-          // Show loader text
-          // You can bind this to a controller variable
+            previousOem != App.oemId) {
           debugPrint("Updating Local Data...");
+          // This method should download and save all necessary JSONs
           returnValue = await updateModelToLocal();
+
+          // Save the new OEM ID as the 'previous' one for the next login
+          await prefs.setInt("oemId", App.oemId);
         } else {
-          // If local data is valid, fallback to offline login
+          // If data is already there and OEM is same, just perform the offline logic
+          // to populate the models and local variables.
           returnValue = await loginOffline(userRequestModel);
         }
       } else {
-        // Show error dialog
-        Get.dialog(
+        // Handle API failure message
+        await Get.dialog(
           CustomPopup(
             title: "Error",
             message: userResModel?.message ?? "Login failed",
             onButtonPressed: () => Get.back(),
           ),
-          barrierDismissible: false,
         );
-
         returnValue = false;
       }
 
       return returnValue;
     } catch (e) {
-      Get.dialog(
+      print("Exception in loginOnline: $e");
+      await Get.dialog(
         CustomPopup(
           title: "Error",
           message: e.toString(),
           onButtonPressed: () => Get.back(),
         ),
-        barrierDismissible: false,
       );
-
       return false;
-    } finally {
-      if (Get.isDialogOpen ?? false) Get.back();
-      print("🔹 usbConnect finished");
     }
   }
 
@@ -817,98 +843,98 @@ class LoginController extends GetxController {
   // }
 
   Future<bool> updateGDToLocal(List<ModelResult> modelList) async {
-  try {
-    print("🔹 updateGDToLocal started");
-    print("🔹 Total Models: ${modelList.length}");
+    try {
+      print("🔹 updateGDToLocal started");
+      print("🔹 Total Models: ${modelList.length}");
 
-    bool returnValue = true;
+      bool returnValue = true;
 
-    if (modelList.isEmpty) {
-      print("⚠️ modelList is empty");
-      return true;
-    }
-
-    final AuthApiService services = AuthApiService();
-
-    for (final model in modelList) {
-      print("🔹 Processing Model: ${model.id}");
-
-      final subModels = model.subModels;
-
-      if (subModels == null || subModels.isEmpty) {
-        print("⚠️ No subModels for model: ${model.id}");
-        continue;
+      if (modelList.isEmpty) {
+        print("⚠️ modelList is empty");
+        return true;
       }
 
-      print("🔹 Total SubModels: ${subModels.length}");
+      final AuthApiService services = AuthApiService();
 
-      for (final subModel in subModels) {
-        print("--------------------------------------------------");
-        print("🔹 Processing SubModel ID: ${subModel.id}");
+      for (final model in modelList) {
+        print("🔹 Processing Model: ${model.id}");
 
-        String key = "GD_LocalList_${subModel.id}";
-        print("🔹 Checking local cache key: $key");
+        final subModels = model.subModels;
 
-        /// 🔹 Read local cache
-        final String localData =
-            await saveLocalData!.getData(key);
+        if (subModels == null || subModels.isEmpty) {
+          print("⚠️ No subModels for model: ${model.id}");
+          continue;
+        }
 
-        print("🔹 Local data length: ${localData.length}");
+        print("🔹 Total SubModels: ${subModels.length}");
 
-        /// 🔹 If not cached, fetch from API
-        if (localData.trim().isEmpty) {
-          print("⚠️ No local GD found. Calling API for SubModel: ${subModel.id}");
+        for (final subModel in subModels) {
+          print("--------------------------------------------------");
+          print("🔹 Processing SubModel ID: ${subModel.id}");
 
-          final GdModelGD res = await services.getGD(subModel.id!);
+          String key = "GD_LocalList_${subModel.id}";
+          print("🔹 Checking local cache key: $key");
 
-          print("🔹 API Response Message: ${res.message}");
+          /// 🔹 Read local cache
+          final String localData = await saveLocalData!.getData(key);
 
-          if (res.message == "success") {
-            print("✅ GD API Success for SubModel: ${subModel.id}");
-            print("🔹 Total GD Results: ${res.results?.length}");
+          print("🔹 Local data length: ${localData.length}");
 
-            final String gdLocalJson = jsonEncode(res.toJson());
+          /// 🔹 If not cached, fetch from API
+          if (localData.trim().isEmpty) {
+            print(
+                "⚠️ No local GD found. Calling API for SubModel: ${subModel.id}");
 
-            print("🔹 Saving GD data locally with key: $key");
+            final GdModelGD res = await services.getGD(subModel.id!);
 
-            await saveLocalData!.saveData(
-              key,
-              gdLocalJson,
-            );
+            print("🔹 API Response Message: ${res.message}");
 
-            print("✅ GD saved successfully for key: $key");
+            if (res.message == "success") {
+              print("✅ GD API Success for SubModel: ${subModel.id}");
+              print("🔹 Total GD Results: ${res.results?.length}");
 
-            returnValue = true;
+              final String gdLocalJson = jsonEncode(res.toJson());
+
+              print("🔹 Saving GD data locally with key: $key");
+
+              await saveLocalData!.saveData(
+                key,
+                gdLocalJson,
+              );
+
+              print("✅ GD saved successfully for key: $key");
+
+              returnValue = true;
+            } else {
+              print("❌ API returned error: ${res.message}");
+
+              await Get.defaultDialog(
+                title: "Error in Saving GD Data",
+                middleText: res.message ?? "Unknown error",
+              );
+
+              return false;
+            }
           } else {
-            print("❌ API returned error: ${res.message}");
-
-            await Get.defaultDialog(
-              title: "Error in Saving GD Data",
-              middleText: res.message ?? "Unknown error",
-            );
-
-            return false;
+            print("✅ GD already exists locally for key: $key");
           }
-        } else {
-          print("✅ GD already exists locally for key: $key");
         }
       }
+
+      print("✅ updateGDToLocal completed");
+      return returnValue;
+    } catch (e, stack) {
+      print("❌ Exception in updateGDToLocal: $e");
+      print("📍 StackTrace: $stack");
+
+      await Get.defaultDialog(
+        title: "Exception in Saving GD Data",
+        middleText: e.toString(),
+      );
+
+      return false;
     }
-
-    print("✅ updateGDToLocal completed");
-    return returnValue;
-  } catch (e, stack) {
-    print("❌ Exception in updateGDToLocal: $e");
-    print("📍 StackTrace: $stack");
-
-    await Get.defaultDialog(
-      title: "Exception in Saving GD Data",
-      middleText: e.toString(),
-    );
-
-    return false;
   }
-}
 
   Future<bool> updateFreezeFrameListToLocal() async {
     try {
@@ -1030,10 +1056,8 @@ class LoginController extends GetxController {
   Future<bool> loginOffline(UserModel userRequestModel) async {
     try {
       // 🔹 Get local cached model data safely
-      final modelLocalList =
-          (await saveLocalData!.getData("MODEL_LocalList"));
-      final iorLocalList =
-          (await saveLocalData!.getData("IOR_LocalList")) ;
+      final modelLocalList = (await saveLocalData!.getData("MODEL_LocalList"));
+      final iorLocalList = (await saveLocalData!.getData("IOR_LocalList"));
       final actuatorLocalList =
           (await saveLocalData!.getData("Actuator_LocalList"));
       final freezeFrameLocalList =
@@ -1077,7 +1101,7 @@ class LoginController extends GetxController {
           cachedRequest.password == userRequestModel.password) {
         // ✅ Successful offline login, token may be null
         final responseData =
-            (await saveLocalData!.getData("UserDetailL_LocalData"));
+            (await saveLocalData!.getData("UserDetail_LocalData"));
         if (responseData.isNotEmpty) {
           userResModel = UserResModel.fromJson(jsonDecode(responseData));
           // Token is optional offline

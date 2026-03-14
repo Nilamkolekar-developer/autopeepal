@@ -100,31 +100,70 @@ class DashboardController extends GetxController {
     super.onClose();
   }
 
+  // Future<void> initModelList() async {
+  //   try {
+  //     String? localData = await localStorage.getData('MODEL_LocalList');
+
+  //     if (localData == null || localData.isEmpty) {
+  //       print("No local data found. Fetching from API...");
+  //       AllModelsModel apiData = await AuthApiService.getAllModels();
+  //       if (apiData.message == "success" && apiData.results != null) {
+  //         await localStorage.saveData(
+  //             'MODEL_LocalList', jsonEncode(apiData.toJson()));
+  //         localData = jsonEncode(apiData.toJson());
+  //       } else {
+  //         print("❌ API failed: ${apiData.message}");
+  //         return;
+  //       }
+  //     } else {
+  //       print("🔹 Loaded models from local storage.");
+  //     }
+
+  //     AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
+  //     modelList.value = allModels.results ?? [];
+  //   } catch (e) {
+  //     print("❌ Error loading model list: $e");
+  //   }
+  // }
   Future<void> initModelList() async {
-    try {
-      String? localData = await localStorage.getData('MODEL_LocalList');
+  try {
+    String? localData = await localStorage.getData('MODEL_LocalList');
 
-      if (localData == null || localData.isEmpty) {
-        print("No local data found. Fetching from API...");
-        AllModelsModel apiData = await AuthApiService.getAllModels();
-        if (apiData.message == "success" && apiData.results != null) {
-          await localStorage.saveData(
-              'MODEL_LocalList', jsonEncode(apiData.toJson()));
-          localData = jsonEncode(apiData.toJson());
-        } else {
-          print("❌ API failed: ${apiData.message}");
-          return;
-        }
+    if (localData == null || localData.isEmpty) {
+      print("No local data found. Fetching from API...");
+      AllModelsModel apiData = await AuthApiService.getAllModels();
+      if (apiData.message == "success" && apiData.results != null) {
+        await localStorage.saveData(
+            'MODEL_LocalList', jsonEncode(apiData.toJson()));
+        localData = jsonEncode(apiData.toJson());
       } else {
-        print("🔹 Loaded models from local storage.");
+        print("❌ API failed: ${apiData.message}");
+        return;
       }
-
-      AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
-      modelList.value = allModels.results ?? [];
-    } catch (e) {
-      print("❌ Error loading model list: $e");
+    } else {
+      print("🔹 Loaded models from local storage.");
     }
+
+    AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
+    modelList.value = allModels.results ?? [];
+
+    // ================= DEBUG PRINT START =================
+    print("------- MODEL LIST DEBUG -------");
+    for (var model in modelList) {
+      print("📦 Model: ${model.name}");
+      if (model.subModels != null) {
+        for (var sub in model.subModels!) {
+          print("   ID: ${sub.id} | SubModel: ${sub.name}");
+        }
+      }
+    }
+    print("--------------------------------");
+    // ================= DEBUG PRINT END =================
+
+  } catch (e) {
+    print("❌ Error loading model list: $e");
   }
+}
 
   void selectModel(String modelName) {
     selectedModel.value = modelName;
@@ -140,82 +179,188 @@ class DashboardController extends GetxController {
     selectedSubModelYear.value = '';
   }
 
+  // void selectSubModel(SubModel subModel) {
+  //   selectedSubModel.value = subModel; // store object
+  //   selectedSubModelName.value = subModel.name ?? '';
+  //   selectedSubModelYear.value = subModel.modelYear ?? '';
+  //   selectedRegulation.value = ''; // if regulation is reset
+  //   // Save SubModel ID in preferences
+  //   if (subModel.id != null) {
+  //     AppPreferences.setInt('selectedSubModelId', subModel.id!);
+  //   }
+  //   loadEcuData().then((_) {
+  //     print(
+  //         "✅ ECU Data loaded: ${StaticData.ecuInfo.map((e) => e.ecuName).toList()}");
+  //   });
+  // }
+  RxInt selectedSubModelId = 0.obs;
   void selectSubModel(SubModel subModel) {
-    selectedSubModel.value = subModel; // store object
-    selectedSubModelName.value = subModel.name ?? '';
-    selectedSubModelYear.value = subModel.modelYear ?? '';
-    selectedRegulation.value = ''; // if regulation is reset
-    // Save SubModel ID in preferences
-    if (subModel.id != null) {
-      AppPreferences.setInt('selectedSubModelId', subModel.id!);
-    }
-    loadEcuData().then((_) {
-      print(
-          "✅ ECU Data loaded: ${StaticData.ecuInfo.map((e) => e.ecuName).toList()}");
-    });
+  // 1. Update Reactive Variables
+  selectedSubModel.value = subModel; 
+  selectedSubModelName.value = subModel.name ?? '';
+  selectedSubModelYear.value = subModel.modelYear ?? '';
+  selectedRegulation.value = ''; 
+
+  // 2. Capture and Save the ID
+  if (subModel.id != null) {
+    selectedSubModelId.value = subModel.id!; // Store in memory
+    AppPreferences.setInt('selectedSubModelId', subModel.id!); // Store in disk
+    print("📍 SubModel ID Selected: ${selectedSubModelId.value}");
   }
 
-  Future<void> loadEcuData() async {
-    try {
-      final subModel = selectedSubModel.value;
-      if (subModel == null) return;
-
-      // Save SubModel ID in preferences
-      if (subModel.id != null) {
-        await AppPreferences.setInt('selectedSubModelId', subModel.id!);
-      }
-
-      // Clear previous ECU info
+  // 3. Load associated ECU data
+  loadEcuData().then((_) {
+    print("✅ ECU Data loaded for ID ${subModel.id}: "
+        "${StaticData.ecuInfo.map((e) => e.ecuName).toList()}");
+  });
+}
+Future<void> loadEcuData() async {
+  try {
+    final subModel = selectedSubModel.value;
+    
+    // 1. Safety Check: If no submodel is selected, clear everything and stop
+    if (subModel == null) {
+      print("⚠️ No submodel selected. Clearing ECU info.");
       StaticData.ecuInfo = <EcuDataSet>[];
-
-      if (subModel.ecus == null || subModel.ecus!.isEmpty) {
-        print("⚠️ No ECUs found for this submodel.");
-        return;
-      }
-
-      // Add all ECUs
-      for (var ecu in subModel.ecus!) {
-        StaticData.ecuInfo.add(EcuDataSet(
-          readDtcIndex: ecu.readDtcFnIndex?.value,
-          pidDatasetId: ecu.pidDatasets?.firstOrNull?.id,
-          clearDtcIndex: ecu.clearDtcFnIndex?.value,
-          dtcDatasetId: ecu.datasets?.firstOrNull?.id,
-          ecuName: ecu.name ?? 'Unknown ECU',
-          seedKeyIndex: ecu.seedkeyalgoFnIndex?.value,
-          writePidIndex: ecu.writeDataFnIndex?.value,
-          txHeader: ecu.txHeader,
-          rxHeader: ecu.rxHeader,
-          protocol: ecu.protocol,
-          ecuID: ecu.id ?? 0,
-          iorTestFnIndex: ecu.iorTestFnIndex?.value,
-          channelId: ecu.channel,
-          modelName: selectedModel.value,
-          submodelName: subModel.name ?? 'Unknown Submodel',
-          modelYear: subModel.modelYear,
-          ecu2: ecu.ecu?.firstOrNull,
-          ffSet: ecu.ffSet,
-          firingSequence: ecu.firingSequence,
-          noOfInjectors: ecu.noOfInjectors,
-        ));
-      }
-
-      // Sort: move "EMS" to top
-      if (StaticData.ecuInfo.length > 1) {
-        StaticData.ecuInfo.sort((a, b) {
-          if ((a.ecuName!.toUpperCase()) == 'EMS') return -1;
-          if ((b.ecuName!.toUpperCase()) == 'EMS') return 1;
-          return 0;
-        });
-      }
-
-      print('✅ Loaded ${StaticData.ecuInfo.length} ECUs for ${subModel.name}');
-      for (var ecu in StaticData.ecuInfo) {
-        print(' - ${ecu.ecuName}');
-      }
-    } catch (e) {
-      print('❌ Error loading ECU data: $e');
+      return;
     }
+
+    print("🔹 Loading ECUs for: ${subModel.name}");
+
+    // 2. Clear previous ECU info IMMEDIATELY
+    // This prevents "Production" data from leaking into "Development"
+    StaticData.ecuInfo = <EcuDataSet>[];
+
+    if (subModel.ecus == null || subModel.ecus!.isEmpty) {
+      print("⚠️ No ECUs found in the JSON for ${subModel.name}.");
+      return;
+    }
+
+    // 3. Create a temporary local list to process the new data
+    List<EcuDataSet> freshEcuList = [];
+
+    for (var ecu in subModel.ecus!) {
+      freshEcuList.add(EcuDataSet(
+        // Basic Identifiers
+        ecuName: ecu.name ?? 'Unknown ECU',
+        ecuID: ecu.id ?? 0,
+        protocol: ecu.protocol,
+        channelId: ecu.channel,
+        
+        // Headers
+        txHeader: ecu.txHeader,
+        rxHeader: ecu.rxHeader,
+        
+        // Function Indexes (Crucial for Communication)
+        readDtcIndex: ecu.readDtcFnIndex?.value,
+        clearDtcIndex: ecu.clearDtcFnIndex?.value,
+        seedKeyIndex: ecu.seedkeyalgoFnIndex?.value,
+        writePidIndex: ecu.writeDataFnIndex?.value,
+        iorTestFnIndex: ecu.iorTestFnIndex?.value,
+        
+        // Dataset IDs
+        pidDatasetId: ecu.pidDatasets?.firstOrNull?.id,
+        dtcDatasetId: ecu.datasets?.firstOrNull?.id,
+        
+        // Context Info
+        modelName: selectedModel.value,
+        submodelName: subModel.name ?? 'Unknown Submodel',
+        modelYear: subModel.modelYear,
+        
+        // Specific Configs
+        ecu2: ecu.ecu?.firstOrNull,
+        ffSet: ecu.ffSet,
+        firingSequence: ecu.firingSequence,
+        noOfInjectors: ecu.noOfInjectors,
+      ));
+    }
+
+    // 4. Sort the list: Always put "EMS" (Engine Management System) at the top
+    if (freshEcuList.length > 1) {
+      freshEcuList.sort((a, b) {
+        String nameA = (a.ecuName ?? "").toUpperCase();
+        String nameB = (b.ecuName ?? "").toUpperCase();
+        if (nameA == 'EMS') return -1;
+        if (nameB == 'EMS') return 1;
+        return 0;
+      });
+    }
+
+    // 5. Final Assignment to Static Storage
+    StaticData.ecuInfo = freshEcuList;
+
+    print('✅ Successfully loaded ${StaticData.ecuInfo.length} ECUs for ${subModel.name}');
+    for (var item in StaticData.ecuInfo) {
+      print('   -> Detected ECU: ${item.ecuName}');
+    }
+
+  } catch (e, stack) {
+    print('❌ Error in loadEcuData: $e');
+    debugPrintStack(stackTrace: stack);
+    StaticData.ecuInfo = <EcuDataSet>[]; // Clear on error for safety
   }
+}
+  // Future<void> loadEcuData() async {
+  //   try {
+  //     final subModel = selectedSubModel.value;
+  //     if (subModel == null) return;
+
+  //     // Save SubModel ID in preferences
+  //     if (subModel.id != null) {
+  //       await AppPreferences.setInt('selectedSubModelId', subModel.id!);
+  //     }
+
+  //     // Clear previous ECU info
+  //     StaticData.ecuInfo = <EcuDataSet>[];
+
+  //     if (subModel.ecus == null || subModel.ecus!.isEmpty) {
+  //       print("⚠️ No ECUs found for this submodel.");
+  //       return;
+  //     }
+
+  //     // Add all ECUs
+  //     for (var ecu in subModel.ecus!) {
+  //       StaticData.ecuInfo.add(EcuDataSet(
+  //         readDtcIndex: ecu.readDtcFnIndex?.value,
+  //         pidDatasetId: ecu.pidDatasets?.firstOrNull?.id,
+  //         clearDtcIndex: ecu.clearDtcFnIndex?.value,
+  //         dtcDatasetId: ecu.datasets?.firstOrNull?.id,
+  //         ecuName: ecu.name ?? 'Unknown ECU',
+  //         seedKeyIndex: ecu.seedkeyalgoFnIndex?.value,
+  //         writePidIndex: ecu.writeDataFnIndex?.value,
+  //         txHeader: ecu.txHeader,
+  //         rxHeader: ecu.rxHeader,
+  //         protocol: ecu.protocol,
+  //         ecuID: ecu.id ?? 0,
+  //         iorTestFnIndex: ecu.iorTestFnIndex?.value,
+  //         channelId: ecu.channel,
+  //         modelName: selectedModel.value,
+  //         submodelName: subModel.name ?? 'Unknown Submodel',
+  //         modelYear: subModel.modelYear,
+  //         ecu2: ecu.ecu?.firstOrNull,
+  //         ffSet: ecu.ffSet,
+  //         firingSequence: ecu.firingSequence,
+  //         noOfInjectors: ecu.noOfInjectors,
+  //       ));
+  //     }
+
+  //     // Sort: move "EMS" to top
+  //     if (StaticData.ecuInfo.length > 1) {
+  //       StaticData.ecuInfo.sort((a, b) {
+  //         if ((a.ecuName!.toUpperCase()) == 'EMS') return -1;
+  //         if ((b.ecuName!.toUpperCase()) == 'EMS') return 1;
+  //         return 0;
+  //       });
+  //     }
+
+  //     print('✅ Loaded ${StaticData.ecuInfo.length} ECUs for ${subModel.name}');
+  //     for (var ecu in StaticData.ecuInfo) {
+  //       print(' - ${ecu.ecuName}');
+  //     }
+  //   } catch (e) {
+  //     print('❌ Error loading ECU data: $e');
+  //   }
+  // }
 
   Future<void> wifiConnect(BuildContext context) async {
     try {

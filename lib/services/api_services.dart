@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/api/app_envirments.dart';
 import 'package:autopeepal/api/app_urls.dart';
+import 'package:autopeepal/app.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
@@ -197,11 +198,49 @@ class AuthApiService {
       print("[LOGIN] StackTrace: $st");
     }
     finally {
-     
+
       if (Get.isDialogOpen ?? false) Get.back();
       print("🔹 usbConnect finished");
     }
 
+    return loginResponse;
+  }
+
+  static Future<UserResModel> login1(UserModel model) async {
+    final url = Uri.parse("${AppEnvironment.baseUrl}${AppURLs.login}");
+    UserResModel loginResponse = UserResModel();
+
+    try {
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(model.toJson()),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        loginResponse = UserResModel.fromJson(decoded);
+        loginResponse.message = "success";
+
+        // 🔹 CRITICAL: Update memory IMMEDIATELY so sync doesn't get 'null'
+        App.oemId = loginResponse.profile?.oem?.id ?? 0;
+        App.jwtToken = loginResponse.token?.access ?? '';
+
+        // Persist for offline/restart
+        await AppPreferences.saveTokens(
+          accessToken: loginResponse.token?.access ?? '',
+          refreshToken: loginResponse.token?.refresh ?? '',
+        );
+        await AppPreferences.setInt("oemId", App.oemId);
+      } else {
+        loginResponse.message =
+            "Error ${response.statusCode}: ${response.reasonPhrase}";
+      }
+    } catch (e) {
+      loginResponse.message = "Network Error: $e";
+    }
     return loginResponse;
   }
 

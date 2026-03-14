@@ -2,13 +2,12 @@ import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/liveParameterController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:autopeepal/themes/app_textstyles.dart';
-import 'package:autopeepal/views/screens/diagnostic_functions/recordPlayScreen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class LiveParameter extends StatelessWidget {
   LiveParameter({super.key});
-  final controller = Get.put(Liveparametercontroller());
+  final controller = Get.put(LiveParameterController());
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -78,29 +77,42 @@ class LiveParameter extends StatelessWidget {
                 ],
               ),
             ),
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                itemCount: controller.parameters.length,
-                itemBuilder: (context, index) {
-                  final item = controller.parameters[index];
 
-                  return Row(
-                    children: [
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.all(4.0),
-                          child: Text(
-                            item,
-                            style: TextStyles.textfieldTextStyle1,
+            Expanded(
+              child: Obx(() {
+                // Show loader if list is empty or busy
+                if (controller.isBusy.value) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (controller.pidList.isEmpty) {
+                  return const Center(child: Text("No Parameters Found"));
+                }
+
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  itemCount: controller.pidList.length,
+                  itemBuilder: (context, index) {
+                    final pid = controller.pidList[index];
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.all(4.0),
+                            child: Text(
+                              pid.shortName ?? pid.code ?? "Unnamed PID",
+                              style: const TextStyle(fontSize: 14),
+                            ),
                           ),
                         ),
-                      ),
-                      Transform.scale(
-                        scale: 1.2,
-                        child: Obx(() => Checkbox(
-                              value:
-                                  controller.selectedParameters.contains(item),
+                        Transform.scale(
+                          scale: 1.2,
+                          child: Obx(() {
+                            final isSelected =
+                                controller.selectedPidList.contains(pid);
+                            return Checkbox(
+                              value: isSelected,
                               fillColor:
                                   MaterialStateProperty.resolveWith((states) {
                                 if (states.contains(MaterialState.selected)) {
@@ -113,24 +125,27 @@ class LiveParameter extends StatelessWidget {
                                 width: 2,
                               ),
                               onChanged: (value) {
-                                controller.toggleSelection(
-                                    item, value ?? false);
+                                if (value == true) {
+                                  controller.selectedPidList.add(pid);
+                                } else {
+                                  controller.selectedPidList.remove(pid);
+                                }
                               },
-                            )),
-                      )
-                    ],
-                  );
-                },
-                separatorBuilder: (context, index) {
-                  return Divider(
+                            );
+                          }),
+                        ),
+                      ],
+                    );
+                  },
+                  separatorBuilder: (context, index) => Divider(
                     height: 5,
                     color: AppColors.primaryColor,
                     thickness: 1,
                     indent: 4,
                     endIndent: 4,
-                  );
-                },
-              ),
+                  ),
+                );
+              }),
             ),
             Padding(
               padding: const EdgeInsets.all(12),
@@ -142,17 +157,11 @@ class LiveParameter extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {
-                  Get.to(() => RecordPlayScreen(
-                        selectedItems: controller.selectedParameters.toList(),
-                      ));
-                },
+                onPressed: () =>
+                    controller.continueClicked(context, controller.saveFile),
                 child: const Text(
                   "Continue",
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white,
-                  ),
+                  style: TextStyle(color: Colors.white),
                 ),
               ),
             ),

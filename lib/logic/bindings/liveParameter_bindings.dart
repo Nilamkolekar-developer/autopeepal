@@ -5,6 +5,6 @@ import 'package:get/get.dart';
 class LiveparameterBindings extends Bindings {
   @override
   void dependencies() {
-    Get.put(Liveparametercontroller());
+    Get.put(LiveParameterController());
   }
 }

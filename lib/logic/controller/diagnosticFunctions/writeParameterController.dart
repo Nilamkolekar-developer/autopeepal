@@ -116,7 +116,7 @@ class WriteParameterController extends GetxController {
         if (pid.reset ?? false) {
           writeBtnText.value = "Reset";
           for (var v in pid.piCodeVariable!) {
-            v.writeValue = pid.resetValue!.obs;
+            v.writeValue = pid.resetValue!;
             v.isReset = true;
           }
         } else {
@@ -202,19 +202,19 @@ class WriteParameterController extends GetxController {
             );
 
             // Update reactive value for UI
-            variable.showResolution.value = item.responseValue!;
+            variable.showResolution = item.responseValue!;
 
             // Clear writeValue if not a reset variable
             if (!variable.isResetRx.value) {
-              variable.writeValue.value = "";
+              variable.writeValue = "";
             }
           }
         }
       } else {
         // PID read returned an error
         for (var variable in selectedPidCode!.piCodeVariable!) {
-          variable.showResolution.value = "ERR";
-          if (!variable.isResetRx.value) variable.writeValue.value = "";
+          variable.showResolution = "ERR";
+          if (!variable.isResetRx.value) variable.writeValue = "";
         }
       }
     }
@@ -226,13 +226,13 @@ class WriteParameterController extends GetxController {
   void updateControllers() {
     if (selectedPidCode?.piCodeVariable?.isNotEmpty ?? false) {
       final variable = selectedPidCode!.piCodeVariable!.first;
-      currentValueController.value.text = variable.showResolution.value;
+      currentValueController.value.text = variable.showResolution!;
       print(
           "Updated currentValueController: ${currentValueController.value.text}");
 
       // Initialize newValueController only if empty
       if (newValueController.value.text.isEmpty) {
-        newValueController.value.text = variable.writeValue.value;
+        newValueController.value.text = variable.writeValue!;
         print(
             "Initialized newValueController: ${newValueController.value.text}");
       }
@@ -255,7 +255,7 @@ class WriteParameterController extends GetxController {
       if (selectedPidCode!.reset != true &&
           (selectedPidCode!.piCodeVariable?.isNotEmpty ?? false)) {
         // Pull value from the newValueController and sync to the first variable
-        selectedPidCode!.piCodeVariable!.first.writeValue.value =
+        selectedPidCode!.piCodeVariable!.first.writeValue =
             newValueController.value.text;
       }
 
@@ -282,7 +282,7 @@ class WriteParameterController extends GetxController {
         var variable = selectedPidCode!.piCodeVariable![i];
 
         if (selectedPidCode!.reset != true) {
-          String writeValueStr = variable.writeValue.value.trim();
+          String writeValueStr = variable.writeValue!.trim();
 
           // --- IQA Handling ---
           if (variable.messageType.contains("IQA")) {
@@ -298,20 +298,20 @@ class WriteParameterController extends GetxController {
 
           // --- ASCII Handling (e.g. VIN) ---
           else if (variable.messageType.contains("ASCII")) {
-            if (writeValueStr.length > (variable.length ?? 0)) {
+            if (writeValueStr.length > (variable.length)) {
               _showErrorPopup(
                   "Value too long. Max length is ${variable.length}");
               return;
             } else {
               Uint8List val = Uint8List.fromList(utf8.encode(writeValueStr));
-              int startIdx = (variable.bytePosition ?? 1) - 1;
+              int startIdx = (variable.bytePosition) - 1;
 
               // Write the actual string bytes
               writeInput.setRange(startIdx, startIdx + val.length, val);
 
               // AUTO-PADDING: Most ECUs require exact lengths (e.g., 17 for VIN).
               // Pad remaining space with ASCII Space (0x20)
-              int expectedLen = variable.length ?? 0;
+              int expectedLen = variable.length;
               if (val.length < expectedLen) {
                 for (int p = startIdx + val.length;
                     p < startIdx + expectedLen;
@@ -325,7 +325,7 @@ class WriteParameterController extends GetxController {
           // --- CONTINUOUS Handling (Numeric scaling) ---
           else if (variable.messageType.contains("CONTINUOUS")) {
             double? currentWriteVal =
-                double.tryParse(variable.writeValue.value);
+                double.tryParse(variable.writeValue!);
             double min = variable.min?.toDouble() ?? -double.maxFinite;
             double max = variable.max?.toDouble() ?? double.maxFinite;
 
@@ -336,9 +336,9 @@ class WriteParameterController extends GetxController {
               double rawVal = (currentWriteVal - (variable.offset ?? 0)) /
                   (variable.resolution ?? 1);
               int encodedInt = rawVal.toInt();
-              int len = variable.length ?? 1;
+              int len = variable.length;
 
-              int startIdx = (variable.bytePosition ?? 1) - 1;
+              int startIdx = (variable.bytePosition) - 1;
               for (int j = 0; j < len; j++) {
                 // Fill Big Endian
                 writeInput[startIdx + (len - 1 - j)] =
@@ -361,7 +361,7 @@ class WriteParameterController extends GetxController {
           offset: variable.offset,
           unit: variable.unit,
           pidName: variable.shortName,
-          beforeValue: variable.showResolution.value,
+          beforeValue: variable.showResolution,
         ));
       }
 

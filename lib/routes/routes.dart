@@ -5,7 +5,6 @@ import 'package:autopeepal/logic/bindings/diagnosticFunctions_bindings.dart';
 import 'package:autopeepal/logic/bindings/drawer_bindings.dart';
 import 'package:autopeepal/logic/bindings/dtc_bindings.dart';
 import 'package:autopeepal/logic/bindings/ecuFlashing_bindings.dart';
-import 'package:autopeepal/logic/bindings/ecuInformation_bindings.dart';
 import 'package:autopeepal/logic/bindings/firmwareUpdate_bindings.dart';
 import 'package:autopeepal/logic/bindings/liveParameter_bindings.dart';
 import 'package:autopeepal/logic/bindings/login_bindings.dart';
@@ -29,7 +28,6 @@ import 'package:autopeepal/views/screens/diagnostic_functions/allDtcDetails.dart
 import 'package:autopeepal/views/screens/diagnostic_functions/diagnostic_functions.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/dtcScreen.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/ecuFlashing.dart';
-import 'package:autopeepal/views/screens/diagnostic_functions/ecuInformation.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/firmwareVersions.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/freezeFramePage.dart';
 import 'package:autopeepal/views/screens/diagnostic_functions/gdImageZoomPage.dart';

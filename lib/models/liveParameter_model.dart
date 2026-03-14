@@ -224,8 +224,8 @@ class ReadPidResponseModel {
 }
 
 class PiCodeVariable {
-    RxString showResolution = "".obs;
-  RxString writeValue = "".obs;
+   String? showResolution;
+  String ?writeValue;
   RxBool isResetRx = false.obs; // optional, for UI
   Rx<Color> txtColor = Colors.black.obs;
 
@@ -305,8 +305,8 @@ class PiCodeVariable {
     this.selected = selected ?? false;
     this.group = group ?? [];
     this.messages = messages ?? [];
-    this.showResolution.value = showResolution ?? "";
-  this.writeValue.value = writeValue ?? "";
+    this.showResolution = showResolution ?? "";
+  this.writeValue = writeValue ?? "";
   this.isResetRx.value = isReset ?? false;
   this.txtColor.value = txtColor ?? Colors.black;
     this.isUnitVisible = isUnitVisible ?? false;
@@ -756,24 +756,22 @@ class Results {
   }
 }
 
-class PidGroupModel extends ChangeNotifier {
+
+
+class PidGroupModel {
   int id;
-
-  String _groupName = '';
-
-  String get groupName => _groupName;
-
-  set groupName(String value) {
-    _groupName = value;
-    notifyListeners(); // == OnPropertyChanged("GroupName")
-  }
+  RxString groupName;
+  RxBool isSelected;
+  RxInt itemCount;
 
   PidGroupModel({
     required this.id,
     String groupName = '',
-  }) {
-    _groupName = groupName;
-  }
+    bool isSelected = false,
+    int itemCount = 0,
+  })  : groupName = groupName.obs,
+        isSelected = isSelected.obs,
+        itemCount = itemCount.obs;
 }
 
 class TestRoutineResponseModel {

@@ -51,7 +51,19 @@ class PidDataset extends Dataset {
   PidDataset({super.id, super.code});
 
   factory PidDataset.fromJson(Map<String, dynamic> json) =>
-      PidDataset(id: json['id'], code: json['code']);
+      PidDataset(
+        id: json['id'], 
+        code: json['code'],
+      );
+
+  // You must add this method so jsonEncode knows how to handle this object
+  @override
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'code': code,
+    };
+  }
 }
 
 class IvnDtcDataset extends Dataset {
