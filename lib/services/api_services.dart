@@ -1,9 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/api/app_envirments.dart';
 import 'package:autopeepal/api/app_urls.dart';
 import 'package:autopeepal/app.dart';
-import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/checkJobCard_model.dart';
@@ -33,104 +34,37 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 
 class AuthApiService {
-//   static Future<UserResModel> login(UserModel model) async {
-//     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
-//     UserResModel loginResponse = UserResModel();
-
-//     try {
-//       // Serialize request body
-//       final jsonBody = jsonEncode(model.toJson());
-
-//       // HTTP POST request
-//       final response = await http.post(
-//         url,
-//         headers: {'Content-Type': 'application/json'},
-//         body: jsonBody,
-//       );
-
-//       // Debug log
-//       print("""
-// LOGIN API
-// URL: $url
-// REQUEST:
-// $jsonBody
-// RESPONSE:
-// ${response.body}
-// """);
-
-//       if (response.statusCode == 200) {
-//         // Deserialize response
-//         loginResponse = UserResModel.fromJson(jsonDecode(response.body));
-
-//         // Save token in SharedPreferences
-//         if (loginResponse.token != null) {
-//           await AppPreferences.saveTokens(
-//             accessToken: loginResponse.token?.access ?? '',
-//             refreshToken: loginResponse.token?.refresh ?? '',
-//           );
-//         }
-
-//         // Save basic user info
-//         await AppPreferences.saveUser(
-//           userId: loginResponse.userId.toString(),
-//           name:
-//               "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
-//           email: loginResponse.user ?? '',
-//         );
-
-//         // Set message as success
-//         loginResponse.message = "success";
-//       } else if (response.statusCode == 401) {
-//         loginResponse.message = 'Invalid username or password';
-//       } else if (response.statusCode == 403) {
-//         loginResponse.message = 'Device not authorized';
-//       } else {
-//         loginResponse.message = 'Login failed (${response.statusCode})';
-//       }
-//     } catch (e) {
-//       loginResponse.message = "Exception @AuthApiService.login(): $e";
-//     }
-
-//     return loginResponse;
-//   }
-
   static Future<UserResModel> login(UserModel model) async {
     final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.login);
     UserResModel loginResponse = UserResModel();
 
     try {
-      // Serialize request body
       final jsonBody = jsonEncode(model.toJson());
+
       print("[LOGIN] Sending request to: $url");
       print("[LOGIN] Request Body: $jsonBody");
 
-      // HTTP POST request
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonBody,
-      );
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonBody,
+          )
+          .timeout(const Duration(seconds: 10)); // important
 
-      // Log response status and body
-      print("[LOGIN] Response Status Code: ${response.statusCode}");
-      print("[LOGIN] Response Body: ${response.body}");
+      print("[LOGIN] Status: ${response.statusCode}");
+      print("[LOGIN] Body: ${response.body}");
 
       if (response.statusCode == 200) {
-        // Deserialize response
         loginResponse = UserResModel.fromJson(jsonDecode(response.body));
-        print("[LOGIN] Parsed user response: $loginResponse");
 
-        // Save token in SharedPreferences
         if (loginResponse.token != null) {
-          print("[LOGIN] Saving tokens to SharedPreferences");
           await AppPreferences.saveTokens(
             accessToken: loginResponse.token?.access ?? '',
             refreshToken: loginResponse.token?.refresh ?? '',
           );
         }
 
-        // Save basic user info
-        print("[LOGIN] Saving user info to SharedPreferences");
         await AppPreferences.saveUser(
           userId: loginResponse.userId.toString(),
           name:
@@ -138,69 +72,27 @@ class AuthApiService {
           email: loginResponse.user ?? '',
         );
 
-        // Set message as success
         loginResponse.message = "success";
-
-        print("[LOGIN] Login successful");
       } else if (response.statusCode == 401) {
-        loginResponse.message = 'Invalid username or password';
-      //    await Get.dialog(
-      //   CustomPopup(
-      //     title: "StatusCode:401",
-      //     message: "Invalid username or password",
-      //     onButtonPressed: () {
-      //       Get.back();
-      //     },
-      //   ),
-      //   barrierDismissible: false,
-      // );
-        print("[LOGIN] Login failed: Invalid username or password");
+        loginResponse.message = "Invalid username or password";
       } else if (response.statusCode == 403) {
-        loginResponse.message = 'Device not authorized';
-        await Get.dialog(
-          CustomPopup(
-            title: "statuscode : 403",
-            message: "Device not authorized",
-            onButtonPressed: () {
-              Get.back();
-            },
-          ),
-          barrierDismissible: false,
-        );
-        print("[LOGIN] Login failed: Device not authorized");
+        loginResponse.message = "Device not authorized";
       } else {
-        loginResponse.message = 'Login failed (${response.statusCode})';
-          await Get.dialog(
-        CustomPopup(
-          title: "Login failed",
-          message: "${response.statusCode}",
-          onButtonPressed: () {
-            Get.back();
-          },
-        ),
-        barrierDismissible: false,
-      );
-        print("[LOGIN] Login failed with status: ${response.statusCode}");
+        loginResponse.message = "Login failed (${response.statusCode})";
       }
+    } on SocketException {
+      /// 🔹 INTERNET OFF / SERVER UNREACHABLE
+      print("[LOGIN] Network unreachable. Switching to offline login.");
+      loginResponse.message = "network_error";
+    } on TimeoutException {
+      /// 🔹 SERVER TIMEOUT
+      print("[LOGIN] Server timeout. Switching to offline login.");
+      loginResponse.message = "timeout";
     } catch (e, st) {
-      loginResponse.message = "Exception @AuthApiService.login(): $e";
-      await Get.dialog(
-        CustomPopup(
-          title: "Exception @AuthApiService.login()",
-          message: "$e",
-          onButtonPressed: () {
-            Get.back();
-          },
-        ),
-        barrierDismissible: false,
-      );
-      print("[LOGIN] Exception occurred: $e");
-      print("[LOGIN] StackTrace: $st");
-    }
-    finally {
+      print("[LOGIN] Unknown error: $e");
+      print(st);
 
-      if (Get.isDialogOpen ?? false) Get.back();
-      print("🔹 usbConnect finished");
+      loginResponse.message = "exception";
     }
 
     return loginResponse;

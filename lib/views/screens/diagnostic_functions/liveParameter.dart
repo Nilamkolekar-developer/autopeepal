@@ -66,6 +66,10 @@ class LiveParameter extends StatelessWidget {
                           ),
                         ),
                       ),
+                      onChanged: (value) {
+                        controller.searchKey = value; // Update the search key
+                        controller.searchPid(); // Filter the list
+                      },
                     ),
                   ),
                   const SizedBox(width: 10),

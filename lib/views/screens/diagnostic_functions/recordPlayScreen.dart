@@ -9,7 +9,7 @@ class RecordPlayScreen extends StatelessWidget {
   final List<PidCode> selectedPIDs;
   final IFileSaver fileSaver;
 
-  RecordPlayScreen({
+  const RecordPlayScreen({
     super.key,
     required this.selectedPIDs,
     required this.fileSaver,
@@ -27,46 +27,129 @@ class RecordPlayScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: AppColors.pagebgColor,
       appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
         title: const Text(
-          'Live Parameters',
+          "Live Parameters",
           style: TextStyle(color: Colors.white, fontSize: 18),
         ),
-        backgroundColor: AppColors.primaryColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+
+        /// BACK BUTTON
+        leading: Obx(
+          () => IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: controller.isBackButtonEnabled.value
+                ? () {
+                    controller.isPlaying.value = false;
+                    controller.isRecording.value = false;
+                    controller.isLoopRunning.value = false;
+
+                    Get.back();
+                  }
+                : null,
+          ),
         ),
       ),
       body: SafeArea(
         child: Column(
           children: [
+            /// PID LIST
             Expanded(
-              child: ListView.separated(
-                itemCount: selectedPIDs.length,
-                itemBuilder: (context, index) {
-                  final pid = selectedPIDs[index];
-                  return ListTile(
-                    title: Text(
-                      pid.shortName ?? "Unknown PID",
-                      style: const TextStyle(color: Colors.black),
-                    ),
-                  );
-                },
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.primaryColor.withOpacity(0.3),
-                  indent: 12,
-                  endIndent: 12,
+              child: Obx(
+                () => ListView.separated(
+                  itemCount: controller.selectedParameterList.length,
+                  itemBuilder: (context, index) {
+                    final pid = controller.selectedParameterList[index];
+
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        /// PID NAME
+                        Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 6),
+                          child: Text(
+                            pid.shortName ?? "Unknown PID",
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ),
+
+                        ...?pid.piCodeVariable?.map(
+                          (variable) => Column(
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 20, vertical: 5),
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    /// VALUE + UNIT
+                                    Row(
+                                      children: [
+                                        Text(
+                                          variable.showResolution ?? "--",
+                                          style: const TextStyle(
+                                            fontSize: 15,
+                                          ),
+                                        ),
+                                        if (variable.isUnitVisible == true)
+                                          Text(
+                                            " ${variable.unit}",
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+
+                                    /// RANGE
+                                    Text(
+                                      "( Range : ${variable.min ?? 0} - ${variable.max ?? 0} )",
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                              /// DIVIDER FOR EACH VARIABLE
+                              Divider(
+                                height: 1,
+                                thickness: 1,
+                                color: AppColors.primaryColor.withOpacity(0.2),
+                                indent: 16,
+                                endIndent: 16,
+                              ),
+                            ],
+                          ),
+                        )
+                      ],
+                    );
+                  },
+                  separatorBuilder: (context, index) => Divider(
+                    height: 1,
+                    thickness: 1,
+                    color: AppColors.primaryColor.withOpacity(0.3),
+                    indent: 12,
+                    endIndent: 12,
+                  ),
                 ),
               ),
             ),
+
+            /// CONTROL BUTTONS
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 20),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  /// ▶ PLAY BUTTON
+                  /// PLAY BUTTON
                   Obx(
                     () => Column(
                       children: [
@@ -108,7 +191,7 @@ class RecordPlayScreen extends StatelessWidget {
                     ),
                   ),
 
-                  /// 🔴 RECORD BUTTON
+                  /// RECORD BUTTON
                   Obx(
                     () => Column(
                       children: [
@@ -154,7 +237,7 @@ class RecordPlayScreen extends StatelessWidget {
                   ),
                 ],
               ),
-            )
+            ),
           ],
         ),
       ),

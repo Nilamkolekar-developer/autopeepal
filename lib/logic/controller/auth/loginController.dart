@@ -249,151 +249,26 @@ class LoginController extends GetxController {
     }
   }
 
-  Future<void> loginMethod1() async {
-    try {
-      await Future.delayed(const Duration(milliseconds: 50));
-
-      // ================= 1. VALIDATION =================
-      final username = usernameController.value.text.trim();
-      final password = passwordController.value.text.trim();
-
-      if (username.isEmpty || password.isEmpty) {
-        await Get.dialog(
-          CustomPopup(
-            title: "Alert",
-            message: username.isEmpty && password.isEmpty
-                ? "Enter user name and password."
-                : (username.isEmpty
-                    ? "Enter user name"
-                    : "Enter user password."),
-            onButtonPressed: () => Get.back(),
-          ),
-          barrierDismissible: false,
-        );
-        return;
-      }
-
-      // ================= 2. UI LOADER =================
-      isLoading.value = true;
-      Get.dialog(CommonLoader(message: "Signing In..."),
-          barrierDismissible: false);
-
-      // ================= 3. DEVICE INFO =================
-      final deviceId = await getDeviceUniqueId.getId();
-      String platform =
-          Platform.isAndroid ? "android" : (Platform.isIOS ? "ios" : "windows");
-
-      final userRequestModel = UserModel(
-        username: username,
-        password: password,
-        deviceType: platform,
-        macId: deviceId,
-      );
-
-      // ================= 4. LOGIN LOGIC (ONLINE vs OFFLINE) =================
-      final connectivityResult = await Connectivity().checkConnectivity();
-      final isNetworkAvailable = connectivityResult != ConnectivityResult.none;
-
-      bool isLoggedIn = false;
-
-      if (isNetworkAvailable) {
-        print("[LOGIN] Network detected. Attempting online login...");
-        // Try online login first
-        isLoggedIn = await loginOnline(userRequestModel);
-
-        // 🔹 FALLBACK: If online login returned false (e.g. server timeout/SocketException),
-        // we try to log in using local cached data.
-        if (!isLoggedIn) {
-          print(
-              "[LOGIN] Online login failed/unreachable. Attempting offline fallback...");
-          isLoggedIn = await loginOffline(userRequestModel);
-        }
-      } else {
-        print("[LOGIN] No internet. Trying offline login...");
-        isLoggedIn = await loginOffline(userRequestModel);
-      }
-
-      // ================= 5. POST-LOGIN SUCCESS =================
-      if (isLoggedIn && userResModel != null) {
-        final prefs = await SharedPreferences.getInstance();
-
-        if (isRememberMeChecked.value) {
-          await prefs.setString("user_id", username);
-          await prefs.setString("password", password);
-
-          final rememberData = {
-            "username": username,
-            "password": password,
-            "device_type": platform,
-            "mac_id": deviceId,
-            "RememberIsChecked": isRememberMeChecked.value, // 🔹 .value used
-          };
-          await saveLocalData?.saveData(
-              "RememberIsChecked", jsonEncode(rememberData));
-        } else {
-          await saveLocalData?.saveData(
-              "RememberIsChecked", jsonEncode({"RememberIsChecked": false}));
-        }
-
-        // Save Session Data (Crucial for App State)
-        await prefs.setString("macId", deviceId);
-        await prefs.setString("UserName", username);
-        await prefs.setString(
-          "MasterLoginUserBY",
-          "${userResModel!.firstName ?? ""} ${userResModel!.lastName ?? ""}",
-        );
-        await prefs.setString("rolewhilelogin", userResModel!.role ?? "");
-        await prefs.setInt("oemId", userResModel!.profile?.oem?.id ?? 0);
-
-        // Save Global App Data
-        await AppPreferences.saveLicences(
-            userResModel!.licences?.toJson() ?? {});
-        await AppPreferences.saveVehicleModels(
-          userResModel!.profile?.workshopGroupModels
-                  ?.map((e) => e.toJson())
-                  .toList() ??
-              [],
-        );
-
-        print("[LOGIN] Success. Navigating to dashboard...");
-        Get.offAllNamed(Routes.dashboardScreen, arguments: (userResModel!));
-      } else {
-        // If we reach here, both online and offline attempts failed
-        print(
-            "[LOGIN] Login failed: Both online and offline attempts unsuccessful.");
-      }
-    } catch (e, s) {
-      print("[LOGIN] Global Error: $e\nStackTrace: $s");
-      await Get.dialog(
-        CustomPopup(
-          title: "Login Error",
-          message: "An unexpected error occurred. Please try again.",
-          onButtonPressed: () => Get.back(),
-        ),
-        barrierDismissible: false,
-      );
-    } finally {
-      isLoading.value = false;
-      // 🔹 Ensure loader is closed only once at the very end
-      if (Get.isDialogOpen ?? false) Get.back();
-    }
-  }
-
   Future<bool> loginOnline(UserModel userRequestModel) async {
     try {
       bool returnValue = false;
 
-      // 1. Call the API
-      // Ensure userResModel is declared at the class level in your controller
+      print("[LOGIN] Attempting online login...");
+
+      // Call API
       userResModel = await AuthApiService.login(userRequestModel);
 
+      /// -------------------------------
+      /// SUCCESS LOGIN
+      /// -------------------------------
       if (userResModel?.message == "success") {
-        // 2. Update Global State
+        print("[LOGIN] Online login successful");
+
+        // Update Global State
         App.oemId = userResModel?.profile?.oem?.id ?? 0;
         App.jwtToken = userResModel?.token?.access ?? '';
 
-        // 3. Save User Data for Offline Login
-        // ⚠️ Use "UserDetail_LocalData" (removed the extra 'L' to match loginOffline)
+        // Save user data locally for offline login
         await saveLocalData!.saveData(
           "UserDetail_LocalData",
           jsonEncode(userResModel!.toJson()),
@@ -404,11 +279,10 @@ class LoginController extends GetxController {
           jsonEncode(userRequestModel.toJson()),
         );
 
-        // 4. Check for OEM change or missing data
         final prefs = await SharedPreferences.getInstance();
         int previousOem = prefs.getInt("oemId") ?? 0;
 
-        // Get local cached data statuses
+        // Load cached data
         String modelLocalList = await saveLocalData!.getData("MODEL_LocalList");
         String iorLocalList = await saveLocalData!.getData("IOR_LocalList");
         String actuatorLocalList =
@@ -416,46 +290,57 @@ class LoginController extends GetxController {
         String freezeFrameLocalList =
             await saveLocalData!.getData("FreezeFrame_LocalList");
 
-        // Validation logic: if any data is missing OR if the OEM has changed, sync everything
+        /// Check if data needs refresh
         if (modelLocalList.trim().isEmpty ||
             iorLocalList.trim().isEmpty ||
             actuatorLocalList.trim().isEmpty ||
             freezeFrameLocalList.trim().isEmpty ||
             previousOem != App.oemId) {
-          debugPrint("Updating Local Data...");
-          // This method should download and save all necessary JSONs
+          print("[LOGIN] Updating local data from server...");
           returnValue = await updateModelToLocal();
 
-          // Save the new OEM ID as the 'previous' one for the next login
           await prefs.setInt("oemId", App.oemId);
         } else {
-          // If data is already there and OEM is same, just perform the offline logic
-          // to populate the models and local variables.
+          print("[LOGIN] Local data already available, using offline setup...");
           returnValue = await loginOffline(userRequestModel);
         }
-      } else {
-        // Handle API failure message
+      }
+
+      /// -------------------------------
+      /// NETWORK / SERVER ERROR → OFFLINE LOGIN
+      /// -------------------------------
+      else if (userResModel?.message == "network_error" ||
+          userResModel?.message == "timeout" ||
+          userResModel?.message == "exception") {
+        print("[LOGIN] Network issue detected → switching to offline login");
+
+        returnValue = await loginOffline(userRequestModel);
+      }
+
+      /// -------------------------------
+      /// REAL LOGIN ERROR
+      /// -------------------------------
+      else {
+        print("[LOGIN] Server rejected login: ${userResModel?.message}");
+
         await Get.dialog(
           CustomPopup(
-            title: "Error",
-            message: userResModel?.message ?? "Login failed",
+            title: "Login Failed",
+            message: userResModel?.message ?? "Invalid credentials",
             onButtonPressed: () => Get.back(),
           ),
         );
+
         returnValue = false;
       }
 
       return returnValue;
     } catch (e) {
-      print("Exception in loginOnline: $e");
-      await Get.dialog(
-        CustomPopup(
-          title: "Error",
-          message: e.toString(),
-          onButtonPressed: () => Get.back(),
-        ),
-      );
-      return false;
+      print("[LOGIN] Exception in loginOnline: $e");
+
+      /// Final fallback
+      print("[LOGIN] Trying offline login as fallback...");
+      return await loginOffline(userRequestModel);
     }
   }
 

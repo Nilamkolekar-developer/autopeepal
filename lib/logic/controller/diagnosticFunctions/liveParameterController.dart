@@ -236,4 +236,17 @@ class LiveParameterController extends GetxController {
           fileSaver: fileSaver, // Pass your actual IFileSaver instance here
         ));
   }
+
+  String searchKey = "";
+  void searchPid() {
+    if (searchKey.isNotEmpty) {
+      pidList.value = staticPidList
+          .where((t) => t.piCodeVariable!.any((s) => (s.shortName)
+              .toLowerCase()
+              .contains(searchKey.toLowerCase())))
+          .toList();
+    } else {
+      pidList.value = List.from(staticPidList);
+    }
+    }
 }
