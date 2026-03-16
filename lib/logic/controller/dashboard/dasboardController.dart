@@ -100,70 +100,44 @@ class DashboardController extends GetxController {
     super.onClose();
   }
 
-  // Future<void> initModelList() async {
-  //   try {
-  //     String? localData = await localStorage.getData('MODEL_LocalList');
-
-  //     if (localData == null || localData.isEmpty) {
-  //       print("No local data found. Fetching from API...");
-  //       AllModelsModel apiData = await AuthApiService.getAllModels();
-  //       if (apiData.message == "success" && apiData.results != null) {
-  //         await localStorage.saveData(
-  //             'MODEL_LocalList', jsonEncode(apiData.toJson()));
-  //         localData = jsonEncode(apiData.toJson());
-  //       } else {
-  //         print("❌ API failed: ${apiData.message}");
-  //         return;
-  //       }
-  //     } else {
-  //       print("🔹 Loaded models from local storage.");
-  //     }
-
-  //     AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
-  //     modelList.value = allModels.results ?? [];
-  //   } catch (e) {
-  //     print("❌ Error loading model list: $e");
-  //   }
-  // }
   Future<void> initModelList() async {
-  try {
-    String? localData = await localStorage.getData('MODEL_LocalList');
+    try {
+      String? localData = await localStorage.getData('MODEL_LocalList');
 
-    if (localData == null || localData.isEmpty) {
-      print("No local data found. Fetching from API...");
-      AllModelsModel apiData = await AuthApiService.getAllModels();
-      if (apiData.message == "success" && apiData.results != null) {
-        await localStorage.saveData(
-            'MODEL_LocalList', jsonEncode(apiData.toJson()));
-        localData = jsonEncode(apiData.toJson());
+      if (localData == null || localData.isEmpty) {
+        print("No local data found. Fetching from API...");
+        AllModelsModel apiData = await AuthApiService.getAllModels();
+        if (apiData.message == "success" && apiData.results != null) {
+          await localStorage.saveData(
+              'MODEL_LocalList', jsonEncode(apiData.toJson()));
+          localData = jsonEncode(apiData.toJson());
+        } else {
+          print("❌ API failed: ${apiData.message}");
+          return;
+        }
       } else {
-        print("❌ API failed: ${apiData.message}");
-        return;
+        print("🔹 Loaded models from local storage.");
       }
-    } else {
-      print("🔹 Loaded models from local storage.");
-    }
 
-    AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
-    modelList.value = allModels.results ?? [];
+      AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
+      modelList.value = allModels.results ?? [];
 
-    // ================= DEBUG PRINT START =================
-    print("------- MODEL LIST DEBUG -------");
-    for (var model in modelList) {
-      print("📦 Model: ${model.name}");
-      if (model.subModels != null) {
-        for (var sub in model.subModels!) {
-          print("   ID: ${sub.id} | SubModel: ${sub.name}");
+      // ================= DEBUG PRINT START =================
+      print("------- MODEL LIST DEBUG -------");
+      for (var model in modelList) {
+        print("📦 Model: ${model.name}");
+        if (model.subModels != null) {
+          for (var sub in model.subModels!) {
+            print("   ID: ${sub.id} | SubModel: ${sub.name}");
+          }
         }
       }
+      print("--------------------------------");
+      // ================= DEBUG PRINT END =================
+    } catch (e) {
+      print("❌ Error loading model list: $e");
     }
-    print("--------------------------------");
-    // ================= DEBUG PRINT END =================
-
-  } catch (e) {
-    print("❌ Error loading model list: $e");
   }
-}
 
   void selectModel(String modelName) {
     selectedModel.value = modelName;
@@ -179,127 +153,117 @@ class DashboardController extends GetxController {
     selectedSubModelYear.value = '';
   }
 
-  // void selectSubModel(SubModel subModel) {
-  //   selectedSubModel.value = subModel; // store object
-  //   selectedSubModelName.value = subModel.name ?? '';
-  //   selectedSubModelYear.value = subModel.modelYear ?? '';
-  //   selectedRegulation.value = ''; // if regulation is reset
-  //   // Save SubModel ID in preferences
-  //   if (subModel.id != null) {
-  //     AppPreferences.setInt('selectedSubModelId', subModel.id!);
-  //   }
-  //   loadEcuData().then((_) {
-  //     print(
-  //         "✅ ECU Data loaded: ${StaticData.ecuInfo.map((e) => e.ecuName).toList()}");
-  //   });
-  // }
   RxInt selectedSubModelId = 0.obs;
-  void selectSubModel(SubModel subModel) {
-  // 1. Update Reactive Variables
-  selectedSubModel.value = subModel; 
-  selectedSubModelName.value = subModel.name ?? '';
-  selectedSubModelYear.value = subModel.modelYear ?? '';
-  selectedRegulation.value = ''; 
 
-  // 2. Capture and Save the ID
-  if (subModel.id != null) {
-    selectedSubModelId.value = subModel.id!; // Store in memory
-    AppPreferences.setInt('selectedSubModelId', subModel.id!); // Store in disk
-    print("📍 SubModel ID Selected: ${selectedSubModelId.value}");
+  void selectSubModel(SubModel subModel) async {
+    // 1. Update Reactive Variables
+    selectedSubModel.value = subModel;
+    selectedSubModelName.value = subModel.name ?? '';
+    selectedSubModelYear.value = subModel.modelYear ?? '';
+    selectedRegulation.value = '';
+
+    // 2. Capture and Save the ID
+    if (subModel.id != null) {
+      selectedSubModelId.value = subModel.id!; // store in memory
+      App.subModelId = selectedSubModelId.value; // update app runtime value
+      await AppPreferences.setInt(
+          'selectedSubModelId', selectedSubModelId.value); // persistently
+      print("💾 SubModelId saved: ${selectedSubModelId.value}");
+    }
+
+    // 3. Load associated ECU data
+    loadEcuData().then((_) {
+      print("✅ ECU Data loaded for ID ${subModel.id}: "
+          "${StaticData.ecuInfo.map((e) => e.ecuName).toList()}");
+    });
   }
 
-  // 3. Load associated ECU data
-  loadEcuData().then((_) {
-    print("✅ ECU Data loaded for ID ${subModel.id}: "
-        "${StaticData.ecuInfo.map((e) => e.ecuName).toList()}");
-  });
-}
-Future<void> loadEcuData() async {
-  try {
-    final subModel = selectedSubModel.value;
-    
-    // 1. Safety Check: If no submodel is selected, clear everything and stop
-    if (subModel == null) {
-      print("⚠️ No submodel selected. Clearing ECU info.");
+  Future<void> loadEcuData() async {
+    try {
+      final subModel = selectedSubModel.value;
+
+      // 1. Safety Check: If no submodel is selected, clear everything and stop
+      if (subModel == null) {
+        print("⚠️ No submodel selected. Clearing ECU info.");
+        StaticData.ecuInfo = <EcuDataSet>[];
+        return;
+      }
+
+      print("🔹 Loading ECUs for: ${subModel.name}");
+
+      // 2. Clear previous ECU info IMMEDIATELY
+      // This prevents "Production" data from leaking into "Development"
       StaticData.ecuInfo = <EcuDataSet>[];
-      return;
+
+      if (subModel.ecus == null || subModel.ecus!.isEmpty) {
+        print("⚠️ No ECUs found in the JSON for ${subModel.name}.");
+        return;
+      }
+
+      // 3. Create a temporary local list to process the new data
+      List<EcuDataSet> freshEcuList = [];
+
+      for (var ecu in subModel.ecus!) {
+        freshEcuList.add(EcuDataSet(
+          // Basic Identifiers
+          ecuName: ecu.name ?? 'Unknown ECU',
+          ecuID: ecu.id ?? 0,
+          protocol: ecu.protocol,
+          channelId: ecu.channel,
+
+          // Headers
+          txHeader: ecu.txHeader,
+          rxHeader: ecu.rxHeader,
+
+          // Function Indexes (Crucial for Communication)
+          readDtcIndex: ecu.readDtcFnIndex?.value,
+          clearDtcIndex: ecu.clearDtcFnIndex?.value,
+          seedKeyIndex: ecu.seedkeyalgoFnIndex?.value,
+          writePidIndex: ecu.writeDataFnIndex?.value,
+          iorTestFnIndex: ecu.iorTestFnIndex?.value,
+
+          // Dataset IDs
+          pidDatasetId: ecu.pidDatasets?.firstOrNull?.id,
+          dtcDatasetId: ecu.datasets?.firstOrNull?.id,
+
+          // Context Info
+          modelName: selectedModel.value,
+          submodelName: subModel.name ?? 'Unknown Submodel',
+          modelYear: subModel.modelYear,
+
+          // Specific Configs
+          ecu2: ecu.ecu?.firstOrNull,
+          ffSet: ecu.ffSet,
+          firingSequence: ecu.firingSequence,
+          noOfInjectors: ecu.noOfInjectors,
+        ));
+      }
+
+      // 4. Sort the list: Always put "EMS" (Engine Management System) at the top
+      if (freshEcuList.length > 1) {
+        freshEcuList.sort((a, b) {
+          String nameA = (a.ecuName ?? "").toUpperCase();
+          String nameB = (b.ecuName ?? "").toUpperCase();
+          if (nameA == 'EMS') return -1;
+          if (nameB == 'EMS') return 1;
+          return 0;
+        });
+      }
+
+      // 5. Final Assignment to Static Storage
+      StaticData.ecuInfo = freshEcuList;
+
+      print(
+          '✅ Successfully loaded ${StaticData.ecuInfo.length} ECUs for ${subModel.name}');
+      for (var item in StaticData.ecuInfo) {
+        print('   -> Detected ECU: ${item.ecuName}');
+      }
+    } catch (e, stack) {
+      print('❌ Error in loadEcuData: $e');
+      debugPrintStack(stackTrace: stack);
+      StaticData.ecuInfo = <EcuDataSet>[]; // Clear on error for safety
     }
-
-    print("🔹 Loading ECUs for: ${subModel.name}");
-
-    // 2. Clear previous ECU info IMMEDIATELY
-    // This prevents "Production" data from leaking into "Development"
-    StaticData.ecuInfo = <EcuDataSet>[];
-
-    if (subModel.ecus == null || subModel.ecus!.isEmpty) {
-      print("⚠️ No ECUs found in the JSON for ${subModel.name}.");
-      return;
-    }
-
-    // 3. Create a temporary local list to process the new data
-    List<EcuDataSet> freshEcuList = [];
-
-    for (var ecu in subModel.ecus!) {
-      freshEcuList.add(EcuDataSet(
-        // Basic Identifiers
-        ecuName: ecu.name ?? 'Unknown ECU',
-        ecuID: ecu.id ?? 0,
-        protocol: ecu.protocol,
-        channelId: ecu.channel,
-        
-        // Headers
-        txHeader: ecu.txHeader,
-        rxHeader: ecu.rxHeader,
-        
-        // Function Indexes (Crucial for Communication)
-        readDtcIndex: ecu.readDtcFnIndex?.value,
-        clearDtcIndex: ecu.clearDtcFnIndex?.value,
-        seedKeyIndex: ecu.seedkeyalgoFnIndex?.value,
-        writePidIndex: ecu.writeDataFnIndex?.value,
-        iorTestFnIndex: ecu.iorTestFnIndex?.value,
-        
-        // Dataset IDs
-        pidDatasetId: ecu.pidDatasets?.firstOrNull?.id,
-        dtcDatasetId: ecu.datasets?.firstOrNull?.id,
-        
-        // Context Info
-        modelName: selectedModel.value,
-        submodelName: subModel.name ?? 'Unknown Submodel',
-        modelYear: subModel.modelYear,
-        
-        // Specific Configs
-        ecu2: ecu.ecu?.firstOrNull,
-        ffSet: ecu.ffSet,
-        firingSequence: ecu.firingSequence,
-        noOfInjectors: ecu.noOfInjectors,
-      ));
-    }
-
-    // 4. Sort the list: Always put "EMS" (Engine Management System) at the top
-    if (freshEcuList.length > 1) {
-      freshEcuList.sort((a, b) {
-        String nameA = (a.ecuName ?? "").toUpperCase();
-        String nameB = (b.ecuName ?? "").toUpperCase();
-        if (nameA == 'EMS') return -1;
-        if (nameB == 'EMS') return 1;
-        return 0;
-      });
-    }
-
-    // 5. Final Assignment to Static Storage
-    StaticData.ecuInfo = freshEcuList;
-
-    print('✅ Successfully loaded ${StaticData.ecuInfo.length} ECUs for ${subModel.name}');
-    for (var item in StaticData.ecuInfo) {
-      print('   -> Detected ECU: ${item.ecuName}');
-    }
-
-  } catch (e, stack) {
-    print('❌ Error in loadEcuData: $e');
-    debugPrintStack(stackTrace: stack);
-    StaticData.ecuInfo = <EcuDataSet>[]; // Clear on error for safety
   }
-}
   // Future<void> loadEcuData() async {
   //   try {
   //     final subModel = selectedSubModel.value;
@@ -755,28 +719,28 @@ Future<void> loadEcuData() async {
     }
   }
 
- Future<void> goToJobcardPage() async {
-  try {
-    isLoading.value = true;
+  Future<void> goToJobcardPage() async {
+    try {
+      isLoading.value = true;
 
-    // Show loader
-    if (!(Get.isDialogOpen ?? false)) {
-      Get.dialog(
-        const CommonLoader(message: "Connecting..."),
-        barrierDismissible: false,
-      );
+      // Show loader
+      if (!(Get.isDialogOpen ?? false)) {
+        Get.dialog(
+          const CommonLoader(message: "Connecting..."),
+          barrierDismissible: false,
+        );
+      }
+
+      await Future.delayed(const Duration(milliseconds: 50));
+      await Get.toNamed(Routes.jobCard, arguments: modelList);
+
+      if (Get.isDialogOpen ?? false) Get.back();
+    } catch (e) {
+      // Close loader if exception happens
+      if (Get.isDialogOpen ?? false) Get.back();
+      print("Exception: $e");
+    } finally {
+      isLoading.value = false;
     }
-
-    await Future.delayed(const Duration(milliseconds: 50));
-    await Get.toNamed(Routes.jobCard, arguments: modelList);
-
-    if (Get.isDialogOpen ?? false) Get.back();
-  } catch (e) {
-    // Close loader if exception happens
-    if (Get.isDialogOpen ?? false) Get.back();
-    print("Exception: $e");
-  } finally {
-    isLoading.value = false;
   }
-}
 }
