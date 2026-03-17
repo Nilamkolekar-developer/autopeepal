@@ -18,16 +18,17 @@ class TextStyles {
       fontWeight: FontWeight.bold,
       fontSize: FontSizes.s14);
 
-       static TextStyle get textfieldTextStyle1 => TextStyle(
+  static TextStyle get textfieldTextStyle1 => TextStyle(
       color: Colors.black,
       fontFamily: "OpenSans-Regular",
-      //fontWeight: FontWeight.bold,
+     // fontWeight: FontWeight.w900,
       fontSize: FontSizes.s13);
-        static TextStyle get textfieldTextStyle2 => TextStyle(
+
+  static TextStyle get textfieldTextStyle2 => TextStyle(
       color: Colors.black,
       fontFamily: "OpenSans-Regular",
-      //fontWeight: FontWeight.bold,
-      fontSize: FontSizes.s14);
+      fontWeight: FontWeight.w500,
+      fontSize: FontSizes.s13);
 
   static TextStyle get textfieldTextStyleBold => TextStyle(
       color: Color(0xFF1D2939),
