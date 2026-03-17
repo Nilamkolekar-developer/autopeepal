@@ -1,13 +1,17 @@
-import 'package:flutter/material.dart';
-
 class OemModel {
   int? count;
   dynamic next;
   dynamic previous;
-  List<AllOemModel>? results;
+  List<AllOemModel> results; // non-nullable
   String? message;
 
-  OemModel({this.count, this.next, this.previous, this.results, this.message});
+  OemModel({
+    this.count,
+    this.next,
+    this.previous,
+    required this.results,
+    this.message,
+  });
 
   factory OemModel.fromJson(Map<String, dynamic> json) => OemModel(
         count: json['count'],
@@ -16,22 +20,22 @@ class OemModel {
         results: json['results'] != null
             ? List<AllOemModel>.from(
                 json['results'].map((x) => AllOemModel.fromJson(x)))
-            : null,
-        message: json['message'],
+            : [],
+        message: json['message'] ?? "",
       );
 
   Map<String, dynamic> toJson() => {
         'count': count,
         'next': next,
         'previous': previous,
-        'results': results?.map((x) => x.toJson()).toList(),
+        'results': results.map((x) => x.toJson()).toList(),
         'message': message,
       };
 }
 
 class AllOemModel {
   int? id;
-  ValueNotifier<String?> name = ValueNotifier(null);
+  String? name;
   int? admin;
   String? oemFile;
   dynamic color;
@@ -40,15 +44,13 @@ class AllOemModel {
 
   AllOemModel({
     this.id,
-    String? name,
+    this.name,
     this.admin,
     this.oemFile,
     this.color,
     this.appName,
     this.isActive,
-  }) {
-    this.name.value = name;
-  }
+  }) {}
 
   factory AllOemModel.fromJson(Map<String, dynamic> json) => AllOemModel(
         id: json['id'],
@@ -62,7 +64,7 @@ class AllOemModel {
 
   Map<String, dynamic> toJson() => {
         'id': id,
-        'name': name.value,
+        'name': name,
         'admin': admin,
         'oem_file': oemFile,
         'color': color,

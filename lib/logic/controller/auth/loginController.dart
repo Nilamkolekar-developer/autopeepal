@@ -953,15 +953,18 @@ class LoginController extends GetxController {
           iorLocalList.isEmpty ||
           actuatorLocalList.isEmpty ||
           freezeFrameLocalList.isEmpty) {
-        Get.dialog(
-          CustomPopup(
-            title: "Failed",
-            message:
-                "Local data not completely updated.\nTry to login with internet",
-            onButtonPressed: () => Get.back(),
-          ),
-          barrierDismissible: false,
-        );
+       if (Get.isDialogOpen ?? false) {
+  Get.back(); // close loader first
+}
+
+await Get.dialog(
+  CustomPopup(
+    title: "Failed",
+    message: "Local data not completely updated.\nTry to login with internet",
+    onButtonPressed: () => Get.back(),
+  ),
+  barrierDismissible: false,
+);
 
         // Clear incomplete cache
         await saveLocalData!.saveData("MODEL_LocalList", "");

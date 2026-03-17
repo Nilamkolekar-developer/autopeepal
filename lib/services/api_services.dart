@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/api/app_envirments.dart';
 import 'package:autopeepal/api/app_urls.dart';
-import 'package:autopeepal/app.dart';
 import 'package:autopeepal/models/actuatorTest_model.dart';
 import 'package:autopeepal/models/all_models.dart';
 import 'package:autopeepal/models/checkJobCard_model.dart';
@@ -18,9 +17,11 @@ import 'package:autopeepal/models/iotTest_model.dart';
 import 'package:autopeepal/models/jobCard_model.dart';
 import 'package:autopeepal/models/listNumber_model.dart';
 import 'package:autopeepal/models/liveParameter_model.dart';
+import 'package:autopeepal/models/oem_model.dart';
 import 'package:autopeepal/models/pidLiveRecord_model.dart';
 import 'package:autopeepal/models/registerDongle_model.dart';
 import 'package:autopeepal/models/remoteJobCard_model.dart';
+import 'package:autopeepal/models/signIn_model.dart';
 import 'package:autopeepal/models/unlockecu_model.dart';
 import 'package:autopeepal/models/updateFirmware_model.dart';
 import 'package:autopeepal/routes/routes_string.dart';
@@ -56,8 +57,11 @@ class AuthApiService {
       print("[LOGIN] Body: ${response.body}");
 
       if (response.statusCode == 200) {
-        loginResponse = UserResModel.fromJson(jsonDecode(response.body));
+        final responseJson = jsonDecode(response.body);
 
+        loginResponse = UserResModel.fromJson(responseJson);
+
+        // ✅ SAVE TOKENS
         if (loginResponse.token != null) {
           await AppPreferences.saveTokens(
             accessToken: loginResponse.token?.access ?? '',
@@ -65,12 +69,23 @@ class AuthApiService {
           );
         }
 
+        // ✅ SAVE USER
         await AppPreferences.saveUser(
           userId: loginResponse.userId.toString(),
           name:
               "${loginResponse.firstName ?? ''} ${loginResponse.lastName ?? ''}",
           email: loginResponse.user ?? '',
         );
+
+        // 🔥 🔥 ADD THIS (VERY IMPORTANT)
+        final oemId = responseJson['profile']?['oem']?['id'];
+
+        if (oemId != null) {
+          await AppPreferences.setInt("oemId", oemId);
+          print("[LOGIN] OEM ID saved: $oemId");
+        } else {
+          print("[LOGIN ERROR] OEM ID not found in response");
+        }
 
         loginResponse.message = "success";
       } else if (response.statusCode == 401) {
@@ -98,46 +113,9 @@ class AuthApiService {
     return loginResponse;
   }
 
-  static Future<UserResModel> login1(UserModel model) async {
-    final url = Uri.parse("${AppEnvironment.baseUrl}${AppURLs.login}");
-    UserResModel loginResponse = UserResModel();
-
-    try {
-      final response = await http
-          .post(
-            url,
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode(model.toJson()),
-          )
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        loginResponse = UserResModel.fromJson(decoded);
-        loginResponse.message = "success";
-
-        // 🔹 CRITICAL: Update memory IMMEDIATELY so sync doesn't get 'null'
-        App.oemId = loginResponse.profile?.oem?.id ?? 0;
-        App.jwtToken = loginResponse.token?.access ?? '';
-
-        // Persist for offline/restart
-        await AppPreferences.saveTokens(
-          accessToken: loginResponse.token?.access ?? '',
-          refreshToken: loginResponse.token?.refresh ?? '',
-        );
-        await AppPreferences.setInt("oemId", App.oemId);
-      } else {
-        loginResponse.message =
-            "Error ${response.statusCode}: ${response.reasonPhrase}";
-      }
-    } catch (e) {
-      loginResponse.message = "Network Error: $e";
-    }
-    return loginResponse;
-  }
-
   static Future<AllModelsModel> getAllModels([int? oemId]) async {
     final allModels = AllModelsModel();
+
     try {
       final connectivity = await Connectivity().checkConnectivity();
       if (connectivity == ConnectivityResult.none) {
@@ -145,8 +123,15 @@ class AuthApiService {
         return allModels;
       }
 
-      // If oemId is null, fetch from saved preferences
+      // Try to get from parameter OR local storage
       oemId ??= await AppPreferences.getInt("oemId");
+
+      // ❗ CRITICAL FIX
+      if (oemId == null) {
+        allModels.message = "OEM ID is missing. Please login again.";
+        print("[ERROR] OEM ID is NULL. Skipping API call.");
+        return allModels;
+      }
 
       final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.allModels(oemId));
 
@@ -172,6 +157,7 @@ ${response.body}
     } catch (e) {
       allModels.message = "Exception in getAllModels(): $e";
     }
+
     return allModels;
   }
 
@@ -382,6 +368,38 @@ STATUS CODE: ${response.statusCode}
     }
 
     return jobCardNumber;
+  }
+
+  Future<OemModel> getAllOem() async {
+    OemModel oemModel = OemModel(results: []);
+
+    try {
+      // Check internet connectivity
+      var connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        oemModel.message = "Please check internet connection.";
+        return oemModel;
+      }
+
+      final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.allOem);
+      final response = await http.get(url);
+
+      final responseData = response.body;
+      print("URL: $url\nRESPONSE: $responseData");
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        oemModel = OemModel.fromJson(jsonDecode(responseData));
+        oemModel.message = "success";
+      } else {
+        oemModel.message =
+            "${response.statusCode}\n${deserializeErrorModel(responseData)}";
+      }
+    } catch (ex, stackTrace) {
+      oemModel.message =
+          "Exception in ApiServices.getAllOem(): $ex\n$stackTrace";
+    }
+
+    return oemModel;
   }
 
   Future<List<JobCardModel>?> getJobCard(String filename) async {
@@ -881,6 +899,48 @@ STATUS CODE: ${response.statusCode}
       print(stackTrace);
       return null;
     }
+  }
+
+  Future<Map<bool, String>> registerUser(SigninModel model) async {
+    Map<bool, String> retResponse = {};
+
+    try {
+      // Check internet connectivity
+      var connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult == ConnectivityResult.none) {
+        retResponse[false] = "Please connect to internet.";
+        return retResponse;
+      }
+
+      // Serialize model to JSON
+      final jsonBody = jsonEncode(model.toJson());
+
+      // Prepare POST request
+      final url = Uri.parse(AppEnvironment.baseUrl + AppURLs.registerUser);
+
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: jsonBody,
+          )
+          .timeout(const Duration(seconds: 10));
+
+      final responseData = response.body;
+      print("URL: $url\nREQUEST: $jsonBody\nRESPONSE: $responseData");
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        retResponse[true] = "User Created Successfully";
+      } else {
+        retResponse[false] =
+            "${response.statusCode}\n${deserializeErrorModel(responseData)}";
+      }
+    } catch (ex, stackTrace) {
+      retResponse[false] =
+          "Exception @ApiServices.registerUser(): $ex\n$stackTrace";
+    }
+
+    return retResponse;
   }
 
   Future<RegisterDongleResponse?> registerDongle(

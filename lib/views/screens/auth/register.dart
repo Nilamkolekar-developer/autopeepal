@@ -1,4 +1,5 @@
 import 'package:autopeepal/common_widgets/customDropdown.dart';
+import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/auth/registerController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
@@ -8,7 +9,8 @@ import 'package:get/get.dart';
 
 class RegisterScreen extends StatelessWidget {
   RegisterScreen({super.key});
-  final controller = Get.put(Registercontroller());
+  final controller = Get.put(RegistrationController());
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -25,86 +27,218 @@ class RegisterScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Scrollable form
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildFieldWithLabel("Enter First Name",
-                        hint: "Enter first name"),
-                    C15(),
-                    _buildFieldWithLabel("Enter Last Name",
-                        hint: "Enter last name"),
-                    C15(),
-                    _buildFieldWithLabel("Enter Email ID",
-                        keyboardType: TextInputType.emailAddress,
-                        hint: "Enter email Id"),
-                    C15(),
-                    _buildFieldWithLabel("Enter Mobile Number",
-                        keyboardType: TextInputType.phone,
-                        hint: "Enter mobile number"),
-                    C15(),
-                    _buildFieldWithLabel("Enter Password",
-                        obscureText: true, hint: "Enter password"),
-                    C15(),
-                    _buildFieldWithLabel("Confirm Password",
-                        obscureText: true, hint: "Confirm Password"),
-                    C15(),
-                    CustomDropdownTextField1(
-                      selectedValue: controller.selectedOEM,
-                      items: controller.oemList,
-                      title: "Select OEM",
-                      hint: "Select OEM",
+                    _buildFieldWithLabel(
+                      "Enter First Name",
+                      hint: "Enter first name",
+                      onChanged: (v) => controller.firstName.value = v,
                     ),
                     C15(),
-                    CustomDropdownTextField1(
-                      selectedValue: controller.selectedWorkshopGroup,
-                      items: controller.workshopGroupList,
-                      title: "Select Workshop Group",
-                      hint: "Select Workshop Group",
+                    _buildFieldWithLabel(
+                      "Enter Last Name",
+                      hint: "Enter last name",
+                      onChanged: (v) => controller.lastName.value = v,
                     ),
                     C15(),
-                    CustomDropdownTextField1(
-                      selectedValue: controller.selectedCity,
-                      items: controller.cityList,
-                      title: "Select City",
-                      hint: "Select City",
+                    _buildFieldWithLabel(
+                      "Enter Email ID",
+                      keyboardType: TextInputType.emailAddress,
+                      hint: "Enter email Id",
+                      onChanged: (v) => controller.email.value = v,
                     ),
                     C15(),
-                    CustomDropdownTextField1(
-                      selectedValue: controller.selectedWorkshop,
-                      items: controller.workshopList,
-                      title: "Select Workshop",
-                      hint: "Select Workshop",
+                    _buildFieldWithLabel(
+                      "Enter Mobile Number",
+                      keyboardType: TextInputType.phone,
+                      hint: "Enter mobile number",
+                      onChanged: (v) => controller.mobileNumber.value = v,
                     ),
+                    C15(),
+                    _buildFieldWithLabel(
+                      "Enter Password",
+                      obscureText: true,
+                      hint: "Enter password",
+                      onChanged: (v) => controller.password.value = v,
+                    ),
+                    C15(),
+                    _buildFieldWithLabel(
+                      "Confirm Password",
+                      obscureText: true,
+                      hint: "Confirm Password",
+                      onChanged: (v) => controller.confirmPassword.value = v,
+                    ),
+                    C15(),
+                    Obx(() => CustomDropdownTextField1(
+                          selectedValue: controller.selectedOem,
+                          items: controller.oemList
+                              .map((e) => e.name ?? "")
+                              .toList(),
+                          label: "Select OEM",
+                          dialogTitle: "Select OEM",
+                          hint: "Select OEM",
+                          onItemSelected: (name) {
+                            // Find the full object and trigger the command logic
+                            final selected = controller.oemList
+                                .firstWhere((e) => e.name == name);
+                            controller.oemListCommand(selected);
+                          },
+                          title: '',
+                        )),
+                    C15(),
+                    Obx(() => CustomDropdownTextField1(
+                          selectedValue: controller.selectedWorkshopGroup,
+                          items: controller.workshopGroupList
+                              .map((e) => e.workshopsGroupName ?? "")
+                              .toList(), // <-- use workshopGroupList
+                          label: "Select Workshop Group",
+                          dialogTitle: "Select Workshop Group",
+                          hint: "Select Workshop Group",
+                          onItemSelected: (name) {
+                            final selected = controller.workshopGroupList
+                                .firstWhere(
+                                    (e) => e.workshopsGroupName == name);
+                            controller.workShopGroupListCommand(selected);
+                          },
+                          title: '',
+                        )),
+                    C15(),
+                    Obx(() => CustomDropdownTextField1(
+                          selectedValue: controller.selectedCity,
+                          items: controller.cityList
+                              .map((e) => e.city ?? "")
+                              .toList(),
+                          label: "Select City",
+                          dialogTitle: "Select City",
+                          hint: "Select City",
+
+                          // 🔥 VALIDATION HERE
+                          onBeforeTap: () async {
+                            if (controller
+                                .selectedWorkshopGroup.value.isEmpty) {
+                              Get.dialog(
+                                CustomPopup(
+                                  title: "Alert",
+                                  message:
+                                      "Please select Workshop Group first.",
+                                  onButtonPressed: () => Get.back(),
+                                ),
+                                barrierDismissible: false,
+                              );
+                              return false;
+                            }
+
+                            if (controller.cityList.isEmpty) {
+                              Get.dialog(
+                                CustomPopup(
+                                  title: "Alert",
+                                  message: "No cities available.",
+                                  onButtonPressed: () => Get.back(),
+                                ),
+                                barrierDismissible: false,
+                              );
+                              return false;
+                            }
+
+                            return true; // ✅ allow open
+                          },
+
+                          onItemSelected: (name) {
+                            final selected = controller.cityList
+                                .firstWhere((e) => e.city == name);
+                            controller.cityModelListCommand(selected);
+                          },
+                          title: '',
+                        )),
+                    C15(),
+                  Obx(() => CustomDropdownTextField1(
+  selectedValue: controller.selectedWorkshop,
+  items: controller.workshopList
+      .map((e) => e.name ?? "")
+      .toList(),
+  label: "Select Workshop",
+  dialogTitle: "Select Workshop",
+  hint: "Select Workshop",
+
+  // 🔥 SAME VALIDATION LIKE CITY
+  onBeforeTap: () async {
+    if (controller.selectedWorkshopGroup.value.isEmpty) {
+      Get.dialog(
+        CustomPopup(
+          title: "Alert",
+          message: "Please select Workshop Group first.",
+          onButtonPressed: () => Get.back(),
+        ),
+        barrierDismissible: false,
+      );
+      return false;
+    }
+
+    if (controller.selectedCity.value.isEmpty) {
+      Get.dialog(
+        CustomPopup(
+          title: "Alert",
+          message: "Please select City first.",
+          onButtonPressed: () => Get.back(),
+        ),
+        barrierDismissible: false,
+      );
+      return false;
+    }
+
+    if (controller.workshopList.isEmpty) {
+      Get.dialog(
+        CustomPopup(
+          title: "Alert",
+          message: "No workshops available.",
+          onButtonPressed: () => Get.back(),
+        ),
+        barrierDismissible: false,
+      );
+      return false;
+    }
+
+    return true; // ✅ allow open
+  },
+
+  onItemSelected: (name) {
+    final selected = controller.workshopList
+        .firstWhere((e) => e.name == name);
+    controller.workShopListCommand(selected);
+  },
+  title: '',
+)),
                     C25(),
                   ],
                 ),
               ),
             ),
-
             Center(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFFF7A18),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 60 // controls height naturally
-                      ),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadiusGeometry.circular(6)),
-                ),
-                onPressed: () {},
-                child: const Text(
-                  'Submit',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontFamily: "OpenSans-SemiBold",
-                    color: Colors.black,
-                  ),
-                ),
-              ),
+              child: Obx(() => ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF7A18),
+                      padding: const EdgeInsets.symmetric(horizontal: 60),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                    ),
+                    onPressed:
+                        controller.isBusy.value ? null : controller.submit,
+                    child: controller.isBusy.value
+                        ? const CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2)
+                        : const Text(
+                            'Submit',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontFamily: "OpenSans-SemiBold",
+                              color: Colors.black,
+                            ),
+                          ),
+                  )),
             ),
           ],
         ),
@@ -116,7 +250,8 @@ class RegisterScreen extends StatelessWidget {
     String label, {
     TextInputType keyboardType = TextInputType.text,
     bool obscureText = false,
-    String hint = "", // Add hint parameter
+    String hint = "",
+    required void Function(String) onChanged,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +259,8 @@ class RegisterScreen extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            fontSize: 14,
             color: Colors.black,
             fontFamily: "OpenSans-Regular",
           ),
@@ -135,9 +271,10 @@ class RegisterScreen extends StatelessWidget {
           cursorColor: Colors.black,
           keyboardType: keyboardType,
           obscureText: obscureText,
+          onChanged: onChanged,
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyles.hintStyle1, // Apply your custom hint style
+            hintStyle: TextStyles.hintStyle1,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(5),
               borderSide: BorderSide(color: AppColors.primaryColor),
@@ -148,9 +285,7 @@ class RegisterScreen extends StatelessWidget {
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(5),
-              borderSide: BorderSide(
-                color: AppColors.primaryColor,
-              ),
+              borderSide: BorderSide(color: AppColors.primaryColor),
             ),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
