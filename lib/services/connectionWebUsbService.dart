@@ -9,92 +9,203 @@ import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:get/get.dart';
 import 'package:libserialport/libserialport.dart';
+import 'package:ecu_seedkey/ecu_seedkey.dart';
 
 class ConnectionUSBWindows {
   SerialPort? serialPort;
   dynamic dongleCommWin;
   dynamic dSDiagnostic;
 
+  // Future<bool> connectUsb(VCIType vciType) async {
+  //   try {
+  //     final portNames = SerialPort.availablePorts;
+  //     String? targetPortName;
+
+  //     for (var name in portNames) {
+  //       final tempPort = SerialPort(name);
+  //       final description = tempPort.description ?? "";
+  //       if (description.contains("Silicon Labs CP210x") ||
+  //           description.contains("CH340")) {
+  //         targetPortName = name;
+  //         break;
+  //       }
+  //     }
+
+  //     if (targetPortName == null) return false;
+  //     final isCH340 =
+  //         (SerialPort(targetPortName).description ?? "").contains("CH340");
+  //     int baudRate = isCH340 ? 115200 : 460800;
+  //     final comm = Get.put(CommController());
+  //     await comm.connectDesktopUsb(targetPortName, baudRate);
+
+  //     if (comm.isConnected.value) {
+  //       print("✅ Serial device linked to CommController on $targetPortName.");
+  //       return true;
+  //     }
+  //     return false;
+  //   } catch (e) {
+  //     print("🔥 Error connecting: $e");
+  //     return false;
+  //   }
+  // }
+
   Future<bool> connectUsb(VCIType vciType) async {
-    try {
-      final portNames = SerialPort.availablePorts;
-      String? targetPortName;
+  try {
+    print("🔍 Checking available serial ports...");
+    final portNames = SerialPort.availablePorts;
+    print("📋 Available ports: $portNames");
 
-      for (var name in portNames) {
-        final tempPort = SerialPort(name);
-        final description = tempPort.description ?? "";
-        if (description.contains("Silicon Labs CP210x") ||
-            description.contains("CH340")) {
-          targetPortName = name;
-          break;
-        }
+    String? targetPortName;
+
+    for (var name in portNames) {
+      final tempPort = SerialPort(name);
+      final description = tempPort.description ?? "";
+      print("🔹 Port: $name, Description: $description");
+
+      if (description.contains("Silicon Labs CP210x") ||
+          description.contains("CH340")) {
+        targetPortName = name;
+        print("✅ Target port found: $targetPortName");
+        break;
       }
+    }
 
-      if (targetPortName == null) return false;
-      final isCH340 =
-          (SerialPort(targetPortName).description ?? "").contains("CH340");
-      int baudRate = isCH340 ? 115200 : 460800;
-      final comm = Get.put(CommController());
-      await comm.connectDesktopUsb(targetPortName, baudRate);
-
-      if (comm.isConnected.value) {
-        print("✅ Serial device linked to CommController on $targetPortName.");
-        return true;
-      }
-      return false;
-    } catch (e) {
-      print("🔥 Error connecting: $e");
+    if (targetPortName == null) {
+      print("❌ No compatible USB port found.");
       return false;
     }
+
+    final isCH340 =
+        (SerialPort(targetPortName).description ?? "").contains("CH340");
+    int baudRate = isCH340 ? 115200 : 460800;
+    print("⚡ Using baud rate: $baudRate");
+
+    final comm = Get.put(CommController());
+    print("🔌 Attempting to connect via CommController...");
+    await comm.connectDesktopUsb(targetPortName, baudRate);
+
+    if (comm.isConnected.value) {
+      print("✅ Serial device linked to CommController on $targetPortName.");
+      return true;
+    } else {
+      print("❌ Connection failed after attempting.");
+    }
+
+    return false;
+  } catch (e) {
+    print("🔥 Error connecting: $e");
+    return false;
   }
+}
+
+  // Future<bool> connectUsbForConfig() async {
+  //   try {
+  //     final portNames = SerialPort.availablePorts;
+  //     String? targetPortName;
+
+  //     for (var name in portNames) {
+  //       final tempPort = SerialPort(name);
+  //       if ((tempPort.description ?? "").contains("Silicon Labs CP210x")) {
+  //         targetPortName = name;
+  //         break;
+  //       }
+  //     }
+
+  //     if (targetPortName == null) {
+  //       print("❌ No serial device found.");
+  //       return false;
+  //     }
+  //     final comm = Get.put(CommController());
+  //     await comm.connectDesktopUsb(targetPortName, 460800);
+
+  //     if (!comm.isConnected.value) {
+  //       print("❌ CommController failed to connect to $targetPortName");
+  //       return false;
+  //     }
+  //     print("✅ Serial device linked via CommController for Config.");
+  //     dongleCommWin = DongleComm(channelId: "00", isChannel: true);
+  //     dongleCommWin!.comm = comm;
+  //     dSDiagnostic = UDSDiagnostic(dongleCommWin!,ECUCalculateSeedkey());
+
+  //     print("🔐 Requesting Security Access...");
+  //     Uint8List? securityAccess = await dongleCommWin!.securityAccess();
+
+  //     if (securityAccess != null &&
+  //         securityAccess.length > 3 &&
+  //         securityAccess[3] == 0x00) {
+  //       print("✅ Security Access Success!");
+  //       App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+  //       return true;
+  //     } else {
+  //       print("❌ Security Access Response: ${securityAccess ?? 'NULL'}");
+  //       return false;
+  //     }
+  //   } catch (e) {
+  //     print("🔥 Error in connectUsbForConfig: $e");
+  //     return false;
+  //   }
+  // }
 
   Future<bool> connectUsbForConfig() async {
-    try {
-      final portNames = SerialPort.availablePorts;
-      String? targetPortName;
+  try {
+    print("🔍 Checking available serial ports...");
+    final portNames = SerialPort.availablePorts;
+    print("📋 Available ports: $portNames");
 
-      for (var name in portNames) {
-        final tempPort = SerialPort(name);
-        if ((tempPort.description ?? "").contains("Silicon Labs CP210x")) {
-          targetPortName = name;
-          break;
-        }
+    String? targetPortName;
+
+    for (var name in portNames) {
+      final tempPort = SerialPort(name);
+      final desc = tempPort.description ?? "";
+      print("🔹 Port: $name, Description: $desc");
+
+      if (desc.contains("Silicon Labs CP210x")) {
+        targetPortName = name;
+        print("✅ Target port found for config: $targetPortName");
+        break;
       }
+    }
 
-      if (targetPortName == null) {
-        print("❌ No serial device found.");
-        return false;
-      }
-      final comm = Get.put(CommController());
-      await comm.connectDesktopUsb(targetPortName, 460800);
-
-      if (!comm.isConnected.value) {
-        print("❌ CommController failed to connect to $targetPortName");
-        return false;
-      }
-      print("✅ Serial device linked via CommController for Config.");
-      dongleCommWin = DongleComm(channelId: "00", isChannel: true);
-      dongleCommWin!.comm = comm;
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
-
-      print("🔐 Requesting Security Access...");
-      Uint8List? securityAccess = await dongleCommWin!.securityAccess();
-
-      if (securityAccess != null &&
-          securityAccess.length > 3 &&
-          securityAccess[3] == 0x00) {
-        print("✅ Security Access Success!");
-        App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
-        return true;
-      } else {
-        print("❌ Security Access Response: ${securityAccess ?? 'NULL'}");
-        return false;
-      }
-    } catch (e) {
-      print("🔥 Error in connectUsbForConfig: $e");
+    if (targetPortName == null) {
+      print("❌ No serial device found for config.");
       return false;
     }
+
+    final comm = Get.put(CommController());
+    print("🔌 Attempting to connect via CommController to $targetPortName...");
+    await comm.connectDesktopUsb(targetPortName, 460800);
+
+    if (!comm.isConnected.value) {
+      print("❌ CommController failed to connect to $targetPortName");
+      return false;
+    }
+
+    print("✅ Serial device linked via CommController for Config.");
+
+    // Initialize dongleCommWin
+    dongleCommWin = DongleComm(channelId: "00", isChannel: true);
+    dongleCommWin!.comm = comm;
+    dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
+
+    print("🔐 Requesting Security Access from dongle...");
+    Uint8List? securityAccess = await dongleCommWin!.securityAccess();
+    print("📨 Security Access Response: ${securityAccess != null ? securityAccess.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ') : 'NULL'}");
+
+    if (securityAccess != null &&
+        securityAccess.length > 3 &&
+        securityAccess[3] == 0x00) {
+      print("✅ Security Access Success!");
+      App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+      return true;
+    } else {
+      print("❌ Security Access Failed or Invalid Response.");
+      return false;
+    }
+  } catch (e) {
+    print("🔥 Error in connectUsbForConfig: $e");
+    return false;
   }
+}
 
   Future<List<String>> getDongleMacID({String channelId = '00'}) async {
     try {
@@ -104,7 +215,7 @@ class ConnectionUSBWindows {
       }
       dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
       dongleCommWin!.comm = comm;
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
       print("🔐 Requesting Security Access...");
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
 

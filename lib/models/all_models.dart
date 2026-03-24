@@ -285,3 +285,83 @@ class ModelResult {
   }
 }
 
+class FlashEcusModel {
+  int? id;
+  String? ecuName;
+  double? opacity;
+  List<File>? flashFileList;
+  List<EcuMapFile>? ecuMapFile;
+  String? seedkeyalgoFnIndexValues;
+  Ecu2? ecu2;
+  String? txHeader;
+  String? rxHeader;
+  Protocol? protocol;
+
+  FlashEcusModel({
+    this.id,
+    this.ecuName,
+    this.opacity,
+    this.flashFileList,
+    this.ecuMapFile,
+    this.seedkeyalgoFnIndexValues,
+    this.ecu2,
+    this.txHeader,
+    this.rxHeader,
+    this.protocol, 
+  });
+
+  /// 🔹 FROM JSON
+  factory FlashEcusModel.fromJson(Map<String, dynamic> json) {
+    return FlashEcusModel(
+      id: json['id'],
+      ecuName: json['ecu_name'],
+      opacity: (json['opacity'] ?? 1).toDouble(),
+
+      flashFileList: json['flash_file_list'] != null
+          ? List<File>.from(
+              json['flash_file_list']
+                  .map((x) => File.fromJson(x)))
+          : [],
+
+      ecuMapFile: json['ecu_map_file'] != null
+          ? List<EcuMapFile>.from(
+              json['ecu_map_file']
+                  .map((x) => EcuMapFile.fromJson(x)))
+          : [],
+
+      seedkeyalgoFnIndexValues:
+          json['SeedkeyalgoFnIndex_Values'],
+
+      ecu2: json['ecu2'] != null
+          ? Ecu2.fromJson(json['ecu2'])
+          : null,
+
+      txHeader: json['txHeader'],
+      rxHeader: json['rxHeader'],
+
+      protocol: json['protocol'] != null
+          ? Protocol.fromJson(json['protocol'])
+          : null,
+    );
+  }
+
+  /// 🔹 TO JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'ecu_name': ecuName,
+      'opacity': opacity,
+      'flash_file_list':
+          flashFileList?.map((e) => e.toJson()).toList(),
+      'ecu_map_file':
+          ecuMapFile?.map((e) => e.toJson()).toList(),
+      'SeedkeyalgoFnIndex_Values':
+          seedkeyalgoFnIndexValues,
+      'ecu2': ecu2?.toJson(),
+      'txHeader': txHeader,
+      'rxHeader': rxHeader,
+      'protocol': protocol?.toJson(),
+    };
+  }
+}
+

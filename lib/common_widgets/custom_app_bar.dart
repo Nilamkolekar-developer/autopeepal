@@ -171,9 +171,9 @@ AppBar appBar({
 
 class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
-  final String? subtitle;
+  //final String? subtitle;
   final bool centerTitle;
-
+final Widget? subtitle;
   const CommonAppBar({
     super.key,
     required this.title,
@@ -189,22 +189,34 @@ class CommonAppBar extends StatelessWidget implements PreferredSizeWidget {
       iconTheme: const IconThemeData(color: Colors.white),
       title: Text(title, style: TextStyle(color: Colors.white, fontSize: 20,fontWeight: FontWeight.bold),),
       centerTitle: centerTitle,
-      bottom: subtitle != null
-          ? PreferredSize(
-              preferredSize: const Size.fromHeight(47),
-              child: Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Text(
-                  subtitle!,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    color: Colors.white70,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            )
-          : null,
+    //  bottom: subtitle != null
+    // ? PreferredSize(
+    //     preferredSize: const Size.fromHeight(47),
+    //     child: Padding(
+    //       padding: const EdgeInsets.only(bottom: 10),
+    //       child: subtitle is Widget
+    //           ? subtitle as Widget
+    //           : Text(
+    //               subtitle!,
+    //               style: const TextStyle(
+    //                 fontSize: 16,
+    //                 color: Colors.white70,
+    //                 fontWeight: FontWeight.bold,
+    //               ),
+    //             ),
+    //     ),
+    //   )
+    
+          // : null,
+          bottom: subtitle != null
+    ? PreferredSize(
+        preferredSize: const Size.fromHeight(47),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: subtitle!,
+        ),
+      )
+    : null,
     );
   }
 

@@ -11,12 +11,12 @@ import 'package:autopeepal/models/doipConfigFile_model.dart';
 import 'package:autopeepal/models/staticData.dart';
 import 'package:autopeepal/models/wifiDevice_model.dart';
 import 'package:autopeepal/routes/routes_string.dart';
-import 'package:autopeepal/services/api_services.dart';
 import 'package:autopeepal/services/connectionUsbService.dart';
 import 'package:autopeepal/services/connectionWebUsbService.dart';
 import 'package:autopeepal/services/connectionWifiService.dart';
 import 'package:autopeepal/services/hotspot_service.dart';
 import 'package:autopeepal/services/local_storage_services/localStorage_service.dart';
+import 'package:autopeepal/utils/save_local_data.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -67,6 +67,8 @@ class DashboardController extends GetxController {
     AppPreferences.setSelectedVCI(vci.name);
   }
 
+  
+
   Future<void> loadAppInfo() async {
     final info = await PackageInfo.fromPlatform();
     appName.value = info.appName;
@@ -102,40 +104,31 @@ class DashboardController extends GetxController {
 
   Future<void> initModelList() async {
     try {
-      String? localData = await localStorage.getData('MODEL_LocalList');
+      isLoading.value = true;
 
-      if (localData == null || localData.isEmpty) {
-        print("No local data found. Fetching from API...");
-        AllModelsModel apiData = await AuthApiService.getAllModels();
-        if (apiData.message == "success" && apiData.results != null) {
-          await localStorage.saveData(
-              'MODEL_LocalList', jsonEncode(apiData.toJson()));
-          localData = jsonEncode(apiData.toJson());
-        } else {
-          print("❌ API failed: ${apiData.message}");
-          return;
-        }
-      } else {
-        print("🔹 Loaded models from local storage.");
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      final modelLocalList = SaveLocalData().getData("MODEL_LocalList");
+
+      print("[DEBUG] MODEL_LocalList: $modelLocalList");
+
+      final allModels = AllModelsModel.fromJson(
+        jsonDecode(await modelLocalList),
+      );
+
+      if (allModels.results == null || allModels.results!.isEmpty) {
+        print("[ERROR] results empty");
+        return;
       }
 
-      AllModelsModel allModels = AllModelsModel.fromJson(jsonDecode(localData));
-      modelList.value = allModels.results ?? [];
+      modelList.value = List.from(allModels.results!);
 
-      // ================= DEBUG PRINT START =================
-      print("------- MODEL LIST DEBUG -------");
-      for (var model in modelList) {
-        print("📦 Model: ${model.name}");
-        if (model.subModels != null) {
-          for (var sub in model.subModels!) {
-            print("   ID: ${sub.id} | SubModel: ${sub.name}");
-          }
-        }
-      }
-      print("--------------------------------");
-      // ================= DEBUG PRINT END =================
-    } catch (e) {
-      print("❌ Error loading model list: $e");
+      print("[DEBUG] ModelList Loaded: ${modelList.length}");
+    } catch (e, stackTrace) {
+      print("[EXCEPTION] $e");
+      print("[STACK] $stackTrace");
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -264,71 +257,9 @@ class DashboardController extends GetxController {
       StaticData.ecuInfo = <EcuDataSet>[]; // Clear on error for safety
     }
   }
-  // Future<void> loadEcuData() async {
-  //   try {
-  //     final subModel = selectedSubModel.value;
-  //     if (subModel == null) return;
-
-  //     // Save SubModel ID in preferences
-  //     if (subModel.id != null) {
-  //       await AppPreferences.setInt('selectedSubModelId', subModel.id!);
-  //     }
-
-  //     // Clear previous ECU info
-  //     StaticData.ecuInfo = <EcuDataSet>[];
-
-  //     if (subModel.ecus == null || subModel.ecus!.isEmpty) {
-  //       print("⚠️ No ECUs found for this submodel.");
-  //       return;
-  //     }
-
-  //     // Add all ECUs
-  //     for (var ecu in subModel.ecus!) {
-  //       StaticData.ecuInfo.add(EcuDataSet(
-  //         readDtcIndex: ecu.readDtcFnIndex?.value,
-  //         pidDatasetId: ecu.pidDatasets?.firstOrNull?.id,
-  //         clearDtcIndex: ecu.clearDtcFnIndex?.value,
-  //         dtcDatasetId: ecu.datasets?.firstOrNull?.id,
-  //         ecuName: ecu.name ?? 'Unknown ECU',
-  //         seedKeyIndex: ecu.seedkeyalgoFnIndex?.value,
-  //         writePidIndex: ecu.writeDataFnIndex?.value,
-  //         txHeader: ecu.txHeader,
-  //         rxHeader: ecu.rxHeader,
-  //         protocol: ecu.protocol,
-  //         ecuID: ecu.id ?? 0,
-  //         iorTestFnIndex: ecu.iorTestFnIndex?.value,
-  //         channelId: ecu.channel,
-  //         modelName: selectedModel.value,
-  //         submodelName: subModel.name ?? 'Unknown Submodel',
-  //         modelYear: subModel.modelYear,
-  //         ecu2: ecu.ecu?.firstOrNull,
-  //         ffSet: ecu.ffSet,
-  //         firingSequence: ecu.firingSequence,
-  //         noOfInjectors: ecu.noOfInjectors,
-  //       ));
-  //     }
-
-  //     // Sort: move "EMS" to top
-  //     if (StaticData.ecuInfo.length > 1) {
-  //       StaticData.ecuInfo.sort((a, b) {
-  //         if ((a.ecuName!.toUpperCase()) == 'EMS') return -1;
-  //         if ((b.ecuName!.toUpperCase()) == 'EMS') return 1;
-  //         return 0;
-  //       });
-  //     }
-
-  //     print('✅ Loaded ${StaticData.ecuInfo.length} ECUs for ${subModel.name}');
-  //     for (var ecu in StaticData.ecuInfo) {
-  //       print(' - ${ecu.ecuName}');
-  //     }
-  //   } catch (e) {
-  //     print('❌ Error loading ECU data: $e');
-  //   }
-  // }
 
   Future<void> wifiConnect(BuildContext context) async {
     try {
-      // 🔴 Validation: Model & SubModel
       if (selectedModel.value.isEmpty || selectedSubModel.value == null) {
         await showDialog(
           context: context,

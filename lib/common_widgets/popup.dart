@@ -4,14 +4,22 @@ import 'package:flutter/material.dart';
 class CustomPopup extends StatelessWidget {
   final String title;
   final String message;
-  final String buttonText;
+  final String confirmText;
   final VoidCallback? onButtonPressed;
+  final VoidCallback? onConfirm;
+  final bool showCancel;
+  final String cancelText;
+  final VoidCallback? onCancel;
 
   const CustomPopup({
     Key? key,
     required this.title,
     required this.message,
-    this.buttonText = "OK",
+    this.confirmText = "OK",
+    this.onConfirm,
+    this.onCancel,
+    this.showCancel = false,
+    this.cancelText = "Cancel",
     this.onButtonPressed,
   }) : super(key: key);
 
@@ -56,32 +64,41 @@ class CustomPopup extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
+                if (showCancel)
+                  TextButton(
+                    onPressed: onCancel ?? () => Navigator.pop(context),
+                    child: Text(
+                      cancelText,
+                      style: const TextStyle(
+                          color: Colors.white70, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                if (showCancel) const SizedBox(width: 8),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey.shade800,
                     foregroundColor: Colors.white,
-                    elevation: 0, // <-- remove shadow
+                    elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                     ),
                     padding: const EdgeInsets.symmetric(
                         horizontal: 20, vertical: 10),
                   ),
-                  onPressed: onButtonPressed ?? () => Navigator.pop(context),
+                  onPressed: onConfirm ?? () => Navigator.pop(context),
                   child: Text(
-                    buttonText,
+                    confirmText,
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
-            ),
+            )
           ],
         ),
       ),
     );
   }
 }
-
 
 class CustomPopup1 extends StatelessWidget {
   final String title;
@@ -96,8 +113,8 @@ class CustomPopup1 extends StatelessWidget {
     Key? key,
     required this.title,
     required this.message,
-    this.yesText = "Yes",
-    this.noText = "No",
+    this.yesText = "Ok",
+    this.noText = "Cancle",
     this.onYesTap,
     this.onNoTap,
     this.showYesNo = false,
@@ -139,28 +156,20 @@ class CustomPopup1 extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.end,
               children: showYesNo
                   ? [
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.grey.shade700,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6)),
-                        ),
-                        onPressed: onNoTap ?? () => Navigator.pop(context, false),
+                      TextButton(
+                        onPressed:
+                            onNoTap ?? () => Navigator.pop(context, false),
                         child: Text(noText!,
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                       const SizedBox(width: 10),
-                      ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green.shade600,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6)),
-                        ),
-                        onPressed: onYesTap ?? () => Navigator.pop(context, true),
+                      TextButton(
+                        onPressed:
+                            onYesTap ?? () => Navigator.pop(context, true),
                         child: Text(yesText!,
-                            style: const TextStyle(fontWeight: FontWeight.bold)),
+                            style:
+                                const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                     ]
                   : [

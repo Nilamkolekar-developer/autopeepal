@@ -30,7 +30,7 @@ class Ecu2 {
   int? id;
   int? ecu;
   String? sequenceFile;
-  List<FileModel>? file;
+  List<File>? file;
   List<EcuMapFile>? ecuMapFile;
 
   Ecu2({this.id, this.ecu, this.sequenceFile, this.file, this.ecuMapFile});
@@ -40,7 +40,7 @@ class Ecu2 {
         ecu: json['ecu'],
         sequenceFile: json['sequence_file'],
         file: json['file'] != null
-            ? List<FileModel>.from(json['file'].map((x) => FileModel.fromJson(x)))
+            ? List<File>.from(json['file'].map((x) => File.fromJson(x)))
             : [],
         ecuMapFile: json['ecu_map_file'] != null
             ? List<EcuMapFile>.from(json['ecu_map_file'].map((x) => EcuMapFile.fromJson(x)))
@@ -56,15 +56,21 @@ class Ecu2 {
       };
 }
 
-class FileModel {
+class File {
   int? id;
   String? dataFileName;
   String? dataFile;
   String? dwnldDataFile;
 
-  FileModel({this.id, this.dataFileName, this.dataFile, this.dwnldDataFile});
+  File({
+    this.id,
+    this.dataFileName,
+    this.dataFile,
+    this.dwnldDataFile,
+  });
 
-  factory FileModel.fromJson(Map<String, dynamic> json) => FileModel(
+  // Optional: factory constructor for JSON (if needed)
+  factory File.fromJson(Map<String, dynamic> json) => File(
         id: json['id'],
         dataFileName: json['data_file_name'],
         dataFile: json['data_file'],
@@ -123,7 +129,7 @@ class FlashSeqModel {
   int? ecu2id;
   String? sequenceLocalFile;
   String? sequenceUrl;
-  List<FileModel>? file;
+  List<File>? file;
 
   FlashSeqModel({this.ecu2id, this.sequenceLocalFile, this.sequenceUrl, this.file});
 
@@ -132,7 +138,7 @@ class FlashSeqModel {
         sequenceLocalFile: json['sequence_local_file'],
         sequenceUrl: json['sequence_url'],
         file: json['file'] != null
-            ? List<FileModel>.from(json['file'].map((x) => FileModel.fromJson(x)))
+            ? List<File>.from(json['file'].map((x) => File.fromJson(x)))
             : [],
       );
 
@@ -146,7 +152,7 @@ class FlashSeqModel {
 
 class FlashData {
   Ecu2? ecu2;
-  FileModel? file;
+  File? file;
   String? seqFileUrl;
   String? dwnldSeqFileUrl;
   String? seedkeyalgoFnIndexValues;
@@ -163,7 +169,7 @@ class FlashData {
 
   factory FlashData.fromJson(Map<String, dynamic> json) => FlashData(
         ecu2: json['ecu2'] != null ? Ecu2.fromJson(json['ecu2']) : null,
-        file: json['file'] != null ? FileModel.fromJson(json['file']) : null,
+        file: json['file'] != null ? File.fromJson(json['file']) : null,
         seqFileUrl: json['seqFileUrl'],
         dwnldSeqFileUrl: json['dwnld_seqFileUrl'],
         seedkeyalgoFnIndexValues: json['SeedkeyalgoFnIndex_Values'],

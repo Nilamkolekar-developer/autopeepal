@@ -1,5 +1,7 @@
-import 'package:autopeepal/models/ecu_model.dart';
+import 'package:autopeepal/models/all_models.dart';
 import 'package:flutter/material.dart';
+
+import 'liveParameter_model.dart';
 
 class IorTestModel {
   int? count;
@@ -10,12 +12,12 @@ class IorTestModel {
   List<IorResult>? results;
 
   IorTestModel({
-     this.count,
+    this.count,
     this.next,
     this.previous,
     this.error,
     this.message,
-     this.results,
+    this.results,
   });
 
   factory IorTestModel.fromJson(Map<String, dynamic> json) => IorTestModel(
@@ -219,10 +221,6 @@ class TestIo {
       };
 }
 
-
-
-
-
 // ---------------- TestMonitor ----------------
 class TestMonitor {
   String? routineId;
@@ -255,8 +253,9 @@ class TestMonitor {
         description: json['description'],
         lowerLimit: json['lower_limit'],
         upperLimit: json['upper_limit'],
-      )..currentValue.value = json['current_value'] ?? ''
-       ..unit.value = json['unit'] ?? '';
+      )
+        ..currentValue.value = json['current_value'] ?? ''
+        ..unit.value = json['unit'] ?? '';
 
   Map<String, dynamic> toJson() => {
         'routine_id': routineId,
@@ -302,8 +301,9 @@ class PreCondition {
         description: json['description'],
         lowerLimit: json['lower_limit'],
         upperLimit: json['upper_limit'],
-      )..currentValue.value = json['current_value'] ?? ''
-       ..isCheck.value = json['is_check'] ?? false;
+      )
+        ..currentValue.value = json['current_value'] ?? ''
+        ..isCheck.value = json['is_check'] ?? false;
 
   Map<String, dynamic> toJson() => {
         'routine_id': routineId,
@@ -425,8 +425,7 @@ class IorTestRoutine {
     this.priority = 0,
   });
 
-  factory IorTestRoutine.fromJson(Map<String, dynamic> json) =>
-      IorTestRoutine(
+  factory IorTestRoutine.fromJson(Map<String, dynamic> json) => IorTestRoutine(
         routineId: json['routine_id'],
         id: json['id'],
         startRoutineId: json['start_routine_id'],
@@ -451,5 +450,74 @@ class IorTestRoutine {
         'test_status': testStatus.value,
       };
 }
-// TestMonitor, PreCondition, IorTestRoutineType, StatusByteDefinition, IorTestRoutine
-// can be converted similarly with reactive fields using ValueNotifier for properties that used OnPropertyChanged in C#.
+
+class EcuTestRoutine {
+  int? id;
+  String? ecuName;
+  double? opacity;
+  String? txHeader;
+  String? rxHeader;
+  Protocol? protocol;
+  int? pidDatasetId;
+  List<IorResult>? iorList;
+  List<PidCode>? pidList;
+  int? noOfInjectors;
+
+  EcuTestRoutine({
+    this.id,
+    this.ecuName,
+    double opacity = 0.5,
+    this.txHeader,
+    this.rxHeader,
+    this.protocol,
+    this.pidDatasetId,
+    this.iorList = const [],
+    this.pidList = const [],
+    this.noOfInjectors,
+  }) : opacity = opacity;
+
+  void setOpacity(double value) => opacity = value;
+
+  // From JSON factory
+  factory EcuTestRoutine.fromJson(Map<String, dynamic> json) {
+    return EcuTestRoutine(
+      id: json['id'] as int,
+      ecuName: json['ecu_name'] as String,
+      opacity: (json['opacity'] as num?)?.toDouble() ?? 0.5,
+      txHeader: json['tx_header'] as String,
+      rxHeader: json['rx_header'] as String,
+      protocol: Protocol.fromJson(json['protocol'] as Map<String, dynamic>),
+      pidDatasetId: json['pid_dataset_id'] as int,
+      iorList: (json['ior_list'] as List<dynamic>?)
+              ?.map((e) => IorResult.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      pidList: (json['pid_list'] as List<dynamic>?)
+              ?.map((e) => PidCode.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [],
+      noOfInjectors: json['no_of_injectors'] as int?,
+    );
+  }
+}
+
+class EcuModel {
+  String? name;
+  int? id;
+
+  EcuModel({this.name, this.id});
+
+  factory EcuModel.fromJson(Map<String, dynamic> json) {
+    return EcuModel(
+      name: json['name']?.toString(), // safe conversion
+      id: json['id'] != null ? int.tryParse(json['id'].toString()) : null,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'id': id,
+    };
+  }
+}

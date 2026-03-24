@@ -256,18 +256,22 @@ class DiagnosticFunctions extends StatelessWidget {
     );
   }
 
-  /// Helper to get color based on status
-  Color getStatusColor(String status) {
-    switch (status) {
-      case "Connected":
-        return Colors.green.shade700;
+ /// Helper to get color based on status
+Color getStatusColor(String status) {
+  switch (status) {
+    case "Connected":
+      return Colors.green.shade700;
 
-      case "Dongle Disconnected":
-        return Colors.red;
-      default:
-        return Colors.grey;
-    }
+    case "Dongle Disconnected":
+      return Colors.red;
+
+    case "ECU Disconnected":
+      return Colors.red;
+
+    default:
+      return Colors.grey; // any unknown status
   }
+}
 
   Widget functionCard({
     required BuildContext context,

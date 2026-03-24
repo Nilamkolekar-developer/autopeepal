@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:autopeepal/common_widgets/customDropdown.dart';
-import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/writeParameterController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
@@ -15,7 +14,15 @@ class WriteParameter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.pagebgColor,
-      appBar: const CommonAppBar(title: "Write Parameter", subtitle: "EMS"),
+   
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
+        title: const Text("Write Parameter",),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: _ecuTabs(),
+        ),
+      ),
 
       body: SafeArea(
         child: Obx(() {
@@ -33,16 +40,16 @@ class WriteParameter extends StatelessWidget {
                   selectedValue: controller.selectedPidName,
                   items:
                       controller.pidList.map((e) => e.shortName ?? "").toList(),
-                  hint: "Select PID",
+                  hint: "Select a parameter to Write",
                   onChanged: (val) {
-                    if (controller.pidList.isEmpty) return;
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final selected = controller.pidList.firstWhere(
+                        (pid) => pid.shortName == val,
+                        orElse: () => controller.pidList.first,
+                      );
 
-                    final selected = controller.pidList.firstWhere(
-                      (pid) => pid.shortName == val,
-                      orElse: () => controller.pidList.first,
-                    );
-
-                    controller.selectPidClicked(selected);
+                      controller.selectPidClicked(selected);
+                    });
                   },
                 ),
 
@@ -123,8 +130,7 @@ class WriteParameter extends StatelessWidget {
                                                   .selectedPidCode!
                                                   .piCodeVariable!
                                                   .first
-                                                  .writeValue
-                                                   = val;
+                                                  .writeValue = val;
                                             }
 
                                             print(
@@ -189,6 +195,48 @@ class WriteParameter extends StatelessWidget {
     );
   }
 
+Widget _ecuTabs() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Obx(() => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: controller.ecuList.map((ecu) {
+              final isSelected =
+                  controller.selectedEcu.value?.ecuName == ecu.ecuName;
+
+              return GestureDetector(
+                onTap: () {
+                  controller.selectedEcu.value = ecu;
+
+                  // Update PID list
+                  controller.pidList.value = List.from(ecu.pidList);
+
+                  controller.selectedPidName.value = "";
+                },
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  color: isSelected
+                      ? AppColors.primaryColor
+                      : Colors.grey.shade200,
+                  child: Text(
+                    ecu.ecuName ?? '',
+                    style: TextStyle(
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        )),
+  );
+}
   final inputDecorationStyle = InputDecoration(
     filled: true,
     fillColor: AppColors.primaryColor.withOpacity(0.3),

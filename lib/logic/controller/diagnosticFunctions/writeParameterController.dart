@@ -13,7 +13,8 @@ class WriteParameterController extends GetxController {
   RxBool isBusy = false.obs;
   RxString loaderText = "".obs;
   RxString selectedPidName = "".obs;
-  EcuModel? selectedEcu;
+  // EcuModel? selectedEcu;
+  Rxn<EcuModel> selectedEcu = Rxn<EcuModel>();
   RxList<EcuModel> ecuList = <EcuModel>[].obs;
 
   RxList<PidCode> staticPidList = <PidCode>[].obs;
@@ -33,9 +34,9 @@ class WriteParameterController extends GetxController {
   RxList<ReadPidResponseModel> readPidAndroid = <ReadPidResponseModel>[].obs;
 
   @override
-  void onInit() {
+  Future<void> onInit() async {
     super.onInit();
-    getPidList();
+    await getPidList();
   }
 
   @override
@@ -83,9 +84,9 @@ class WriteParameterController extends GetxController {
       }
 
       if (ecuList.isNotEmpty) {
-        selectedEcu = ecuList.first;
-        staticPidList.value = List<PidCode>.from(selectedEcu!.pidList);
-        pidList.value = List<PidCode>.from(selectedEcu!.pidList);
+        selectedEcu.value = ecuList.first;
+        staticPidList.value = List<PidCode>.from(selectedEcu.value!.pidList);
+        pidList.value = List<PidCode>.from(selectedEcu.value!.pidList);
       }
 
       await setDongleProperties();
@@ -125,19 +126,19 @@ class WriteParameterController extends GetxController {
 
         // Handle IQA Injector reordering based on firing sequence
         if (pid.piCodeVariable![0].messageType == "IQA") {
-          if ((selectedEcu?.noOfInjectors ?? 0) == 0 ||
-              (selectedEcu?.firingSequence ?? '').isEmpty) {
+          if ((selectedEcu.value?.noOfInjectors ?? 0) == 0 ||
+              (selectedEcu.value?.firingSequence ?? '').isEmpty) {
             _showDialog("Alert",
                 "Injector or Firing Sequence data missing for this ECU.");
             return;
           }
 
-          final firingOrder = selectedEcu!.firingSequence!
+          final firingOrder = selectedEcu.value!.firingSequence!
               .split(',')
               .map((s) => int.parse(s.trim()) - 1)
               .toList();
 
-          if (firingOrder.length != (selectedEcu?.noOfInjectors ?? 0)) {
+          if (firingOrder.length != (selectedEcu.value?.noOfInjectors ?? 0)) {
             _showDialog(
                 "Alert", "Injector count does not match Firing Sequence.");
             return;
@@ -324,8 +325,7 @@ class WriteParameterController extends GetxController {
 
           // --- CONTINUOUS Handling (Numeric scaling) ---
           else if (variable.messageType.contains("CONTINUOUS")) {
-            double? currentWriteVal =
-                double.tryParse(variable.writeValue!);
+            double? currentWriteVal = double.tryParse(variable.writeValue!);
             double min = variable.min?.toDouble() ?? -double.maxFinite;
             double max = variable.max?.toDouble() ?? double.maxFinite;
 
@@ -406,7 +406,7 @@ class WriteParameterController extends GetxController {
     loaderText.value = "Writing to ECU...";
 
     final modelDetail = StaticData.ecuInfo
-        .firstWhereOrNull((x) => x.ecuName == selectedEcu?.ecuName);
+        .firstWhereOrNull((x) => x.ecuName == selectedEcu.value?.ecuName);
     if (modelDetail == null) {
       isBusy.value = false;
       return;
@@ -456,11 +456,27 @@ class WriteParameterController extends GetxController {
   }
 
   Future<void> setDongleProperties() async {
+    // ignore: unnecessary_null_comparison
     if (selectedEcu == null) return;
     await App.dllFunctions!.setDongleProperties(
-      selectedEcu!.protocol?.autopeepal ?? '',
-      selectedEcu!.txHeader ?? '',
-      selectedEcu!.rxHeader ?? '',
+      selectedEcu.value!.protocol?.autopeepal ?? '',
+      selectedEcu.value!.txHeader ?? '',
+      selectedEcu.value!.rxHeader ?? '',
     );
+  }
+
+  void switchTab(EcuModel ecu) {
+    selectedEcu.value = ecu;
+
+    staticPidList.value = List<PidCode>.from(ecu.pidList);
+    pidList.value = List<PidCode>.from(ecu.pidList);
+
+    selectedPidName.value = "";
+    selectedPidCode = null;
+
+    currentValueController.value.clear();
+    newValueController.value.clear();
+
+    setDongleProperties();
   }
 }

@@ -257,7 +257,7 @@ static Future<void> clearPreferences() async {
 }
 
   static Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
+   final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 }

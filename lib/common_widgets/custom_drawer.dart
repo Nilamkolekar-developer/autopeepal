@@ -1,4 +1,6 @@
+import 'dart:io';
 
+import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/dashboard/dasboardController.dart';
 import 'package:autopeepal/logic/controller/dataSyncController.dart';
@@ -6,6 +8,7 @@ import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:path_provider/path_provider.dart';
 
 class CustomDrawer extends StatelessWidget {
   CustomDrawer({Key? key}) : super(key: key);
@@ -74,7 +77,6 @@ class CustomDrawer extends StatelessWidget {
                     ),
                     onTap: () {
                       controller.goToJobcardPage();
-                     
                     },
                   ),
                   buildDivider(),
@@ -115,8 +117,15 @@ class CustomDrawer extends StatelessWidget {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
-                    onTap: () {
-                      //AppPreferences.clearPreferences();
+                    onTap: () async {
+                      // Clear shared preferences
+                      AppPreferences.clearAll();
+                      await clearLocalData();
+                      // Delete controllers to remove previous user data
+                      Get.delete<DashboardController>();
+                      Get.delete<DataSyncController>();
+
+                      // Navigate to login
                       Get.offAllNamed(Routes.loginScreen);
                     },
                   ),
@@ -153,6 +162,27 @@ class CustomDrawer extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> clearLocalData() async {
+    final dir = await getApplicationDocumentsDirectory();
+
+    final filesToDelete = [
+      'MODEL_LocalList.txt',
+      'IOR_LocalList.txt',
+      'Actuator_LocalList.txt',
+      'FreezeFrame_LocalList.txt',
+      'UserDetail_LocalData.txt',
+      'UserRequest_LocalData.txt',
+    ];
+
+    for (var fileName in filesToDelete) {
+      final file = File('${dir.path}/$fileName');
+      if (await file.exists()) {
+        await file.delete();
+        print('Deleted $fileName');
+      }
+    }
   }
 
   Widget buildDivider() {
