@@ -19,6 +19,7 @@ class TextStyles {
       fontSize: FontSizes.s14);
 
   static TextStyle get textfieldTextStyle1 => TextStyle(
+    
       color: Colors.black,
       fontFamily: "OpenSans-Regular",
      // fontWeight: FontWeight.w900,

@@ -13,7 +13,7 @@ class AllDTCDetails extends StatelessWidget {
       backgroundColor: AppColors.pagebgColor,
       appBar: const CommonAppBar(
         title: "DTC List",
-        subtitle: "EMS",
+        subtitle: Text("EMS"),
       ),
       body: Column(
         children: [

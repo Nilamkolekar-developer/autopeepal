@@ -1,4 +1,3 @@
-import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/liveParameterController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:autopeepal/themes/app_textstyles.dart';
@@ -12,9 +11,20 @@ class LiveParameter extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.pagebgColor,
-      appBar: const CommonAppBar(
-        title: "Select Parameter",
-        subtitle: "EMS",
+      // appBar: CommonAppBar(
+      //   title: "Select Parameter",
+      //   subtitle: Text("${controller.selectedEcu.value?.ecuName ?? ""}"),
+      // ),
+
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
+        title: const Text(
+          "Select Parameter",
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: _ecuTabs(),
+        ),
       ),
       body: SafeArea(
         child: Column(
@@ -172,6 +182,54 @@ class LiveParameter extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _ecuTabs() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Obx(() {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: controller.ecusList.map((ecu) {
+              final isSelected =
+                  controller.selectedEcu.value?.ecuName == ecu.ecuName;
+      
+              return GestureDetector(
+                // onTap: () async {
+                //   await controller.onTabClicked(ecu); // ✅ USE CONTROLLER METHOD
+      
+                //   // Optional: clear selected PIDs when ECU changes
+                //   controller.selectedPidList.clear();
+                // },
+                onTap: () async {
+  controller.selectedPidList.clear();
+  await controller.onTabClicked(ecu);
+},
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? AppColors.primaryColor
+                        : Colors.grey.shade200,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    ecu.ecuName ?? '',
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : Colors.black,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        );
+      }),
     );
   }
 }

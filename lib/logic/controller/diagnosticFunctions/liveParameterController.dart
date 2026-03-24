@@ -181,28 +181,47 @@ class LiveParameterController extends GetxController {
     }
   }
 
-  /// Handle ECU tab selection
   Future<void> onTabClicked(EcuModel tappedEcu) async {
-    isBusy.value = true;
-    loaderText.value = "Loading...";
-    await Future.delayed(const Duration(milliseconds: 100));
+  print("🔹 ECU TAB CLICKED: ${tappedEcu.ecuName}");
 
-    selectedEcu.value = tappedEcu;
-    pidList.clear();
+  isBusy.value = true;
+  loaderText.value = "Loading...";
 
-    for (var ecu in ecusList) {
-      ecu.opacity = 0.5 as ValueNotifier<double>;
-      if (ecu.ecuName == tappedEcu.ecuName) {
-        ecu.opacity = 1.0 as ValueNotifier<double>;
-        pidList.value = List<PidCode>.from(ecu.pidList);
-        staticPidList.value = List<PidCode>.from(ecu.pidList);
-      }
+  await Future.delayed(const Duration(milliseconds: 100));
+
+  /// 🔹 Set selected ECU
+  selectedEcu.value = tappedEcu;
+  print("✅ Selected ECU set: ${selectedEcu.value?.ecuName}");
+
+  /// 🔹 Clear old PID list
+ 
+
+  for (var ecu in ecusList) {
+    print("➡️ Checking ECU: ${ecu.ecuName}");
+
+    
+
+    if (ecu.ecuName == tappedEcu.ecuName) {
+      print("🎯 MATCH FOUND: ${ecu.ecuName}");
+
+
+      pidList.value = List<PidCode>.from(ecu.pidList);
+      staticPidList.value = List<PidCode>.from(ecu.pidList);
+
+      print("📦 PID LIST LOADED: ${pidList.length} items");
     }
-
-    await setDongleProperties();
-    isBusy.value = false;
-    loaderText.value = "";
   }
+
+  /// 🔹 Set dongle properties
+  print("📡 Setting dongle properties...");
+  await setDongleProperties();
+  print("✅ Dongle properties set");
+
+  isBusy.value = false;
+  loaderText.value = "";
+
+  print("🏁 ECU TAB PROCESS COMPLETED\n");
+}
 
   /// Set dongle properties
   Future<void> setDongleProperties() async {
@@ -217,6 +236,8 @@ class LiveParameterController extends GetxController {
       print("Error setting dongle properties: $e");
     }
   }
+
+  
 
   final IFileSaver saveFile =
       IFileSaver(); // Create this at the top of your widget/class

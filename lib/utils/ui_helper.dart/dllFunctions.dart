@@ -579,77 +579,176 @@ class DLLFunctions {
     }
   }
 
+  // Future<List<ReadPidResponseModel>?> readPid(List<PidCode> pidList) async {
+  //   try {
+  //     dynamic result;
+
+  //     // Build ReadParameterPID list
+  //     List<ReadParameterPID> list = [];
+
+  //     for (var item in pidList) {
+  //       List<PidVariable> variables = [];
+
+  //       for (var vari in item.piCodeVariable ?? []) {
+  //         int startBit = vari.startBitPosition ?? 0;
+  //         int endBit = vari.endBitPosition ?? 0;
+  //         int noOfBits = endBit - startBit + 1;
+
+  //         PidVariable pidVariable = PidVariable(
+  //           datatype: vari.messageType,
+  //           isBitcoded: vari.bitcoded ?? false,
+  //           noofBits: noOfBits,
+  //           noOfBytes: vari.length ?? 0,
+  //           offset: vari.offset?.toDouble() ?? 0.0,
+  //           resolution: vari.resolution?.toDouble() ?? 1.0,
+  //           startBit: startBit,
+  //           startByte: vari.bytePosition ?? 0,
+  //           pidNumber: vari.id ?? 0,
+  //           pidName: vari.shortName ?? "",
+  //           messages: (vari.messages as List<dynamic>?)?.map((mes) {
+  //                 if (mes is SelectedParameterMessage) {
+  //                   return mes;
+  //                 } else if (mes is Map<String, dynamic>) {
+  //                   return SelectedParameterMessage.fromJson(mes);
+  //                 } else {
+  //                   return SelectedParameterMessage(
+  //                     code: mes['code'] ?? "",
+  //                     message: mes['message'] ?? "",
+  //                   );
+  //                 }
+  //               }).toList() ??
+  //               [],
+  //         );
+
+  //         variables.add(pidVariable);
+  //       }
+
+  //       list.add(
+  //         ReadParameterPID(
+  //           pidId: item.id ?? 0,
+  //           variables: variables,
+  //           totalLen: (item.code?.length ?? 0) ~/ 2,
+  //           pid: item.code ?? "",
+  //         ),
+  //       );
+  //     }
+
+  //     // Call readParameters (simulating Task.Run in C#)
+  //     result = await mUdsDiagnostic.readParameters(list.length, list);
+
+  //     if (result == null) return null;
+
+  //     // Convert result to JSON string then decode to List<ReadPidResponseModel>
+  //     final String res = jsonEncode(result);
+  //     final List<dynamic> resListDecoded = jsonDecode(res);
+
+  //     return resListDecoded
+  //         .map((json) => ReadPidResponseModel.fromJson(json))
+  //         .toList();
+  //   } catch (ex) {
+  //     print("Error reading PIDs: $ex"); // Log the actual exception
+  //     return null;
+  //   }
+  // }
+
   Future<List<ReadPidResponseModel>?> readPid(List<PidCode> pidList) async {
-    try {
-      dynamic result;
+  try {
+    print("🚀 readPid() called");
+    print("📌 Total PID requested: ${pidList.length}");
 
-      // Build ReadParameterPID list
-      List<ReadParameterPID> list = [];
+    dynamic result;
 
-      for (var item in pidList) {
-        List<PidVariable> variables = [];
+    // Build ReadParameterPID list
+    List<ReadParameterPID> list = [];
 
-        for (var vari in item.piCodeVariable ?? []) {
-          int startBit = vari.startBitPosition ?? 0;
-          int endBit = vari.endBitPosition ?? 0;
-          int noOfBits = endBit - startBit + 1;
+    for (var item in pidList) {
+      print("➡️ Building PID: ${item.id}, Code: ${item.code}");
 
-          PidVariable pidVariable = PidVariable(
-            datatype: vari.messageType,
-            isBitcoded: vari.bitcoded ?? false,
-            noofBits: noOfBits,
-            noOfBytes: vari.length ?? 0,
-            offset: vari.offset?.toDouble() ?? 0.0,
-            resolution: vari.resolution?.toDouble() ?? 1.0,
-            startBit: startBit,
-            startByte: vari.bytePosition ?? 0,
-            pidNumber: vari.id ?? 0,
-            pidName: vari.shortName ?? "",
-            messages: (vari.messages as List<dynamic>?)?.map((mes) {
-                  if (mes is SelectedParameterMessage) {
-                    return mes;
-                  } else if (mes is Map<String, dynamic>) {
-                    return SelectedParameterMessage.fromJson(mes);
-                  } else {
-                    return SelectedParameterMessage(
-                      code: mes['code'] ?? "",
-                      message: mes['message'] ?? "",
-                    );
-                  }
-                }).toList() ??
-                [],
-          );
+      List<PidVariable> variables = [];
 
-          variables.add(pidVariable);
-        }
+      for (var vari in item.piCodeVariable ?? []) {
+        int startBit = vari.startBitPosition ?? 0;
+        int endBit = vari.endBitPosition ?? 0;
+        int noOfBits = endBit - startBit + 1;
 
-        list.add(
-          ReadParameterPID(
-            pidId: item.id ?? 0,
-            variables: variables,
-            totalLen: (item.code?.length ?? 0) ~/ 2,
-            pid: item.code ?? "",
-          ),
+        print(
+            "   🔹 Variable ID: ${vari.id}, StartBit: $startBit, EndBit: $endBit");
+
+        PidVariable pidVariable = PidVariable(
+          datatype: vari.messageType,
+          isBitcoded: vari.bitcoded ?? false,
+          noofBits: noOfBits,
+          noOfBytes: vari.length ?? 0,
+          offset: vari.offset?.toDouble() ?? 0.0,
+          resolution: vari.resolution?.toDouble() ?? 1.0,
+          startBit: startBit,
+          startByte: vari.bytePosition ?? 0,
+          pidNumber: vari.id ?? 0,
+          pidName: vari.shortName ?? "",
+          messages: (vari.messages as List<dynamic>?)?.map((mes) {
+                if (mes is SelectedParameterMessage) {
+                  return mes;
+                } else if (mes is Map<String, dynamic>) {
+                  return SelectedParameterMessage.fromJson(mes);
+                } else {
+                  return SelectedParameterMessage(
+                    code: mes['code'] ?? "",
+                    message: mes['message'] ?? "",
+                  );
+                }
+              }).toList() ??
+              [],
         );
+
+        variables.add(pidVariable);
       }
 
-      // Call readParameters (simulating Task.Run in C#)
-      result = await mUdsDiagnostic.readParameters(list.length, list);
+      list.add(
+        ReadParameterPID(
+          pidId: item.id ?? 0,
+          variables: variables,
+          totalLen: (item.code?.length ?? 0) ~/ 2,
+          pid: item.code ?? "",
+        ),
+      );
+    }
 
-      if (result == null) return null;
+    print("📤 Sending request to mUdsDiagnostic.readParameters...");
+    print("📦 Total packets: ${list.length}");
 
-      // Convert result to JSON string then decode to List<ReadPidResponseModel>
-      final String res = jsonEncode(result);
-      final List<dynamic> resListDecoded = jsonDecode(res);
+    // Call readParameters
+    result = await mUdsDiagnostic.readParameters(list.length, list);
 
-      return resListDecoded
-          .map((json) => ReadPidResponseModel.fromJson(json))
-          .toList();
-    } catch (ex) {
-      print("Error reading PIDs: $ex"); // Log the actual exception
+    print("📥 Raw result from device: $result");
+
+    if (result == null) {
+      print("❌ Result is null from readParameters");
       return null;
     }
+
+    // Convert result
+    final String res = jsonEncode(result);
+    print("📄 Encoded JSON: $res");
+
+    final List<dynamic> resListDecoded = jsonDecode(res);
+    print("📊 Decoded response count: ${resListDecoded.length}");
+
+    final parsedList = resListDecoded
+        .map((json) => ReadPidResponseModel.fromJson(json))
+        .toList();
+
+    print("✅ Parsed ReadPidResponseModel count: ${parsedList.length}");
+
+    for (var item in parsedList) {
+      print("➡️ PID: ${item.pidId}, Status: ${item.status}");
+    }
+
+    return parsedList;
+  } catch (ex) {
+    print("🔥 Error reading PIDs: $ex");
+    return null;
   }
+}
 
   // Future<List<WriteParameterStatus>?> writePid(
   //     String writePidIndex, List<WriteParameterPid> pidList) async {
@@ -876,48 +975,128 @@ Future<List<WriteParameterStatus>?> writePid(
     throw UnimplementedError('Cancel() is not implemented yet.');
   }
 
+  // Future<String?> startECUFlashing(
+  //   String flashJson,
+  //   String interpreter,
+  //   Ecu2 ecu2,
+  //   String sklFN,
+  //   List<EcuMapFile> ecuMapFiles,
+  // ) async {
+  //   try {
+  //     flashingPercent != 0.0; // Assuming flashingPercent is RxInt or similar
+
+  //     // Deserialize JSON
+  //     final jsonData = FlashingMatrixData.fromJson(jsonDecode(flashJson));
+
+  //     // Replace "-" with "_" and parse enum
+  //     sklFN = sklFN.replaceAll('-', '_');
+  //     final seedkeyindx = SEEDKEYINDEXTYPE.values.firstWhere(
+  //       (e) =>
+  //           e.toString().split('.').last.toUpperCase() == sklFN.toUpperCase(),
+  //       orElse: () => SEEDKEYINDEXTYPE.values.first, // default fallback
+  //     );
+
+  //     final flashConfig = FlashConfig(
+  //       seedKeyIndex: seedkeyindx,
+  //       // Add other properties if needed
+  //     );
+
+  //     await startTesterPresent();
+
+  //     final response = await mUdsDiagnostic.flashInterpreter(
+  //       flashConfig,
+  //       jsonData.noOfSectors ?? 0,
+  //       jsonData.sectorData!.cast<FlashingMatrix>(),
+  //       interpreter,
+  //     );
+
+  //     await stopTesterPresent();
+
+  //     return response;
+  //   } catch (e) {
+  //     return null;
+  //   }
+  // }
+
   Future<String?> startECUFlashing(
-    String flashJson,
-    String interpreter,
-    Ecu2 ecu2,
-    String sklFN,
-    List<EcuMapFile> ecuMapFiles,
-  ) async {
-    try {
-      flashingPercent != 0.0; // Assuming flashingPercent is RxInt or similar
+  String flashJson,
+  String interpreter,
+  Ecu2 ecu2,
+  String sklFN,
+  List<EcuMapFile> ecuMapFiles,
+) async {
+  try {
+    print("🚀 [FLASH] ===== START ECU FLASHING =====");
 
-      // Deserialize JSON
-      final jsonData = FlashingMatrixData.fromJson(jsonDecode(flashJson));
+    print("📥 [INPUT] sklFN (raw): $sklFN");
+    print("📥 [INPUT] interpreter: $interpreter");
+    print("📥 [INPUT] ECU: ${ecu2.ecu}");
+    print("📥 [INPUT] flashJson length: ${flashJson.length}");
 
-      // Replace "-" with "_" and parse enum
-      sklFN = sklFN.replaceAll('-', '_');
-      final seedkeyindx = SEEDKEYINDEXTYPE.values.firstWhere(
-        (e) =>
-            e.toString().split('.').last.toUpperCase() == sklFN.toUpperCase(),
-        orElse: () => SEEDKEYINDEXTYPE.values.first, // default fallback
-      );
+    // 🔄 Fix protocol string
+    sklFN = sklFN.replaceAll('-', '_');
+    print("🔄 [PROCESS] sklFN normalized: $sklFN");
 
-      final flashConfig = FlashConfig(
-        seedKeyIndex: seedkeyindx,
-        // Add other properties if needed
-      );
+    // 📦 Parse JSON
+    final jsonMap = jsonDecode(flashJson);
+    print("📦 [JSON] Parsed successfully");
 
-      await startTesterPresent();
+    final jsonData = FlashingMatrixData.fromJson(jsonMap);
+    print("📦 [JSON] noOfSectors: ${jsonData.noOfSectors}");
+    print("📦 [JSON] sectorData count: ${jsonData.sectorData?.length}");
 
-      final response = await mUdsDiagnostic.flashInterpreter(
-        flashConfig,
-        jsonData.noOfSectors ?? 0,
-        jsonData.sectorData!.cast<FlashingMatrix>(),
-        interpreter,
-      );
+    // 🔐 Enum parsing
+    final seedkeyindx = SEEDKEYINDEXTYPE.values.firstWhere(
+      (e) {
+        final enumName = e.toString().split('.').last;
+        print("🔍 [ENUM CHECK] comparing $enumName with $sklFN");
+        return enumName.toUpperCase() == sklFN.toUpperCase();
+      },
+      orElse: () {
+        print("⚠️ [ENUM] No match found, using default");
+        return SEEDKEYINDEXTYPE.values.first;
+      },
+    );
 
-      await stopTesterPresent();
+    print("✅ [ENUM] Selected: $seedkeyindx");
 
-      return response;
-    } catch (e) {
-      return null;
-    }
+    final flashConfig = FlashConfig(
+      seedKeyIndex: seedkeyindx,
+    );
+
+    print("⚙️ [CONFIG] FlashConfig created");
+
+    // ▶️ Start tester present
+    print("📡 [UDS] Starting tester present...");
+    await startTesterPresent();
+    print("✅ [UDS] Tester present started");
+
+    // 🚀 Flash start
+    print("🚀 [FLASH] Calling flashInterpreter...");
+    final response = await mUdsDiagnostic.flashInterpreter(
+      flashConfig,
+      jsonData.noOfSectors ?? 0,
+      jsonData.sectorData!,
+      interpreter,
+    );
+
+    print("📥 [FLASH RESPONSE]: $response");
+
+    // ⛔ Stop tester present
+    print("🛑 [UDS] Stopping tester present...");
+    await stopTesterPresent();
+    print("✅ [UDS] Tester present stopped");
+
+    print("🎉 [FLASH] ===== COMPLETED SUCCESS =====");
+
+    return response;
+  } catch (e, stackTrace) {
+    print("❌ [ERROR] Flashing failed: $e");
+    print("📍 [STACKTRACE]: $stackTrace");
+
+    return null;
   }
+}
 
   double? flashingPercent;
 

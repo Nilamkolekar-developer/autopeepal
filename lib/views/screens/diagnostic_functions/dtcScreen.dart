@@ -1,4 +1,3 @@
-import 'package:autopeepal/common_widgets/custom_app_bar.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/dtcController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
@@ -7,26 +6,32 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class DTCScreen extends StatelessWidget {
-  const DTCScreen({super.key});
-
+  DTCScreen({super.key});
+  final Dtccontroller controller = Get.put(Dtccontroller());
   @override
   Widget build(BuildContext context) {
-    final Dtccontroller controller = Get.put(Dtccontroller());
-
     return Scaffold(
       backgroundColor: AppColors.pagebgColor,
-      appBar: const CommonAppBar(
-        title: "DTC List",
-        subtitle: "EMS",
+
+      appBar: AppBar(
+        backgroundColor: AppColors.primaryColor,
+        title: const Text(
+          "DTC List",
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60),
+          child: _ecuTabs(),
+        ),
       ),
+
       body: Column(
         children: [
+          /// 🔹 SEARCH FIELD
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
             child: TextField(
               style: TextStyles.textfieldTextStyle1,
               cursorColor: Colors.black,
-              textAlignVertical: TextAlignVertical.center,
               decoration: InputDecoration(
                 hintText: 'Search...',
                 hintStyle: TextStyle(
@@ -37,8 +42,6 @@ class DTCScreen extends StatelessWidget {
                 contentPadding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
                 prefixIcon: const Icon(Icons.search, size: 22),
-                prefixIconConstraints:
-                    const BoxConstraints(minHeight: 30, minWidth: 35),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -52,162 +55,115 @@ class DTCScreen extends StatelessWidget {
                       BorderSide(color: AppColors.primaryColor, width: 1.5),
                 ),
               ),
-
-              /// 🔹 SEARCH USING CONTROLLER
               onChanged: controller.searchDTC,
             ),
           ),
 
-          // // DTC List
+          /// 🔹 DTC LIST
           Expanded(
             child: Obx(() {
               if (controller.isBusy.value) {
                 return const Center(child: CircularProgressIndicator());
-              } else if (controller.dtcList.isEmpty) {
+              }
+
+              if (controller.dtcList.isEmpty) {
                 return Center(
                   child: Text(
                     controller.emptyViewText.value,
                     style: const TextStyle(color: Colors.grey),
                   ),
                 );
-              } else {
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: controller.dtcList.length,
-                  itemBuilder: (context, index) {
-                    final dtc = controller.dtcList[index];
+              }
 
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 12),
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: controller.dtcList.length,
+                itemBuilder: (context, index) {
+                  final dtc = controller.dtcList[index];
 
-                        /// 🔹 TITLE
-                        Text(
-                          dtc.code ?? '',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 12),
+
+                      /// 🔹 CODE
+                      Text(
+                        dtc.code ?? '',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
                         ),
+                      ),
 
-                        C5(),
+                      C5(),
 
-                        /// 🔹 SUBTITLE + RIGHT ACTIONS
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            /// Subtitle (Left side)
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    dtc.description ?? '',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                ],
+                      /// 🔹 DESCRIPTION + ACTIONS
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          /// LEFT SIDE
+                          Expanded(
+                            child: Text(
+                              dtc.description ?? '',
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black87,
                               ),
                             ),
+                          ),
 
-                            C10(),
+                          C10(),
 
-                            /// Right side actions
-                            Column(
-                              //crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Center(
-                                  child: Text(
-                                    " ${dtc.statusActivation ?? ''}",
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
-                                      color: dtc.statusActivationColor ??
-                                          Colors
-                                              .grey, // Uses color mapped from status
-                                    ),
-                                    textAlign: TextAlign.center,
-                                  ),
+                          /// RIGHT SIDE
+                          Column(
+                            children: [
+                              /// STATUS
+                              Text(
+                                dtc.statusActivation ?? '',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color:
+                                      dtc.statusActivationColor ?? Colors.grey,
                                 ),
+                              ),
 
-                                /// 🔹 TROUBLESHOOT
-                                InkWell(
-                                  onTap: () {
-                                    controller.gdCommand(dtc);
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: AppColors.primaryColor),
-                                    ),
-                                    child: Text(
-                                      "Troubleshoot",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.black,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
+                              C2(),
 
-                                C2(),
+                              /// TROUBLESHOOT
+                              _actionButton(
+                                title: "Troubleshoot",
+                                onTap: () => controller.gdCommand(dtc),
+                              ),
 
-                                /// 🔹 FREEZE FRAME
-                                InkWell(
-                                  onTap: () {
-                                    controller.openFreezeFrame(dtc);
-                                  },
-                                  borderRadius: BorderRadius.circular(6),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 5, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      borderRadius: BorderRadius.circular(6),
-                                      border: Border.all(
-                                          color: AppColors.primaryColor),
-                                    ),
-                                    child: Text(
-                                      "Freeze Frame",
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: AppColors.black,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                              C2(),
 
-                        C5(),
+                              /// FREEZE FRAME
+                              _actionButton(
+                                title: "Freeze Frame",
+                                onTap: () => controller.openFreezeFrame(dtc),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
 
-                        /// Divider
-                        Divider(
-                          thickness: 1,
-                          color: AppColors.primaryColor,
-                          height: 4,
-                        ),
-                      ],
-                    );
-                  },
-                );
-              }
+                      C5(),
+
+                      Divider(
+                        thickness: 1,
+                        color: AppColors.primaryColor,
+                      ),
+                    ],
+                  );
+                },
+              );
             }),
           ),
         ],
       ),
+
+      /// 🔹 BOTTOM BUTTONS
       bottomNavigationBar: Obx(() {
         if (!controller.isReadDtc.value) {
           return const SizedBox.shrink();
@@ -215,44 +171,20 @@ class DTCScreen extends StatelessWidget {
 
         return SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
             child: Row(
               children: [
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    onPressed: () {
-                      controller.clearDtc(context);
-                    },
-                    child: const Text(
-                      "Clear",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                  child: _bottomButton(
+                    title: "Clear",
+                    onTap: () => controller.clearDtc(context),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                    ),
-                    onPressed: () {
-                      controller.refreshDtc();
-                    },
-                    child: const Text(
-                      "Refresh",
-                      style: TextStyle(color: Colors.white),
-                    ),
+                  child: _bottomButton(
+                    title: "Refresh",
+                    onTap: controller.refreshDtc,
                   ),
                 ),
               ],
@@ -262,269 +194,87 @@ class DTCScreen extends StatelessWidget {
       }),
     );
   }
+
+  Widget _ecuTabs() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Obx(() => SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: controller.ecusList.map((ecu) {
+                final isSelected =
+                    controller.selectedEcu.value.ecuId == ecu.ecuId;
+
+                return GestureDetector(
+                  onTap: () => controller.switchTab(ecu),
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColors.primaryColor
+                          : Colors.grey.shade200,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      ecu.ecuName ?? '',
+                      style: TextStyle(
+                        color: isSelected ? Colors.grey.shade300 : Colors.black,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          )),
+    );
+  }
+
+  /// 🔹 COMMON SMALL BUTTON
+  Widget _actionButton({
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: AppColors.primaryColor),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            fontSize: 10,
+            color: AppColors.black,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 🔹 BOTTOM BUTTON
+  Widget _bottomButton({
+    required String title,
+    required VoidCallback onTap,
+  }) {
+    return ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: AppColors.primaryColor,
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(5),
+        ),
+      ),
+      onPressed: onTap,
+      child: Text(
+        title,
+        style: const TextStyle(color: Colors.white),
+      ),
+    );
+  }
 }
-// import 'package:autopeepal/common_widgets/custom_app_bar.dart';
-// import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
-// import 'package:autopeepal/logic/controller/diagnosticFunctions/dtcController.dart';
-// import 'package:autopeepal/themes/app_colors.dart';
-// import 'package:autopeepal/themes/app_textstyles.dart';
-// import 'package:flutter/material.dart';
-// import 'package:get/get.dart';
-
-// class DTCScreen extends StatelessWidget {
-//   const DTCScreen({super.key});
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final Dtccontroller controller = Get.put(Dtccontroller());
-
-//     return Scaffold(
-//       backgroundColor: AppColors.pagebgColor,
-//       appBar: const CommonAppBar(
-//         title: "DTC List",
-//         subtitle: "EMS",
-//       ),
-//       body: Column(
-//         children: [
-//           Padding(
-//             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-//             child: TextField(
-//               style: TextStyles.textfieldTextStyle1,
-//               cursorColor: Colors.black,
-//               textAlignVertical: TextAlignVertical.center,
-//               decoration: InputDecoration(
-//                 hintText: 'Search...',
-//                 hintStyle: TextStyle(
-//                   fontSize: 13,
-//                   color: Colors.grey.shade700,
-//                 ),
-//                 isDense: true,
-//                 contentPadding:
-//                     const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
-//                 prefixIcon: const Icon(Icons.search, size: 22),
-//                 prefixIconConstraints:
-//                     const BoxConstraints(minHeight: 30, minWidth: 35),
-//                 border: OutlineInputBorder(
-//                   borderRadius: BorderRadius.circular(12),
-//                 ),
-//                 enabledBorder: OutlineInputBorder(
-//                   borderRadius: BorderRadius.circular(12),
-//                   borderSide: BorderSide(color: AppColors.primaryColor),
-//                 ),
-//                 focusedBorder: OutlineInputBorder(
-//                   borderRadius: BorderRadius.circular(12),
-//                   borderSide:
-//                       BorderSide(color: AppColors.primaryColor, width: 1.5),
-//                 ),
-//               ),
-
-//               /// 🔹 SEARCH USING CONTROLLER
-//               onChanged: controller.searchDTC,
-//             ),
-//           ),
-
-//           // // DTC List
-//           Expanded(
-//             child: Obx(() {
-//               if (controller.isBusy.value) {
-//                 return const Center(child: CircularProgressIndicator());
-//               } else if (controller.dtcList.isEmpty) {
-//                 return Center(
-//                   child: Text(
-//                     controller.emptyViewText.value,
-//                     style: const TextStyle(color: Colors.grey),
-//                   ),
-//                 );
-//               } else {
-//                 return ListView.builder(
-//                   padding: const EdgeInsets.symmetric(horizontal: 16),
-//                   itemCount: controller.dtcList.length,
-//                   itemBuilder: (context, index) {
-//                     final dtc = controller.dtcList[index];
-
-//                     return Column(
-//                       crossAxisAlignment: CrossAxisAlignment.start,
-//                       children: [
-//                         const SizedBox(height: 12),
-
-//                         /// 🔹 TITLE
-//                         Text(
-//                           dtc.code ?? '',
-//                           style: const TextStyle(
-//                             fontSize: 16,
-//                             fontWeight: FontWeight.bold,
-//                           ),
-//                         ),
-
-//                         C5(),
-
-//                         /// 🔹 SUBTITLE + RIGHT ACTIONS
-//                         Row(
-//                           crossAxisAlignment: CrossAxisAlignment.start,
-//                           children: [
-//                             /// Subtitle (Left side)
-//                             Expanded(
-//                               child: Column(
-//                                 crossAxisAlignment: CrossAxisAlignment.start,
-//                                 children: [
-//                                   Text(
-//                                     dtc.description ?? '',
-//                                     style: const TextStyle(
-//                                       fontSize: 14,
-//                                       color: Colors.black87,
-//                                     ),
-//                                   ),
-//                                 ],
-//                               ),
-//                             ),
-
-//                             C10(),
-
-//                             /// Right side actions
-//                             Column(
-//                               //crossAxisAlignment: CrossAxisAlignment.end,
-//                               children: [
-//                                 Center(
-//                                   child: Text(
-//                                     " ${dtc.statusActivation ?? ''}",
-//                                     style: TextStyle(
-//                                       fontSize: 12,
-//                                       fontWeight: FontWeight.bold,
-//                                       color: dtc.statusActivationColor ??
-//                                           Colors
-//                                               .grey, // Uses color mapped from status
-//                                     ),
-//                                     textAlign: TextAlign.center,
-//                                   ),
-//                                 ),
-
-//                                 /// 🔹 TROUBLESHOOT
-//                                 InkWell(
-//                                   onTap: () {
-//                                     controller.gdCommand(dtc);
-//                                   },
-//                                   borderRadius: BorderRadius.circular(6),
-//                                   child: Container(
-//                                     padding: const EdgeInsets.symmetric(
-//                                         horizontal: 5, vertical: 2),
-//                                     decoration: BoxDecoration(
-//                                       color: Colors.white,
-//                                       borderRadius: BorderRadius.circular(6),
-//                                       border: Border.all(
-//                                           color: AppColors.primaryColor),
-//                                     ),
-//                                     child: Text(
-//                                       "Troubleshoot",
-//                                       style: TextStyle(
-//                                         fontSize: 10,
-//                                         color: AppColors.black,
-//                                         fontWeight: FontWeight.w600,
-//                                       ),
-//                                     ),
-//                                   ),
-//                                 ),
-
-//                                 C2(),
-
-//                                 /// 🔹 FREEZE FRAME
-//                                 InkWell(
-//                                   onTap: () {
-//                                     controller.openFreezeFrame(dtc);
-//                                   },
-//                                   borderRadius: BorderRadius.circular(6),
-//                                   child: Container(
-//                                     padding: const EdgeInsets.symmetric(
-//                                         horizontal: 5, vertical: 2),
-//                                     decoration: BoxDecoration(
-//                                       color: Colors.white,
-//                                       borderRadius: BorderRadius.circular(6),
-//                                       border: Border.all(
-//                                           color: AppColors.primaryColor),
-//                                     ),
-//                                     child: Text(
-//                                       "Freeze Frame",
-//                                       style: TextStyle(
-//                                         fontSize: 10,
-//                                         color: AppColors.black,
-//                                         fontWeight: FontWeight.w600,
-//                                       ),
-//                                     ),
-//                                   ),
-//                                 ),
-//                               ],
-//                             ),
-//                           ],
-//                         ),
-
-//                         C5(),
-
-//                         /// Divider
-//                         Divider(
-//                           thickness: 1,
-//                           color: AppColors.primaryColor,
-//                           height: 4,
-//                         ),
-//                       ],
-//                     );
-//                   },
-//                 );
-//               }
-//             }),
-//           ),
-//         ],
-//       ),
-//       bottomNavigationBar: Obx(() {
-//         if (!controller.isReadDtc.value) {
-//           return const SizedBox.shrink();
-//         }
-
-//         return SafeArea(
-//           child: Padding(
-//             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-//             child: Row(
-//               children: [
-//                 Expanded(
-//                   child: ElevatedButton(
-//                     style: ElevatedButton.styleFrom(
-//                       backgroundColor: AppColors.primaryColor,
-//                       padding: const EdgeInsets.symmetric(vertical: 14),
-//                       shape: RoundedRectangleBorder(
-//                         borderRadius: BorderRadius.circular(5),
-//                       ),
-//                     ),
-//                     onPressed: () {
-//                       controller.clearDtc(context);
-//                     },
-//                     child: const Text(
-//                       "Clear",
-//                       style: TextStyle(color: Colors.white),
-//                     ),
-//                   ),
-//                 ),
-//                 const SizedBox(width: 16),
-//                 Expanded(
-//                   child: ElevatedButton(
-//                     style: ElevatedButton.styleFrom(
-//                       backgroundColor: AppColors.primaryColor,
-//                       padding: const EdgeInsets.symmetric(vertical: 14),
-//                       shape: RoundedRectangleBorder(
-//                         borderRadius: BorderRadius.circular(5),
-//                       ),
-//                     ),
-//                     onPressed: () {
-//                       controller.refreshDtc();
-//                     },
-//                     child: const Text(
-//                       "Refresh",
-//                       style: TextStyle(color: Colors.white),
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//           ),
-//         );
-//       }),
-//     );
-//   }
-// }

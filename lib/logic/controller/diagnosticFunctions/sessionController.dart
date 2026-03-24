@@ -1,12 +1,10 @@
-import 'dart:io';
 import 'package:ap_dongle_comm/utils/model/sessionLogModel.dart';
 import 'package:autopeepal/app.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
-
+import 'package:autopeepal/services/iFilesaver_service.dart' show IFileSaver;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 
 class SessionLogsController extends GetxController {
   var logsList = <SessionLogsModel>[].obs;
@@ -78,18 +76,20 @@ class SessionLogsController extends GetxController {
 
       StringBuffer buffer = StringBuffer();
       for (var log in logsList) {
-        buffer.writeln("${log.header} ${log.message} ${log.status}");
+        buffer.writeln("${log.header} ${log.message} ${log.status ?? ''}");
       }
 
-      final directory = await getApplicationDocumentsDirectory();
-      final fileName =
+      String fileName =
           "ATPLTechbud_Session_Log_${DateFormat('yyyy_MM_dd_HH_mm_ss').format(DateTime.now())}.txt";
-      final file = File('${directory.path}/$fileName');
-      await file.writeAsString(buffer.toString());
+
+      final fileSaver = IFileSaver();
+      await fileSaver.selectFolder();
+      await fileSaver.saveFile(buffer.toString(), fileName);
+
       Get.dialog(
         CustomPopup(
           title: "Success",
-          message: "Logs saved to Documents",
+          message: "Logs saved successfully",
           onButtonPressed: () => Get.back(),
         ),
         barrierDismissible: false,
@@ -105,7 +105,6 @@ class SessionLogsController extends GetxController {
         barrierDismissible: false,
       );
     } finally {
-      if (Get.isDialogOpen ?? false) Get.back();
       isBusy.value = false;
       loaderText.value = '';
     }
