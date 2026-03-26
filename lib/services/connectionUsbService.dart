@@ -9,6 +9,7 @@ import 'package:autopeepal/services/connectionWifiService.dart';
 import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:ecu_seedkey/ecu_seedkey.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 
 import 'package:usb_serial/usb_serial.dart';
@@ -58,43 +59,45 @@ class ConnectionUSB {
 
   Future<bool> connectUsbForConfig() async {
     try {
-      bool hardwareConnected = await connectUsb(VCIType.RP1210);
-      if (!hardwareConnected || port == null) {
-        print("❌ Hardware connection failed");
-        // Fluttertoast.showToast(
-        //     msg: "USB Hardware not found or Permission denied");
-        return false;
-      }
+      // bool hardwareConnected = await connectUsb(VCIType.RP1210);
+      // if (!hardwareConnected || port == null) {
+      //   print("❌ Hardware connection failed");
+      //    Fluttertoast.showToast(
+      //        msg: "USB Hardware not found or Permission denied");
+      //   return false;
+      // }
       final comm = Get.find<CommController>();
       await comm.connectUsb(port!);
 
-      await Future.delayed(const Duration(milliseconds: 600));
+      await Future.delayed(const Duration(seconds: 2)); // ⭐ increase delay
+
+      await comm.clearBuffer(); // ⭐ VERY IMPORTANT
 
       dongleCommWin = DongleComm(channelId: "00", isChannel: true);
       dongleCommWin!.comm = comm;
       dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
 
       print("🔐 Starting Security Access on Mobile...");
-     // Fluttertoast.showToast(msg: "Requesting Security Access...");
+      // Fluttertoast.showToast(msg: "Requesting Security Access...");
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
 
       if (securityAccess != null && securityAccess.length > 3) {
         if (securityAccess[3] == 0x00) {
           App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
-         // Fluttertoast.showToast(msg: "✅ Security Access Granted");
+          //Fluttertoast.showToast(msg: "✅ Security Access Granted");
           return true;
         } else {
           securityAccess[3].toRadixString(16).padLeft(2, '0');
-          //Fluttertoast.showToast(msg: "❌ Access Denied. Error: 0x$errCode");
+          // Fluttertoast.showToast(msg: "❌ Access Denied. Error: 0x");
           return false;
         }
       } else {
-       // Fluttertoast.showToast(msg: "⚠️ No response from VCI (Security)");
+        // Fluttertoast.showToast(msg: "⚠️ No response from VCI (Security)");
         return false;
       }
     } catch (e) {
       print("🔥 Mobile USB Exception: $e");
-    //  Fluttertoast.showToast(msg: "Exception: ${e.toString()}");
+      // Fluttertoast.showToast(msg: "Exception:.......... ${e.toString()}");
       await port?.close();
       return false;
     }
@@ -102,34 +105,95 @@ class ConnectionUSB {
 
   Future<List<String>> getDongleMacID({String channelId = '00'}) async {
     try {
-      comm ??= Get.put(CommController());
-      dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
-      dongleCommWin!.comm = comm;
-      if (port != null) {
-        await comm!.connectUsb(port!);
-      } else {
+      print("🔍 Starting getDongleMacID...");
+
+      // Fluttertoast.showToast(msg: "Connecting to dongle...");
+
+      /// 🔥 STEP 1: GET COMM
+      comm ??= Get.find<CommController>();
+
+      if (port == null) {
+        print("❌ USB Port is NULL");
+        Fluttertoast.showToast(msg: "USB Port not found");
         return ["false", "USB Port not found"];
       }
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!,ECUCalculateSeedkey());
-      print("Requesting Security Access...");
+
+      /// 🔥 STEP 2: RECONNECT USB (VERY IMPORTANT)
+      print("🔌 Reconnecting USB before MAC read...");
+      await comm!.connectUsb(port!);
+
+      await Future.delayed(const Duration(seconds: 1));
+
+      /// 🔥 STEP 3: CLEAR BUFFER (CRITICAL FIX)
+      print("🧹 Clearing buffer...");
+      await comm!.clearBuffer();
+
+      /// 🔥 STEP 4: INIT OBJECTS
+      dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
+      dongleCommWin!.comm = comm;
+
+      dSDiagnostic = UDSDiagnostic(
+        dongleCommWin!,
+        ECUCalculateSeedkey(),
+      );
+
+      /// 🔥 STEP 5: SECURITY ACCESS
+      print("🔐 Requesting Security Access...");
+      //Fluttertoast.showToast(msg: "Requesting Security Access...");
+
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
-      if (securityAccess != null &&
-          securityAccess.length > 3 &&
-          securityAccess[3] == 0x00) {
-        Uint8List? macResp = await dongleCommWin!.getWifiMacId();
 
-        if (macResp != null && macResp.length >= 9) {
-          String macId = macResp
-              .sublist(3, 9)
-              .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
-              .join(":");
-          App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
-
-          return ["true", macId];
-        }
+      if (securityAccess == null) {
+        print("❌ No response from dongle");
+        // Fluttertoast.showToast(msg: "No response from device");
+        return ["false", "No response from dongle"];
       }
-      return ["false", "Failed to Connect: Security access denied"];
+
+      print(
+          "📨 Security Response: ${securityAccess.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ')}");
+
+      if (securityAccess.length <= 3) {
+        print("❌ Invalid security response");
+        //Fluttertoast.showToast(msg: "Invalid security response");
+        return ["false", "Invalid security response"];
+      }
+
+      if (securityAccess[3] != 0x00) {
+        print("❌ Security denied: ${securityAccess[3]}");
+        // Fluttertoast.showToast(msg: "Security Access Denied");
+        return ["false", "Security denied: ${securityAccess[3]}"];
+      }
+
+      print("✅ Security Access Granted");
+      // Fluttertoast.showToast(msg: "Security Access Granted");
+
+      /// 🔥 STEP 6: GET MAC
+      print("📡 Requesting MAC ID...");
+      // Fluttertoast.showToast(msg: "Fetching MAC ID...");
+
+      Uint8List? macResp = await dongleCommWin!.getWifiMacId();
+
+      if (macResp == null || macResp.length < 9) {
+        print("❌ Invalid MAC response");
+        //  Fluttertoast.showToast(msg: "Failed to get MAC ID");
+        return ["false", "Invalid MAC response"];
+      }
+
+      String macId = macResp
+          .sublist(3, 9)
+          .map((b) => b.toRadixString(16).padLeft(2, '0').toUpperCase())
+          .join(":");
+
+      print("✅ MAC ID: $macId");
+      // Fluttertoast.showToast(msg: "MAC ID: $macId");
+
+      /// 🔥 STEP 7: FINAL INIT
+      App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+
+      return ["true", macId];
     } catch (e) {
+      print("🔥 Exception in getDongleMacID: $e");
+      // Fluttertoast.showToast(msg: "Error: ${e.toString()}");
       return ["false", "Exception: $e"];
     }
   }

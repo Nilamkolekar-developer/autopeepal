@@ -163,7 +163,7 @@ class DLLFunctions {
       final String protocolNameValue = ecu.protocol!.name!;
       protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
 
-      // parity with C#
+      // parity with C#disconnectVCI1
       protocolNameValue.replaceAll('-', '_');
 
       txHeaderTemp = ecu.txHeader!;
@@ -179,7 +179,7 @@ class DLLFunctions {
           await mDongleComm.rp1210ClientConnect(protocolNameValue);
 
       if (!isConnected) {
-        mDongleComm.comm?.disconnectVCI();
+       await mDongleComm.rp1210ClientDisconnect();
         return "Failed to connect client.";
       }
 
@@ -193,7 +193,7 @@ class DLLFunctions {
       );
 
       if (!flowOk) {
-        mDongleComm.comm?.disconnectVCI();
+      await mDongleComm.rp1210ClientDisconnect();
         return "Failed to set flow control.";
       }
 
@@ -229,13 +229,13 @@ class DLLFunctions {
       if (filterOk) {
         status = "Success";
       } else {
-        mDongleComm.comm!.disconnectVCI();
+       await mDongleComm.rp1210ClientDisconnect();
         status = "Failed to set message filter.";
       }
 
       return status;
     } catch (e, stack) {
-      mDongleComm.comm!.disconnectVCI();
+      await mDongleComm.rp1210ClientDisconnect();
       return "Exception @SetRP1210Properties(): $e $stack";
     }
   }
@@ -269,7 +269,7 @@ class DLLFunctions {
           await mDongleComm.rp1210ClientConnect(protocolNameValue);
 
       if (!isConnected) {
-        mDongleComm.comm!.disconnectVCI();
+   await mDongleComm.rp1210ClientDisconnect();();
         return "Failed to connect client.";
       }
 
@@ -290,7 +290,7 @@ class DLLFunctions {
       );
 
       if (!deviceIpOk) {
-        mDongleComm.comm!.disconnectVCI();
+      await mDongleComm.rp1210ClientDisconnect();
         return "Failed to set Device IP.";
       }
 
@@ -303,7 +303,7 @@ class DLLFunctions {
       final bool ecuIpOk = await mDongleComm.rp1210DoipSetEcuIp(ecuIp);
 
       if (!ecuIpOk) {
-        mDongleComm.comm!.disconnectVCI();
+      await mDongleComm.rp1210ClientDisconnect();
         return "Failed to set ECU IP.";
       }
 
@@ -326,13 +326,13 @@ class DLLFunctions {
           routineActivationResp[12] == 0x10) {
         status = "Success";
       } else {
-        mDongleComm.comm!.disconnectVCI();
+       await mDongleComm.rp1210ClientDisconnect();
         status = "Failed to activate DoIP routing.";
       }
 
       return status;
     } catch (e, stack) {
-      mDongleComm.comm!.disconnectVCI();
+     await mDongleComm.rp1210ClientDisconnect();
       return "Exception @SetDoipRP1210Properties(): $e $stack";
     }
   }
@@ -369,7 +369,7 @@ class DLLFunctions {
           connectivity == Connectivity.doipWiFi) {
         await mDongleComm.rp1210ClientDisconnect();
       }
-      await mDongleComm.comm?.disconnectVCI();
+      await mDongleComm.resetDongle();
     } catch (e) {
       print("❌ Error disconnecting VCI: $e");
     }
@@ -1199,44 +1199,36 @@ Future<List<WriteParameterStatus>?> writePid(
     }
   }
 
-  Future<TestRoutineResponseModel?> setTestRoutineCommand(
-    String seedKey,
-    String writeParaIndex,
-    String startCommand,
-    String requestCommand,
-    String stopCommand,
-    bool testCondition,
-    int bitPosition,
-    List<String> activeCommand,
-    String stoppedCommand,
-    String failCommand,
-    bool isStop,
-    int timeBase,
-  ) async {
-    TestRoutineResponseModel response = TestRoutineResponseModel();
+ Future<TestRoutineResponseModel?> setTestRoutineCommand(
+  String seedKey,
+  String writeParaIndex,
+  String startCommand,
+) async {
+  try {
+    // Convert string → enum
+    final seedIndex = SEEDKEYINDEXTYPE.values
+        .firstWhere((e) => e.name == seedKey);
 
-    try {
-      // Parse enums
-      SEEDKEYINDEXTYPE.values.firstWhere(
-        (e) => e.toString().split('.').last == seedKey,
-      );
+    final writeIndex = WriteParameterIndex.values
+        .firstWhere((e) => e.name == writeParaIndex);
 
-      WriteParameterIndex.values.firstWhere(
-        (e) => e.toString().split('.').last == writeParaIndex,
-      );
+    // Call API / SDK method
+    final result = await mUdsDiagnostic.startIdIOR(
+      seedIndex,
+      writeIndex,
+      startCommand,
+    );
 
-      // Equivalent to object result = new object();
-      final result = {};
+    // Convert result → JSON → Model
+    final json = jsonEncode(result);
+    final response =
+        TestRoutineResponseModel.fromJson(jsonDecode(json));
 
-      // Serialize and deserialize (same as C# logic)
-      final res = jsonEncode(result);
-      response = TestRoutineResponseModel.fromJson(jsonDecode(res));
-
-      return response;
-    } catch (e) {
-      return null;
-    }
+    return response;
+  } catch (e) {
+    return null;
   }
+}
 
   Future<TestRoutineResponseModel?> continueIorTest(
     String seedKey,
@@ -1535,81 +1527,162 @@ Future<List<WriteParameterStatus>?> writePid(
     }
   }
 
-  Future<List<ReadPidResponseModel>?> setRoutineValue(List<PidCode> pidList,
-      String pidByAddrSeq, Uint8List actualResponse) async {
-    try {
-      dynamic result;
+  // Future<List<ReadPidResponseModel>?> setRoutineValue(List<PidCode> pidList,
+  //     String pidByAddrSeq, Uint8List actualResponse) async {
+  //   try {
+  //     dynamic result;
 
-      List<ReadParameterPID> list = [];
-      List<ReadParameterPID> listOfAddrPid = [];
+  //     List<ReadParameterPID> list = [];
+  //     List<ReadParameterPID> listOfAddrPid = [];
 
-      for (var item in pidList) {
-        List<PidVariable> variables = [];
+  //     for (var item in pidList) {
+  //       List<PidVariable> variables = [];
 
-        for (var vari in item.piCodeVariable ?? []) {
-          List<SelectedParameterMessage> messageValueList = [];
+  //       for (var vari in item.piCodeVariable ?? []) {
+  //         List<SelectedParameterMessage> messageValueList = [];
 
-          if (vari.messages != null) {
-            for (var messageItem in vari.messages!) {
-              messageValueList.add(
-                SelectedParameterMessage(
-                  code: messageItem.code,
-                  message: messageItem.message,
-                ),
-              );
-            }
+  //         if (vari.messages != null) {
+  //           for (var messageItem in vari.messages!) {
+  //             messageValueList.add(
+  //               SelectedParameterMessage(
+  //                 code: messageItem.code,
+  //                 message: messageItem.message,
+  //               ),
+  //             );
+  //           }
+  //         }
+
+  //         int startBit = vari.startBitPosition ?? 0;
+  //         int endBit = vari.endBitPosition ?? 0;
+
+  //         PidVariable pidVariable = PidVariable(
+  //           datatype: vari.messageType,
+  //           isBitcoded: vari.bitcoded,
+  //           noofBits: (endBit - startBit) + 1,
+  //           noOfBytes: vari.length,
+  //           offset: vari.offset,
+  //           resolution: vari.resolution,
+  //           startBit: startBit,
+  //           startByte: vari.bytePosition,
+  //           pidNumber: vari.id,
+  //           pidName: vari.shortName,
+  //           messages: messageValueList,
+  //         );
+
+  //         variables.add(pidVariable);
+  //       }
+
+  //       ReadParameterPID pid = ReadParameterPID(
+  //         pidId: item.id,
+  //         variables: variables,
+  //         totalLen: (item.code?.length ?? 0) ~/ 2,
+  //         pid: item.code,
+  //       );
+
+  //       if (item.memoryAddress == false) {
+  //         list.add(pid);
+  //       } else {
+  //         listOfAddrPid.add(pid);
+  //       }
+  //     }
+
+  //     result = await mUdsDiagnostic.setRoutineValue(
+  //       list.length,
+  //       list,
+  //       actualResponse,
+  //     );
+
+  //     List<ReadPidResponseModel> responseList = (result as List)
+  //         .map((e) =>
+  //             ReadPidResponseModel.fromJson(Map<String, dynamic>.from(e)))
+  //         .toList();
+
+  //     return responseList;
+  //   } catch (e) {
+  //     return null;
+  //   }
+  // }
+
+  Future<List<ReadPidPresponseModel>?> setRoutineValue(
+  List<PidCode> pidList,
+  String? pidByAddrSeq,
+  List<int> actualResponse,
+) async {
+  try {
+    dynamic result;
+
+    List<ReadParameterPID> list = [];
+    List<ReadParameterPID> listOfAddrPid = [];
+
+    for (var item in pidList) {
+      List<PidVariable> variables = [];
+
+      for (var vari in item.piCodeVariable ?? []) {
+        List<SelectedParameterMessage> messageValueList = [];
+
+        if (vari.messages != null) {
+          for (var messageItem in vari.messages!) {
+            messageValueList.add(
+              SelectedParameterMessage(
+                code: messageItem.code,
+                message: messageItem.message,
+              ),
+            );
           }
-
-          int startBit = vari.startBitPosition ?? 0;
-          int endBit = vari.endBitPosition ?? 0;
-
-          PidVariable pidVariable = PidVariable(
-            datatype: vari.messageType,
-            isBitcoded: vari.bitcoded,
-            noofBits: (endBit - startBit) + 1,
-            noOfBytes: vari.length,
-            offset: vari.offset,
-            resolution: vari.resolution,
-            startBit: startBit,
-            startByte: vari.bytePosition,
-            pidNumber: vari.id,
-            pidName: vari.shortName,
-            messages: messageValueList,
-          );
-
-          variables.add(pidVariable);
         }
 
-        ReadParameterPID pid = ReadParameterPID(
-          pidId: item.id,
-          variables: variables,
-          totalLen: (item.code?.length ?? 0) ~/ 2,
-          pid: item.code,
+        int endBit = vari.endBitPosition ?? 0;
+        int startBit = vari.startBitPosition ?? 0;
+
+        PidVariable pidVariable = PidVariable(
+          datatype: vari.messageType,
+          isBitcoded: vari.bitcoded,
+          noofBits: (endBit - startBit + 1),
+          noOfBytes: vari.length,
+          offset: vari.offset,
+          resolution: vari.resolution,
+          startBit: startBit,
+          startByte: vari.bytePosition,
+          pidNumber: vari.id,
+          pidName: vari.shortName,
+          messages: messageValueList,
         );
 
-        if (item.memoryAddress == false) {
-          list.add(pid);
-        } else {
-          listOfAddrPid.add(pid);
-        }
+        variables.add(pidVariable);
       }
 
-      result = await mUdsDiagnostic.setRoutineValue(
-        list.length,
-        list,
-        actualResponse,
+      ReadParameterPID pidObj = ReadParameterPID(
+        pidId: item.id,
+        variables: variables,
+        totalLen: (item.code?.length ?? 0) ~/ 2,
+        pid: item.code,
       );
 
-      List<ReadPidResponseModel> responseList = (result as List)
-          .map((e) =>
-              ReadPidResponseModel.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
-
-      return responseList;
-    } catch (e) {
-      return null;
+      if (item.memoryAddress == false) {
+        list.add(pidObj);
+      } else {
+        listOfAddrPid.add(pidObj);
+      }
     }
+
+    // API call (same as Task.Run)
+    result = await mUdsDiagnostic.setRoutineValue(
+      list.length,
+      list,
+      Uint8List.fromList(actualResponse),
+    );
+
+    // Convert response
+    List<ReadPidPresponseModel> resList =
+        (result as List)
+            .map((e) => ReadPidPresponseModel.fromJson(e))
+            .toList();
+
+    return resList;
+  } catch (e) {
+    return null;
   }
+}
 
   Future<bool> writeSSID(String routerSSID) async {
     try {

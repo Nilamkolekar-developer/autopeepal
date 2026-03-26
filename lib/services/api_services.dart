@@ -13,7 +13,7 @@ import 'package:autopeepal/models/expert_model.dart';
 import 'package:autopeepal/models/flashRecord_model.dart';
 import 'package:autopeepal/models/freezeFrame_model.dart';
 import 'package:autopeepal/models/gd_model.dart';
-import 'package:autopeepal/models/iotTest_model.dart';
+import 'package:autopeepal/models/iorTest_model.dart';
 import 'package:autopeepal/models/jobCard_model.dart';
 import 'package:autopeepal/models/listNumber_model.dart';
 import 'package:autopeepal/models/liveParameter_model.dart';

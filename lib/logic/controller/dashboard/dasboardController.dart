@@ -67,8 +67,6 @@ class DashboardController extends GetxController {
     AppPreferences.setSelectedVCI(vci.name);
   }
 
-  
-
   Future<void> loadAppInfo() async {
     final info = await PackageInfo.fromPlatform();
     appName.value = info.appName;
@@ -539,11 +537,7 @@ class DashboardController extends GetxController {
         }
 
         print("Setting Dongle Properties...");
-        await App.dllFunctions!.setDongleProperties1(
-            // StaticData.ecuInfo[0].protocol.autopeepal??'',
-            // StaticData.ecuInfo[0].txHeader ?? '',
-            // StaticData.ecuInfo[0].rxHeader ?? '',
-            );
+        await App.dllFunctions!.setDongleProperties1();
 
         await AppPreferences.setConnectedVia("USB");
         print("USB connection complete for CAN2X family");
@@ -610,7 +604,7 @@ class DashboardController extends GetxController {
         closeLoader();
         App.firmwareVersion = firmware;
         App.connectedVia = "USB";
-
+       // await Future.delayed(const Duration(milliseconds: 800));
         print("Navigating to Diagnostic Screen");
         Get.toNamed(Routes.diagnosticScreen, arguments: {
           'firmwareVersion': firmware,

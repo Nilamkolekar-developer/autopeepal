@@ -10,7 +10,7 @@ import 'package:autopeepal/models/doipConfigFile_model.dart';
 import 'package:autopeepal/models/flashRecord_model.dart';
 import 'package:autopeepal/models/freezeFrame_model.dart';
 import 'package:autopeepal/models/gd_model.dart';
-import 'package:autopeepal/models/iotTest_model.dart';
+import 'package:autopeepal/models/iorTest_model.dart';
 import 'package:autopeepal/models/listNumber_model.dart';
 import 'package:autopeepal/models/user_model.dart';
 import 'package:autopeepal/routes/routes_string.dart';

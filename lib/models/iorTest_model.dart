@@ -122,26 +122,26 @@ class IorResult {
 // ----------------------------- Sub Models -----------------------------
 
 class TestIo {
-  int id;
+  int? id;
   String? type;
   int? pid;
   String? checkOutputSignals;
   String? calculation;
   String? event;
   String? variableName;
-  int startByte;
-  int length;
-  bool bitcoded;
+  int? startByte;
+  int? length;
+  bool? bitcoded;
   dynamic noOfBit;
   dynamic startBitPosition;
-  double resolution;
-  double offset;
+  double? resolution;
+  double? offset;
   double? min;
   double? max;
   String? messageType;
   String? enumValue;
   String? enumDesc;
-  bool isActive;
+  bool? isActive;
   String? unit;
 
   // Reactive properties
@@ -149,26 +149,26 @@ class TestIo {
   ValueNotifier<String> inputValue = ValueNotifier('');
 
   TestIo({
-    required this.id,
+    this.id,
     this.type,
     this.pid,
     this.checkOutputSignals,
     this.calculation,
     this.event,
     this.variableName,
-    required this.startByte,
-    required this.length,
-    required this.bitcoded,
+    this.startByte,
+    this.length,
+    this.bitcoded,
     this.noOfBit,
     this.startBitPosition,
-    required this.resolution,
-    required this.offset,
+    this.resolution,
+    this.offset,
     this.min,
     this.max,
     this.messageType,
     this.enumValue,
     this.enumDesc,
-    required this.isActive,
+    this.isActive,
     this.unit,
   });
 
@@ -518,6 +518,29 @@ class EcuModel {
     return {
       'name': name,
       'id': id,
+    };
+  }
+}
+
+class InjectorPattern {
+  String? pattern;
+  String? value;
+
+  InjectorPattern({this.pattern, this.value});
+
+  // Optional: fromJson
+  factory InjectorPattern.fromJson(Map<String, dynamic> json) {
+    return InjectorPattern(
+      pattern: json['pattern'],
+      value: json['value'],
+    );
+  }
+
+  // Optional: toJson
+  Map<String, dynamic> toJson() {
+    return {
+      'pattern': pattern,
+      'value': value,
     };
   }
 }
