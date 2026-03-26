@@ -989,3 +989,51 @@ class VariantDataLists {
     };
   }
 }
+
+class ReadPidPresponseModel {
+  String status;
+  String dataArray;
+  int pidId;
+  String pidName;
+  String responseValue;
+  String unit;
+  List<Variable> variables;
+
+  ReadPidPresponseModel({
+    required this.status,
+    required this.dataArray,
+    required this.pidId,
+    required this.pidName,
+    required this.responseValue,
+    required this.unit,
+    required this.variables,
+  });
+
+  // Factory constructor to create from JSON
+  factory ReadPidPresponseModel.fromJson(Map<String, dynamic> json) {
+    return ReadPidPresponseModel(
+      status: json['Status'] ?? '',
+      dataArray: json['DataArray'] ?? '',
+      pidId: json['pid_id'] ?? 0,
+      pidName: json['pid_name'] ?? '',
+      responseValue: json['responseValue'] ?? '',
+      unit: json['unit'] ?? '',
+      variables: (json['Variables'] as List<dynamic>? ?? [])
+          .map((v) => Variable.fromJson(v))
+          .toList(),
+    );
+  }
+
+  // To JSON if needed
+  Map<String, dynamic> toJson() {
+    return {
+      'Status': status,
+      'DataArray': dataArray,
+      'pid_id': pidId,
+      'pid_name': pidName,
+      'responseValue': responseValue,
+      'unit': unit,
+      'Variables': variables.map((v) => v.toJson()).toList(),
+    };
+  }
+}

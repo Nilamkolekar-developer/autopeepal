@@ -1,234 +1,158 @@
-import 'package:autopeepal/models/iotTest_model.dart';
+import 'package:autopeepal/logic/controller/diagnosticFunctions/routinePreconditionTestController.dart';
+import 'package:autopeepal/models/iorTest_model.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class IorPreconditionPage extends StatelessWidget {
-  final List<IorPid> iorPidList;
-  final List<IorStatic> iorStaticList;
-  final List<IorManual> iorManualList;
-  final bool isBusy;
+  final controller = Get.put(routinePreconditionController());
 
-  const IorPreconditionPage(
-    IorResult? iorResult,
-    String? seedIndex,
-    String? writeFnIndex,
-    int? noOfInjectors,
-    List<int>? firingOrder, {
-    super.key,
-     required this.iorPidList,
-     required this.iorStaticList,
-     required this.iorManualList,
-    this.isBusy = false,
-  });
+  IorPreconditionPage(IorResult iorResult, String seedIndex,
+      String writeFnIndex, int? noOfInjectors, List<int> firingOrder);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Preconditions')),
-      backgroundColor: Colors.grey[100], // page_bg_color
+      appBar: AppBar(title: Text("Preconditions")),
       body: Stack(
         children: [
-          Column(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Column(
-                      children: [
-                        // IorStaticList
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: iorStaticList.length,
-                          itemBuilder: (context, index) {
-                            final item = iorStaticList[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 5),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              elevation: 4,
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Text(
-                                  item.description,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.black87,
-                                    height: 1.4,
-                                  ),
-                                ),
-                              ),
-                            );
-                          },
+          Obx(
+            () => SingleChildScrollView(
+              padding: EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  // Static Preconditions
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: controller.iorStaticList.length,
+                    itemBuilder: (context, index) {
+                      final item = controller.iorStaticList[index];
+                      return Container(
+                        margin: EdgeInsets.symmetric(vertical: 5),
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              offset: Offset(10, 10),
+                              blurRadius: 40,
+                            )
+                          ],
                         ),
-
-                        // IorPidList
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: iorPidList.length,
-                          itemBuilder: (context, index) {
-                            final item = iorPidList[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 5),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              elevation: 4,
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      item.description ?? '',
-                                      style: const TextStyle(
-                                          fontSize: 14, color: Colors.black87),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            const Text('Min  : ',
-                                                style: TextStyle(fontSize: 14)),
-                                            Text(item.lowerLimit.toString(),
-                                                style: const TextStyle(
-                                                    fontSize: 14)),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 30),
-                                        Row(
-                                          children: [
-                                            const Text('Value  : ',
-                                                style: TextStyle(fontSize: 14)),
-                                            Text(item.currentValue.toString(),
-                                                style: const TextStyle(
-                                                    fontSize: 14)),
-                                          ],
-                                        ),
-                                        const SizedBox(width: 30),
-                                        Row(
-                                          children: [
-                                            const Text('Max  : ',
-                                                style: TextStyle(fontSize: 14)),
-                                            Text(item.upperLimit.toString(),
-                                                style: const TextStyle(
-                                                    fontSize: 14)),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
+                        child: Text(
+                          item.description,
+                          style: TextStyle(fontSize: 14),
                         ),
-
-                        // IorManualList
-                        ListView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: iorManualList.length,
-                          itemBuilder: (context, index) {
-                            final item = iorManualList[index];
-                            return Card(
-                              margin: const EdgeInsets.symmetric(vertical: 5),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                              elevation: 4,
-                              child: Padding(
-                                padding: const EdgeInsets.all(20),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        item.description,
-                                        style: const TextStyle(
-                                            fontSize: 14,
-                                            color: Colors.black87),
-                                      ),
-                                    ),
-                                    Checkbox(
-                                      value: item.isChecked,
-                                      onChanged: (value) {
-                                        // handle checkbox change
-                                      },
-                                      activeColor: Colors.blue, // theme_color
-                                    )
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                ),
+
+                  SizedBox(height: 10),
+
+                  // Manual Preconditions
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: controller.iorManualList.length,
+                    itemBuilder: (context, index) {
+                      final item = controller.iorManualList[index];
+                      return Container(
+                        margin: EdgeInsets.symmetric(vertical: 5),
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              offset: Offset(10, 10),
+                              blurRadius: 40,
+                            )
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(child: Text(item.description)),
+                            Obx(() => Checkbox(
+                                  value: item.isCheck,
+                                  onChanged: (val) {
+                                    item.isCheck = val ?? false;
+                                  },
+                                )),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 10),
+
+                  // PID Preconditions
+                  ListView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    itemCount: controller.iorPidList.length,
+                    itemBuilder: (context, index) {
+                      final item = controller.iorPidList[index];
+                      return Container(
+                        margin: EdgeInsets.symmetric(vertical: 5),
+                        padding: EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              offset: Offset(10, 10),
+                              blurRadius: 40,
+                            )
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.description,
+                                style: TextStyle(fontSize: 14)),
+                            SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Text("Min: ${item.lowerLimit}"),
+                                SizedBox(width: 30),
+                                Text("Value: ${item.currentValue}"),
+                                SizedBox(width: 30),
+                                Text("Max: ${item.upperLimit}"),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+
+                  SizedBox(height: 20),
+
+                  ElevatedButton(
+                    onPressed: () {
+                      controller.checkConditionsAndNavigate();
+                    },
+                    child: Text("Continue"),
+                  ),
+                ],
               ),
-
-              // Continue Button
-              Padding(
-                padding: const EdgeInsets.all(10.0),
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red, // RedBtnStyle
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        side: const BorderSide(
-                            color: Colors.blue)), // theme_color
-                    minimumSize: const Size.fromHeight(50),
-                  ),
-                  onPressed: () {
-                    // ContinueClicked
-                  },
-                  child: const Text('Continue'),
-                ),
-              )
-            ],
+            ),
           ),
 
           // Loader overlay
-          if (isBusy)
-            Positioned.fill(
-              child: Container(
-                color: Colors.black54,
-                child: const Center(child: CircularProgressIndicator()),
-              ),
-            ),
+          Obx(() => controller.isBusy.value
+              ? Container(
+                  color: Colors.black.withOpacity(0.3),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : SizedBox.shrink()),
         ],
       ),
     );
   }
-}
-
-// Example models
-class IorPid {
-  String? description;
-  double? lowerLimit;
-  double? currentValue;
-  double? upperLimit;
-
-  IorPid({
-    this.description,
-    this.lowerLimit,
-    this.currentValue,
-    this.upperLimit,
-  });
-}
-
-class IorStatic {
-  String description;
-
-  IorStatic({required this.description});
-}
-
-class IorManual {
-  String description;
-  bool isChecked;
-
-  IorManual({required this.description, this.isChecked = false});
 }

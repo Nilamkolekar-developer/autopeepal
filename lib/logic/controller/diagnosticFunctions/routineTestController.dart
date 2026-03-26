@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:autopeepal/app.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
-import 'package:autopeepal/models/iotTest_model.dart';
+import 'package:autopeepal/models/iorTest_model.dart';
 import 'package:autopeepal/models/liveParameter_model.dart';
 import 'package:autopeepal/models/staticData.dart';
 import 'package:autopeepal/utils/save_local_data.dart';
@@ -121,7 +121,7 @@ class RoutineTestController extends GetxController {
           noOfInjectors: ecu.noOfInjectors,
         ));
       }
-       print("Selected ECU: ${selectedEcu.value?.ecuName}");
+      print("Selected ECU: ${selectedEcu.value?.ecuName}");
 
       selectedEcu.value = ecuList.isNotEmpty ? ecuList.first : null;
       print("Selected ECU: ${selectedEcu.value?.ecuName}");
@@ -161,34 +161,35 @@ class RoutineTestController extends GetxController {
     }
   }
 
- void handleEcuClicked() {
-  try {
-    // Clear previous IOR test list
-    iorTestList.value = [];
+  void handleEcuClicked() {
+    try {
+      // Clear previous IOR test list
+      iorTestList.value = [];
 
-    for (var ecu in ecuList) {
-      if (selectedEcu.value?.id == ecu.id) {
-        // Set selected ECU opacity
-        ecu.opacity = 1.0;
+      for (var ecu in ecuList) {
+        if (selectedEcu.value?.id == ecu.id) {
+          // Set selected ECU opacity
+          ecu.opacity = 1.0;
 
-        // Set IOR test list for the selected ECU
-        iorTestList.value = List<IorResult>.from(ecu.iorList ?? []);
-      } else {
-        // Dim unselected ECUs
-        ecu.opacity = 0.5;
+          // Set IOR test list for the selected ECU
+          iorTestList.value = List<IorResult>.from(ecu.iorList ?? []);
+        } else {
+          // Dim unselected ECUs
+          ecu.opacity = 0.5;
+        }
       }
+
+      // Trigger UI update (if using GetX)
+      ecuList.refresh();
+      iorTestList.refresh();
+
+      print("Selected ECU: ${selectedEcu.value?.ecuName}");
+      print("IOR Test List length: ${iorTestList.length}");
+    } catch (ex) {
+      print("Exception in selectEcuClicked: $ex");
     }
-
-    // Trigger UI update (if using GetX)
-    ecuList.refresh();
-    iorTestList.refresh();
-
-    print("Selected ECU: ${selectedEcu.value?.ecuName}");
-    print("IOR Test List length: ${iorTestList.length}");
-  } catch (ex) {
-    print("Exception in selectEcuClicked: $ex");
   }
-}
+
   var selectedTest = Rx<IorResult?>(null);
   Future<void> selectIorTestClicked(IorResult? test) async {
     try {
@@ -250,142 +251,130 @@ class RoutineTestController extends GetxController {
     }
   }
 
- Future<void> handleOkRoutine() async {
-  try {
-    print("=== handleOkRoutine START ===");
-    isBusy.value = true;
+  Future<void> handleOkRoutine() async {
+    try {
+      print("=== handleOkRoutine START ===");
+      isBusy.value = true;
 
-    // Hide the notice banner
-    print("Hiding notice banner...");
-    isNoticeVisible.value = false;
-    await Future.delayed(const Duration(milliseconds: 300));
-    print("Notice banner hidden.");
+      // Hide the notice banner
+      print("Hiding notice banner...");
+      isNoticeVisible.value = false;
+      await Future.delayed(const Duration(milliseconds: 300));
+      print("Notice banner hidden.");
 
-    // Get selected ECU info
-    final selected = selectedEcu.value;
-    if (selected == null) {
-      print("No ECU selected. Aborting.");
-      return;
-    }
+      // Get selected ECU info
+      final selected = selectedEcu.value;
+      if (selected == null) {
+        print("No ECU selected. Aborting.");
+        return;
+      }
 
-    final ecuInfo = StaticData.ecuInfo.firstWhere(
-      (e) => e.ecuID == selected.id,
-      orElse: () => throw Exception("ECU info not found"),
-    );
-    print("ECU info retrieved: $ecuInfo");
-
-    final seedIndex = ecuInfo.seedKeyIndex ?? '';
-    final writeFnIndex = ecuInfo.writePidIndex ?? '';
-    print("Seed Index: $seedIndex, WriteFn Index: $writeFnIndex");
-
-    // Set dongle properties
-    print("Setting dongle properties...");
-    await App.dllFunctions?.setDongleProperties(
-      selected.protocol?.autopeepal ?? '',
-      selected.txHeader ?? '',
-      selected.rxHeader ?? '',
-    );
-    print("Dongle properties set.");
-
-    // Validate number of injectors
-    
-    if (selected.noOfInjectors == 0) {
-      print("No injectors available. Showing alert.");
-      await Get.dialog(
-        CustomPopup(
-          title: "Alert!",
-          message: "Number of Injectors not available",
-        ),
-        barrierDismissible: false,
+      final ecuInfo = StaticData.ecuInfo.firstWhere(
+        (e) => e.ecuID == selected.id,
+        orElse: () => throw Exception("ECU info not found"),
       );
-      return;
-    }
+      print("ECU info retrieved: $ecuInfo");
 
-    // Validate firing sequence
-    final firingSeq = ecuInfo.firingSequence ?? '';
-    if (firingSeq.isEmpty) {
-      print("Firing sequence missing. Showing alert.");
-      await Get.dialog(
-        CustomPopup(
-          title: "Alert!",
-          message: "Firing Sequence is not available",
-        ),
-        barrierDismissible: false,
+      final seedIndex = ecuInfo.seedKeyIndex ?? '';
+      final writeFnIndex = ecuInfo.writePidIndex ?? '';
+      print("Seed Index: $seedIndex, WriteFn Index: $writeFnIndex");
+
+      // Set dongle properties
+      print("Setting dongle properties...");
+      await App.dllFunctions?.setDongleProperties(
+        selected.protocol?.autopeepal ?? '',
+        selected.txHeader ?? '',
+        selected.rxHeader ?? '',
       );
-      return;
-    }
+      print("Dongle properties set.");
 
-    // Parse firing order safely
-    final firingOrder = firingSeq
-        .split(',')
-        .map((seq) => int.tryParse(seq.trim()) ?? -1)
-        .map((n) => n - 1)
-        .toList();
+      // Validate number of injectors
 
-    if (firingOrder.length !=selected. noOfInjectors || firingOrder.contains(-2)) {
-      print("Firing order length mismatch. Showing alert.");
-      await Get.dialog(
-        CustomPopup(
-          title: "Alert!",
-          message: "Number of Injectors does not match with Firing Sequence",
-        ),
-        barrierDismissible: false,
-      );
-      return;
-    }
-
-    // Navigate based on preconditions
-    final preConditions = selectedTest.value?.preConditions ?? [];
-    if (preConditions.isEmpty) {
-      print("No preconditions, navigating to IorTestPlayPage...");
-      await Navigator.push(
-        Get.context!,
-        MaterialPageRoute(
-          builder: (_) => IorTestPlayPage(
-            selectedTest.value!,
-            seedIndex,
-            writeFnIndex,
-           selected. noOfInjectors,
-            firingOrder,
-            iorTestList: [],
-            testOutputList: [],
+      if (selected.noOfInjectors == 0) {
+        print("No injectors available. Showing alert.");
+        await Get.dialog(
+          CustomPopup(
+            title: "Alert!",
+            message: "Number of Injectors not available",
           ),
-        ),
-      );
-    } else {
-      print("Preconditions exist, navigating to IorPreconditionPage...");
-      await Navigator.push(
-        Get.context!,
-        MaterialPageRoute(
-          builder: (_) => IorPreconditionPage(
-            selectedTest.value!,
-            seedIndex,
-            writeFnIndex,
-            selected.noOfInjectors,
-            firingOrder,
-            iorPidList: [],
-            iorStaticList: [],
-            iorManualList: [],
-          ),
-        ),
-      );
-    }
+          barrierDismissible: false,
+        );
+        return;
+      }
 
-    print("=== handleOkRoutine END ===");
-  } catch (e, stack) {
-    print("Error in handleOkRoutine: $e\n$stack");
-    await Get.dialog(
-      CustomPopup(
-        title: "Error",
-        message: "An error occurred: $e",
-      ),
-      barrierDismissible: false,
-    );
-  } finally {
-    isBusy.value = false;
-    print("isBusy set to false.");
+      // Validate firing sequence
+      final firingSeq = ecuInfo.firingSequence ?? '';
+      if (firingSeq.isEmpty) {
+        print("Firing sequence missing. Showing alert.");
+        await Get.dialog(
+          CustomPopup(
+            title: "Alert!",
+            message: "Firing Sequence is not available",
+          ),
+          barrierDismissible: false,
+        );
+        return;
+      }
+
+      // Parse firing order safely
+      final firingOrder = firingSeq
+          .split(',')
+          .map((seq) => int.tryParse(seq.trim()) ?? -1)
+          .map((n) => n - 1)
+          .toList();
+
+      if (firingOrder.length != selected.noOfInjectors ||
+          firingOrder.contains(-2)) {
+        print("Firing order length mismatch. Showing alert.");
+        await Get.dialog(
+          CustomPopup(
+            title: "Alert!",
+            message: "Number of Injectors does not match with Firing Sequence",
+          ),
+          barrierDismissible: false,
+        );
+        return;
+      }
+
+      // Navigate based on preconditions
+      final preConditions = selectedTest.value?.preConditions ?? [];
+      if (preConditions.isEmpty) {
+        print("No preconditions, navigating to IorTestPlayPage...");
+
+        Get.offAll((dynamic SeedIndex, dynamic WriteFnIndex, dynamic NoOfInj) =>
+            IorTestPlayPage(
+                IorResult, SeedIndex, WriteFnIndex, NoOfInj, firingOrder));
+      } else {
+        print("Preconditions exist, navigating to IorPreconditionPage...");
+        await Navigator.push(
+          Get.context!,
+          MaterialPageRoute(
+            builder: (_) => IorPreconditionPage(
+              selectedTest.value!,
+              seedIndex,
+              writeFnIndex,
+              selected.noOfInjectors,
+              firingOrder,
+            ),
+          ),
+        );
+      }
+
+      print("=== handleOkRoutine END ===");
+    } catch (e, stack) {
+      print("Error in handleOkRoutine: $e\n$stack");
+      await Get.dialog(
+        CustomPopup(
+          title: "Error",
+          message: "An error occurred: $e",
+        ),
+        barrierDismissible: false,
+      );
+    } finally {
+      isBusy.value = false;
+      print("isBusy set to false.");
+    }
   }
-}
 
   List<PidCode> pidList = [];
   Future<int> getNoOfCylAndFiringSeq() async {
