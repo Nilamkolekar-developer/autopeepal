@@ -248,26 +248,35 @@ class WriteParameterController extends GetxController {
 
   Future<void> btnWriteClicked() async {
     try {
-      if (selectedPidCode == null) return;
+      if (selectedPidCode == null) {
+        print("❌ No PID selected. Exiting write operation.");
+        return;
+      }
+
+      print(
+          "🔹 btnWriteClicked called for PID: ${selectedPidCode!.code} (${selectedPidCode!.shortName})");
+      print("🔹 New value controller: ${newValueController.value.text}");
 
       // --- STEP 1: Sync UI Controller to Data Model ---
-      // This ensures that whatever you typed in the TextField is actually
-      // processed by the byte-conversion logic below.
       if (selectedPidCode!.reset != true &&
           (selectedPidCode!.piCodeVariable?.isNotEmpty ?? false)) {
-        // Pull value from the newValueController and sync to the first variable
         selectedPidCode!.piCodeVariable!.first.writeValue =
             newValueController.value.text;
+        print(
+            "🔹 Synced writeValue to first PiCodeVariable: ${selectedPidCode!.piCodeVariable!.first.writeValue}");
       }
 
       // 1. Initialize the byte array
       Uint8List writeInput = Uint8List(selectedPidCode!.totalLen ?? 0);
       List<VariantDataLists> variantDataLists = [];
+      print("🔹 Initialized writeInput of length ${writeInput.length}");
 
       // 2. Handle RESET logic (Big Endian conversion)
       if (selectedPidCode!.reset == true) {
         int decimalValue =
             int.tryParse(selectedPidCode!.resetValue ?? "0") ?? 0;
+        print("🔹 RESET mode active. Decimal value: $decimalValue");
+
         ByteData bd = ByteData(4)..setUint32(0, decimalValue, Endian.big);
         Uint8List byteArray = bd.buffer.asUint8List();
 
@@ -276,42 +285,59 @@ class WriteParameterController extends GetxController {
             : writeInput.length;
         writeInput.setRange(
             0, bytesToCopy, byteArray.sublist(byteArray.length - bytesToCopy));
+
+        print(
+            "🔹 writeInput after RESET conversion: ${writeInput.map((e) => e.toRadixString(16).padLeft(2, '0')).join()}");
       }
 
       // 3. Loop through PID variables to build write payload
       for (int i = 0; i < (selectedPidCode!.piCodeVariable?.length ?? 0); i++) {
         var variable = selectedPidCode!.piCodeVariable![i];
+        print(
+            "🔹 Processing variable ${variable.shortName} of type ${variable.messageType}");
 
         if (selectedPidCode!.reset != true) {
           String writeValueStr = variable.writeValue!.trim();
+          print("🔹 Write value string: $writeValueStr");
 
           // --- IQA Handling ---
           if (variable.messageType.contains("IQA")) {
+            print("🔹 IQA type detected");
             if (writeValueStr.length != 7) {
-              _showErrorPopup("Please enter a valid 7-character IQA value");
+              Get.dialog(
+                  CustomPopup(
+                      title: "Alert!",
+                      message: "Please enter a valid 7-character IQA value"),
+                  barrierDismissible: false);
+
               return;
             }
             Uint8List iqaBytes =
                 Uint8List.fromList(utf8.encode(writeValueStr.toUpperCase()));
             writeInput.setRange(7 * i, (7 * i) + 7, iqaBytes);
             newValue.value = "IQA";
+            print(
+                "🔹 IQA bytes written: ${iqaBytes.map((e) => e.toRadixString(16).padLeft(2, '0')).join()}");
           }
 
-          // --- ASCII Handling (e.g. VIN) ---
+          // --- ASCII Handling (e.g., VIN) ---
           else if (variable.messageType.contains("ASCII")) {
+            print("🔹 ASCII type detected");
             if (writeValueStr.length > (variable.length)) {
-              _showErrorPopup(
-                  "Value too long. Max length is ${variable.length}");
+              Get.dialog(
+                  CustomPopup(
+                      title: "Alert!",
+                      message:
+                          "Value too long. Max length is ${variable.length}"),
+                  barrierDismissible: false);
+
               return;
             } else {
               Uint8List val = Uint8List.fromList(utf8.encode(writeValueStr));
               int startIdx = (variable.bytePosition) - 1;
-
-              // Write the actual string bytes
               writeInput.setRange(startIdx, startIdx + val.length, val);
 
-              // AUTO-PADDING: Most ECUs require exact lengths (e.g., 17 for VIN).
-              // Pad remaining space with ASCII Space (0x20)
+              // AUTO-PADDING
               int expectedLen = variable.length;
               if (val.length < expectedLen) {
                 for (int p = startIdx + val.length;
@@ -320,11 +346,14 @@ class WriteParameterController extends GetxController {
                   writeInput[p] = 0x20;
                 }
               }
+              print(
+                  "🔹 ASCII bytes written (with padding if any): ${writeInput.sublist(startIdx, startIdx + expectedLen).map((e) => e.toRadixString(16).padLeft(2, '0')).join()}");
             }
           }
 
           // --- CONTINUOUS Handling (Numeric scaling) ---
           else if (variable.messageType.contains("CONTINUOUS")) {
+            print("🔹 CONTINUOUS type detected");
             double? currentWriteVal = double.tryParse(variable.writeValue!);
             double min = variable.min?.toDouble() ?? -double.maxFinite;
             double max = variable.max?.toDouble() ?? double.maxFinite;
@@ -332,21 +361,27 @@ class WriteParameterController extends GetxController {
             if (currentWriteVal != null &&
                 currentWriteVal >= min &&
                 currentWriteVal <= max) {
-              // Formula: (Value - Offset) / Resolution
               double rawVal = (currentWriteVal - (variable.offset ?? 0)) /
                   (variable.resolution ?? 1);
               int encodedInt = rawVal.toInt();
               int len = variable.length;
-
               int startIdx = (variable.bytePosition) - 1;
+
               for (int j = 0; j < len; j++) {
-                // Fill Big Endian
                 writeInput[startIdx + (len - 1 - j)] =
                     (encodedInt >> (j * 8)) & 0xFF;
               }
+
+              print(
+                  "🔹 CONTINUOUS bytes written: ${writeInput.sublist(startIdx, startIdx + len).map((e) => e.toRadixString(16).padLeft(2, '0')).join()}");
             } else {
-              _showErrorPopup(
-                  "Please enter a numeric value between $min and $max");
+              Get.dialog(
+                  CustomPopup(
+                      title: "Alert",
+                      message:
+                          "Please enter a numeric value between $min and $max"),
+                  barrierDismissible: false);
+
               return;
             }
           }
@@ -367,22 +402,19 @@ class WriteParameterController extends GetxController {
 
       print(
           "🔹 Final Generated writeInput (Hex): ${writeInput.map((e) => e.toRadixString(16).padLeft(2, '0')).join()}");
+      print("🔹 VariantDataLists prepared: $variantDataLists");
 
       // 5. Call the write function
       await writeParameter(writeInput, selectedPidCode!, variantDataLists);
+      print("🔹 writeParameter call completed");
     } catch (ex, stackTrace) {
       print("❌ Exception @btnWriteClicked: $ex\n$stackTrace");
-      _showErrorPopup("Unexpected error: ${ex.toString()}");
+      Get.dialog(
+          CustomPopup(
+              title: "Exception @btnWriteClicked:",
+              message: "$ex\n$stackTrace"),
+          barrierDismissible: false);
     }
-  }
-
-// Helper to avoid duplicate code
-  void _showErrorPopup(String message) {
-    Get.dialog(CustomPopup(
-      title: "Alert",
-      message: message,
-      onButtonPressed: () => Get.back(),
-    ));
   }
 
   String serverMessage = "";
@@ -392,28 +424,53 @@ class WriteParameterController extends GetxController {
 
   Future<void> writeParameter(Uint8List writeInput, PidCode pid,
       List<VariantDataLists> variantList) async {
-    bool confirm = await Get.dialog<bool>(CustomPopup(
-          title: "Confirm Write",
-          message:
-              "Update ${pid.shortName} to ${newValueController.value.text}?",
-          onButtonPressed: () => Get.back(result: true),
-        )) ??
-        false;
+    print("🔹 writeParameter called for PID: ${pid.code} (${pid.shortName})");
 
-    if (!confirm) return;
+    if (variantList.isEmpty) {
+      Get.dialog(CustomPopup(
+          title: "Alert",
+          message: "Please select a parameter",
+          onButtonPressed: () => Get.back()));
+      return;
+    }
+
+    bool confirm = false;
+    if (selectedPidCode!.reset != true) {
+      confirm = await Get.dialog<bool>(
+            CustomPopup2(
+              title: "Alert!!",
+              message: selectedPidCode!.reset != true
+                  ? "Are you sure you want to write this new value?"
+                  : "Are you sure you want to reset?",
+              confirmText: "Yes",
+              cancelText: "No",
+              showCancel: true,
+            ),
+          ) ??
+          false;
+    }
+
+    print("🔹 User confirmation: $confirm");
+    if (!confirm) {
+      print("❌ Write canceled by user.");
+      return;
+    }
 
     isBusy.value = true;
     loaderText.value = "Writing to ECU...";
+    await Future.delayed(const Duration(milliseconds: 50)); // small UI delay
 
     final modelDetail = StaticData.ecuInfo
         .firstWhereOrNull((x) => x.ecuName == selectedEcu.value?.ecuName);
     if (modelDetail == null) {
       isBusy.value = false;
+      loaderText.value = "";
+      print("❌ ECU model not found. Aborting write.");
       return;
     }
 
-    int startByte = (selectedPidCode!.piCodeVariable?.first.bytePosition ?? 1);
-
+    int? startByte =
+        variantList.map((v) => v.startByte).reduce((a, b) => a! < b! ? a : b);
     List<WriteParameterPid> pidListToWrite = [
       WriteParameterPid(
         seedKeyIndex: modelDetail.seedKeyIndex,
@@ -430,24 +487,51 @@ class WriteParameterController extends GetxController {
     final result = await App.dllFunctions!
         .writePid(modelDetail.writePidIndex ?? '', pidListToWrite);
 
-    if (result != null &&
-        result.isNotEmpty &&
-        result.first.status == "NOERROR") {
-      // 🔹 FIX 3: THE IMMEDIATE REFRESH
-      print("✅ Write Successful. Refreshing...");
-      await Future.delayed(
-          const Duration(milliseconds: 600)); // Delay for ECU NVM write
-      await getPidsValue(); // Refresh Current Value (22 F1 9A)
+    String messageTitle = "";
+    String message = "";
+    String status = "";
 
-      newValueController.value.clear();
-      newValue.value = "";
-      isBusy.value = false;
+    if (result != null && result.isNotEmpty) {
+      for (var item in result) {
+        if (item.status == "NOERROR") {
+          await getPidsValue();
+          newValueController.value.clear();
+          newValue.value = "";
 
-      _showDialog("Success", "Value updated and verified.");
+          messageTitle = "Success";
+          message = "Writing Successful";
+        } else {
+          messageTitle = "Writing Failed";
+          message = "${item.status}\n\n"; // append ServerMessage if needed
+          status = item.status ?? '';
+        }
+
+        // Show alert like .NET ShowAlertDialog
+        await Get.dialog(
+          CustomPopup(
+            title: messageTitle,
+            message: "$status\n$message",
+            onButtonPressed: () => Get.back(),
+          ),
+        );
+      }
     } else {
-      isBusy.value = false;
-      _showDialog("Failed", result?.first.status ?? "Communication Error");
+      messageTitle = "Writing Failed";
+      message = "Communication Error";
+      status = "Error";
+
+      await Get.dialog(
+        CustomPopup(
+          title: messageTitle,
+          message: "$status\n$message",
+          onButtonPressed: () => Get.back(),
+        ),
+      );
     }
+
+    isBusy.value = false;
+    loaderText.value = "";
+    print("🔹 Write operation completed. isBusy set to false.");
   }
 
   void _showDialog(String title, String msg) {

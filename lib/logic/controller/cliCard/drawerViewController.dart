@@ -137,7 +137,7 @@ class DrawerViewController extends GetxController {
           final status = selectedVCIType == VCIType.DOIP
               ? await App.dllFunctions?.setDoipRp1210Properties(doipConfig!) ??
                   "Error"
-              : await App.dllFunctions?.setRp1210Properties() ?? "Error";
+              : await App.dllFunctions?.setRP1210Properties() ?? "Error";
 
           print("Setup status: $status");
           App.connectedVia = "WIFI";

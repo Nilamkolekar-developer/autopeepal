@@ -10,10 +10,10 @@ import 'package:ap_diagnostic/models/flashingMtrixModel.dart';
 import 'package:ap_diagnostic/models/freezeFrameModel.dart';
 import 'package:ap_diagnostic/models/readDtcResponseModel.dart';
 import 'package:ap_diagnostic/models/readParameterPIDModel.dart';
-import 'package:ap_diagnostic/models/writeParameterPIDModel.dart'
-   ;
+import 'package:ap_diagnostic/models/writeParameterPIDModel.dart';
 import 'package:ap_diagnostic/structure/flash_structures.dart';
 import 'package:ap_diagnostic/usd_diagnostic.dart';
+import 'package:ap_dongle_comm/utils/commController.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
 import 'package:ap_dongle_comm/utils/enums/command_ids.dart';
 import 'package:ap_dongle_comm/utils/enums/connectivity.dart';
@@ -36,6 +36,7 @@ import 'package:autopeepal/models/writeParameter_model.dart';
 
 class DLLFunctions {
   final DongleComm mDongleComm;
+  CommController? comm;
   final UDSDiagnostic mUdsDiagnostic;
   DLLFunctions(this.mDongleComm, this.mUdsDiagnostic);
 
@@ -70,184 +71,270 @@ class DLLFunctions {
   Future<void> setDongleProperties(
       String protocolName, String txHeaderTemp, String rxHeaderTemp) async {
     try {
-      print("🔹 setDongleProperties called");
-      print("  protocolName: '$protocolName'");
-      print("  txHeaderTemp: '$txHeaderTemp'");
-      print("  rxHeaderTemp: '$rxHeaderTemp'");
-
-      // Ensure headers are not empty
-      if ((txHeaderTemp.isEmpty || rxHeaderTemp.isEmpty) &&
-          (protocolName.isEmpty)) {
-        print(
-            "⚠️ All headers and protocol are empty. Cannot set dongle properties.");
-        return;
-      }
-
-      // Get current connectivity type
       final connectivity = mDongleComm.comm?.connectivity;
-      if (connectivity == null) {
-        print("⚠️ Dongle connectivity is null");
-        return;
-      }
-      print("🔹 Connectivity: $connectivity");
+      print(
+          "📡 [DEBUG] setDongleProperties Start | Connectivity: $connectivity");
+      print(
+          "📡 [DEBUG] Params: Protocol: $protocolName, TX: $txHeaderTemp, RX: $rxHeaderTemp");
 
-      // RP1210 / CAN FD path
+      // 1. RP1210 / CAN FD Path
       if (connectivity == Connectivity.rp1210WiFi ||
           connectivity == Connectivity.rp1210Usb ||
           connectivity == Connectivity.canFdUsb ||
           connectivity == Connectivity.canFdWiFi) {
-        if (txHeaderTemp.isEmpty || rxHeaderTemp.isEmpty) {
-          print(
-              "⚠️ txHeaderTemp or rxHeaderTemp is empty, cannot convert to Uint32");
-          return;
-        }
-        final txArray = _hexToReversedUint32(txHeaderTemp);
-        final rxArray = _hexToReversedUint32(rxHeaderTemp);
+        final txArray = _hexToUint8List(txHeaderTemp);
+        final rxArray = _hexToUint8List(rxHeaderTemp);
+
+        // ✅ Updating class fields for rp1210SendMessage
+        mDongleComm.txArray = txArray;
+        mDongleComm.rxArray = rxArray;
 
         print(
-            "🔹 Sending RP1210 command with txArray: $txArray, rxArray: $rxArray");
-        await mDongleComm.rp1210SendCommand(
-          txArray,
-          rxArray,
-          SubCommandId.setMsgFilter,
-        );
-        print("✅ RP1210 dongle properties set successfully");
+            "🔹 [RP1210] Fields Updated | TX Array: ${txArray.toList()} | RX Array: ${rxArray.toList()}");
+
+        // Step A: Set Message Filter
+        print("🔹 [RP1210] Step 1: Sending setMsgFilter...");
+        bool filterResult = await mDongleComm.rp1210SendCommand(
+            txArray, rxArray, SubCommandId.setMsgFilter);
+        print("🔹 [RP1210] setMsgFilter Result: $filterResult");
+
+        // Step B: Set Flow Control (REQUIRED for 27 01 / Security Seeds)
+        // This is what the CAN2x dongle likely does automatically!
+        print("🔹 [RP1210] Step 2: Sending setFlowControl (ISO 15765)...");
+        bool fcResult = await mDongleComm.rp1210SendCommand(
+            txArray, rxArray, SubCommandId.setFlowControl);
+        print("🔹 [RP1210] setFlowControl Result: $fcResult");
       }
-      // Standard USB / WiFi / BLE path
+
+      // 2. Standard USB / WiFi / BLE Path
       else if (connectivity == Connectivity.usb ||
           connectivity == Connectivity.wiFi ||
           connectivity == Connectivity.ble) {
-        if (protocolName.isEmpty) {
-          print("⚠️ protocolName is empty, skipping dongleSetProtocol");
-        } else {
-          try {
-            final protocol = int.parse(protocolName, radix: 16);
-            await mDongleComm.dongleSetProtocol(protocol);
-            print("✅ Dongle protocol set: $protocol");
-          } catch (e) {
-            print("❌ Failed to parse protocolName '$protocolName': $e");
-          }
-        }
+        print("🔸 [STANDARD] Configuring non-RP1210 path...");
+        final protocolInt = int.parse(protocolName, radix: 16);
 
-        if (txHeaderTemp.isNotEmpty) {
-          await mDongleComm.canSetTxHeader(txHeaderTemp);
-          print("✅ Tx Header set: $txHeaderTemp");
-        } else {
-          print("⚠️ Tx Header is empty, skipped canSetTxHeader");
-        }
+        await mDongleComm.dongleSetProtocol(protocolInt);
+        print(
+            "🔸 [STANDARD] Protocol set to 0x${protocolInt.toRadixString(16)}");
 
-        if (rxHeaderTemp.isNotEmpty) {
-          await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
-          print("✅ Rx Header mask set: $rxHeaderTemp");
-        } else {
-          print("⚠️ Rx Header is empty, skipped canSetRxHeaderMask");
-        }
+        await mDongleComm.canSetTxHeader(txHeaderTemp);
+        print("🔸 [STANDARD] TX Header set: $txHeaderTemp");
+
+        await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
+        print("🔸 [STANDARD] RX Mask set: $rxHeaderTemp");
       } else {
-        print("⚠️ Unsupported connectivity: $connectivity");
+        print("⚠️ [WARNING] Connectivity type not handled: $connectivity");
       }
-    } catch (e) {
-      print("❌ Error in setDongleProperties: $e");
+
+      print("✅ [DEBUG] setDongleProperties completed successfully.");
+    } catch (ex, stack) {
+      print("❌ [ERROR] setDongleProperties failed: $ex");
+      print(stack);
     }
   }
 
-  Future<String> setRp1210Properties() async {
+  /// Helper: Converts "07E0" -> [0, 0, 7, 224] (Big Endian)
+  Uint8List _hexToUint8List(String hex) {
+    // Ensure the hex string is padded to even length if necessary
+    int val = int.parse(hex, radix: 16);
+    return Uint8List.fromList([
+      (val >> 24) & 0xFF,
+      (val >> 16) & 0xFF,
+      (val >> 8) & 0xFF,
+      val & 0xFF,
+    ]);
+  }
+
+  Uint8List _hexTo4ByteList(String hex) {
+    // 1. Clean the string
+    hex = hex
+        .replaceAll('0x', '')
+        .padLeft(8, '0'); // Ensure it represents 4 bytes (8 hex chars)
+
+    // 2. Parse to an integer
+    int value = int.parse(hex, radix: 16);
+
+    // 3. Create a 4-byte buffer
+    Uint8List bytes = Uint8List(4);
+    ByteData.view(bytes.buffer).setUint32(0, value,
+        Endian.big); // Use Endian.big or .little based on your VCI needs
+
+    return bytes;
+  }
+
+  Future<String> setRP1210Properties() async {
     try {
-      String status = '';
+      String status = "";
 
-      // ===============================
-      // Read ECU info
-      // ===============================
-      final ecuList = StaticData.ecuInfo;
-      final ecu = ecuList.first;
+      // 1. Get the primary ECU info
+      // Assuming StaticData.ecuInfo is a List of your ECU data objects
+      if (StaticData.ecuInfo.isEmpty) return "No ECU info found.";
 
-      final String protocolNameValue = ecu.protocol!.name!;
-      protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
+      var primaryEcu = StaticData.ecuInfo.first;
+      String protocolNameValue = primaryEcu.protocol!.name ?? '';
 
-      // parity with C#disconnectVCI1
-      protocolNameValue.replaceAll('-', '_');
+      // Convert hex headers to 4-byte lists (Big Endian)
+      // This replaces C#'s BitConverter + Array.Reverse
+      Uint8List txArray = _hexTo4ByteList(primaryEcu.txHeader ?? '');
+      Uint8List rxArray = _hexTo4ByteList(primaryEcu.rxHeader ?? '');
 
-      txHeaderTemp = ecu.txHeader!;
-      rxHeaderTemp = ecu.rxHeader!;
+      // 2. Attempt RP1210 Client Connect
+      bool connected = await mDongleComm.rp1210ClientConnect(protocolNameValue);
 
-      final Uint8List txArray = txHeaderTemp.toReversedUint32();
-      final Uint8List rxArray = rxHeaderTemp.toReversedUint32();
+      if (connected) {
+        // 3. Set Flow Control for the primary ECU
+        bool flowCtrlSuccess = await mDongleComm.rp1210SendCommand(
+            txArray, rxArray, SubCommandId.setFlowControl);
 
-      // ===============================
-      // RP1210 Client Connect
-      // ===============================
-      final bool isConnected =
-          await mDongleComm.rp1210ClientConnect(protocolNameValue);
+        if (flowCtrlSuccess) {
+          // 4. Handle multiple ECUs if they exist
+          if (StaticData.ecuInfo.length > 1) {
+            for (int i = 1; i < StaticData.ecuInfo.length; i++) {
+              var ecu = StaticData.ecuInfo[i];
+              Uint8List txArray1 = _hexTo4ByteList(ecu.txHeader ?? '');
+              Uint8List rxArray1 = _hexTo4ByteList(ecu.rxHeader ?? '');
 
-      if (!isConnected) {
-       await mDongleComm.rp1210ClientDisconnect();
-        return "Failed to connect client.";
-      }
+              bool multiFlowSuccess = await mDongleComm.rp1210SendCommand(
+                  txArray1, rxArray1, SubCommandId.setFlowControl);
 
-      // ===============================
-      // Set Flow Control (Primary ECU)
-      // ===============================
-      final bool flowOk = await mDongleComm.rp1210SendCommand(
-        txArray,
-        rxArray,
-        SubCommandId.setFlowControl,
-      );
-
-      if (!flowOk) {
-      await mDongleComm.rp1210ClientDisconnect();
-        return "Failed to set flow control.";
-      }
-
-      // ===============================
-      // Additional ECUs
-      // ===============================
-      if (ecuList.length > 1) {
-        for (int i = 1; i < ecuList.length; i++) {
-          final Uint8List txArr = ecuList[i].txHeader!.toReversedUint32();
-          final Uint8List rxArr = ecuList[i].rxHeader!.toReversedUint32();
-
-          final bool ok = await mDongleComm.rp1210SendCommand(
-            txArr,
-            rxArr,
-            SubCommandId.setFlowControl,
-          );
-
-          if (!ok) {
-            return "Failed to set flow control.";
+              if (!multiFlowSuccess) {
+                return "Failed to set flow control for ECU $i.";
+              }
+            }
           }
+
+          // 5. Finally set the Message Filter
+          bool filterSuccess = await mDongleComm.rp1210SendCommand(
+              txArray, rxArray, SubCommandId.setMsgFilter);
+
+          if (filterSuccess) {
+            status = "Success";
+          } else {
+            await mDongleComm.comm?.disconnectVCI();
+            status = "Failed to set message filter.";
+          }
+        } else {
+          await mDongleComm.comm?.disconnectVCI();
+          status = "Failed to set flow control.";
         }
-      }
-
-      // ===============================
-      // Set Message Filter
-      // ===============================
-      final bool filterOk = await mDongleComm.rp1210SendCommand(
-        txArray,
-        rxArray,
-        SubCommandId.setMsgFilter,
-      );
-
-      if (filterOk) {
-        status = "Success";
       } else {
-       await mDongleComm.rp1210ClientDisconnect();
-        status = "Failed to set message filter.";
+        await mDongleComm.comm?.disconnectVCI();
+        status = "Failed to connect client.";
       }
 
       return status;
-    } catch (e, stack) {
-      await mDongleComm.rp1210ClientDisconnect();
-      return "Exception @SetRP1210Properties(): $e $stack";
+    } catch (ex, stack) {
+      await mDongleComm.comm?.disconnectVCI();
+      print("❌ Exception @setRP1210Properties(): $ex");
+      return "Exception @setRP1210Properties() : ${ex.toString()}";
     }
+  }
+
+  Future<String> setRP1210Properties1() async {
+    print("==> [DEBUG] Entering setRP1210Properties");
+    try {
+      String status = "";
+
+      if (StaticData.ecuInfo.isEmpty) {
+        print("==> [ERROR] StaticData.ecuInfo is empty!");
+        return "Error: No ECU Data";
+      }
+
+      // 1. Check if comm exists before doing anything
+      if (mDongleComm.comm == null) {
+        print("==> [CRITICAL] comm object is NULL. Initialization failed.");
+        return "Error: Communication not initialized";
+      }
+
+      final firstEcu = StaticData.ecuInfo.first;
+      String protocolNameValue = firstEcu.protocol?.name ?? '';
+
+      // Convert hex string to int safely
+      int.parse(firstEcu.protocol?.autopeepal ?? '0', radix: 16);
+
+      Uint8List txArray = _getReversedByteArray(firstEcu.txHeader ?? '0');
+      Uint8List rxArray = _getReversedByteArray(firstEcu.rxHeader ?? '0');
+
+      // 2. Connect Client
+      print("==> [DEBUG] Attempting rp1210ClientConnect...");
+      bool isConnected =
+          await mDongleComm.rp1210ClientConnect(protocolNameValue);
+
+      if (isConnected) {
+        // 3. Set Flow Control
+        bool flowControlSuccess = await mDongleComm.rp1210SendCommand(
+            txArray, rxArray, SubCommandId.setFlowControl);
+
+        if (flowControlSuccess) {
+          // Handle additional ECUs
+          if (StaticData.ecuInfo.length > 1) {
+            for (int i = 1; i < StaticData.ecuInfo.length; i++) {
+              var ecu = StaticData.ecuInfo[i];
+              Uint8List tx = _getReversedByteArray(ecu.txHeader ?? '');
+              Uint8List rx = _getReversedByteArray(ecu.rxHeader ?? '');
+
+              bool success = await mDongleComm.rp1210SendCommand(
+                  tx, rx, SubCommandId.setFlowControl);
+
+              if (!success) {
+                return "Failed to set flow control for ECU index $i";
+              }
+            }
+          }
+
+          // 4. Set Message Filter
+          bool filterSuccess = await mDongleComm.rp1210SendCommand(
+              txArray, rxArray, SubCommandId.setMsgFilter);
+
+          if (filterSuccess) {
+            status = "Success";
+          } else {
+            status = "Failed to set message filter.";
+          }
+        } else {
+          status = "Failed to set flow control.";
+        }
+      } else {
+        status = "Failed to connect client.";
+      }
+
+      // Only disconnect if we didn't succeed
+      if (status != "Success") {
+        print("==> [INFO] Cleaning up connection due to: $status");
+        mDongleComm.comm?.disconnectVCI(); // USE ?. NOT !.
+      }
+
+      return status;
+    } catch (ex) {
+      print("==> [CRITICAL] Exception in setRP1210Properties: $ex");
+      // Safely disconnect without crashing
+      comm?.disconnectVCI();
+      return "Exception @setRP1210Properties() : ${ex.toString()}";
+    }
+  }
+
+  Uint8List _getReversedByteArray(String hexString) {
+    int val = int.parse(hexString, radix: 16);
+    ByteData data = ByteData(4);
+    data.setUint32(0, val, Endian.big);
+    return data.buffer.asUint8List();
+  }
+
+  Uint8List hexToBytes(String hex) {
+    hex = hex.replaceAll(" ", "");
+
+    List<int> bytes = [];
+    for (int i = 0; i < hex.length; i += 2) {
+      bytes.add(int.parse(hex.substring(i, i + 2), radix: 16));
+    }
+
+    return Uint8List.fromList(bytes);
   }
 
   Future<String> setDoipRp1210Properties(
       DoipConfigModel doipConfigModel) async {
     try {
       String status = '';
-
-      // ===============================
-      // Read ECU info
-      // ===============================
       final ecu = StaticData.ecuInfo.first;
 
       final String protocolNameValue = ecu.protocol!.name!;
@@ -261,21 +348,14 @@ class DLLFunctions {
 
       txHeaderTemp.toReversedUint32();
       rxHeaderTemp.toReversedUint32();
-
-      // ===============================
-      // RP1210 Client Connect
-      // ===============================
       final bool isConnected =
           await mDongleComm.rp1210ClientConnect(protocolNameValue);
 
       if (!isConnected) {
-   await mDongleComm.rp1210ClientDisconnect();();
+        await mDongleComm.rp1210ClientDisconnect();
+        ();
         return "Failed to connect client.";
       }
-
-      // ===============================
-      // Set Device IP (DoIP)
-      // ===============================
       final Uint8List staticIp = Uint8List.fromList(
           InternetAddress(doipConfigModel.staticIp ?? '').rawAddress);
       final Uint8List subnetMask = Uint8List.fromList(
@@ -290,26 +370,18 @@ class DLLFunctions {
       );
 
       if (!deviceIpOk) {
-      await mDongleComm.rp1210ClientDisconnect();
+        await mDongleComm.rp1210ClientDisconnect();
         return "Failed to set Device IP.";
       }
-
-      // ===============================
-      // Set ECU IP
-      // ===============================
       final Uint8List ecuIp = Uint8List.fromList(
           InternetAddress(doipConfigModel.ecuIp!).rawAddress);
 
       final bool ecuIpOk = await mDongleComm.rp1210DoipSetEcuIp(ecuIp);
 
       if (!ecuIpOk) {
-      await mDongleComm.rp1210ClientDisconnect();
+        await mDongleComm.rp1210ClientDisconnect();
         return "Failed to set ECU IP.";
       }
-
-      // ===============================
-      // Activate DoIP Routing
-      // ===============================
       mDongleComm.txArray =
           _hexStringToByteArray(StaticData.ecuInfo.first.txHeader!);
       mDongleComm.rxArray =
@@ -326,13 +398,13 @@ class DLLFunctions {
           routineActivationResp[12] == 0x10) {
         status = "Success";
       } else {
-       await mDongleComm.rp1210ClientDisconnect();
+        await mDongleComm.rp1210ClientDisconnect();
         status = "Failed to activate DoIP routing.";
       }
 
       return status;
     } catch (e, stack) {
-     await mDongleComm.rp1210ClientDisconnect();
+      await mDongleComm.rp1210ClientDisconnect();
       return "Exception @SetDoipRP1210Properties(): $e $stack";
     }
   }
@@ -360,16 +432,31 @@ class DLLFunctions {
 
   Future<void> disconnectVCI1() async {
     try {
-      final connectivity = mDongleComm.comm!.connectivity;
-      if (connectivity == Connectivity.rp1210WiFi ||
-          connectivity == Connectivity.rp1210Usb ||
-          connectivity == Connectivity.canFdUsb ||
-          connectivity == Connectivity.canFdWiFi ||
-          connectivity == Connectivity.doipUsb ||
-          connectivity == Connectivity.doipWiFi) {
+      // ✅ Null check before accessing comm
+      if (mDongleComm.comm == null) {
+        print("⚠️ comm is null, skipping VCI disconnect");
+        return;
+      }
+
+      // ✅ Use .value to get actual enum
+      final connectivity = mDongleComm.comm!.connectivity.value;
+
+      if ([
+        Connectivity.rp1210WiFi,
+        Connectivity.rp1210Usb,
+        Connectivity.canFdUsb,
+        Connectivity.canFdWiFi,
+        Connectivity.doipUsb,
+        Connectivity.doipWiFi,
+      ].contains(connectivity)) {
+        print("🔌 Sending RP1210 ClientDisconnect...");
         await mDongleComm.rp1210ClientDisconnect();
       }
+
+      print("🔄 Sending Dongle Reset...");
       await mDongleComm.resetDongle();
+
+      print("✅ VCI disconnected successfully");
     } catch (e) {
       print("❌ Error disconnecting VCI: $e");
     }
@@ -383,6 +470,40 @@ class DLLFunctions {
       return '';
     }
   }
+
+  // Future<String> checkEcuStatus() async {
+  //   try {
+  //     final resp = await mDongleComm
+  //         .can2xTxRx(2, '1003')
+  //         .timeout(const Duration(seconds: 3));
+
+  //     if (resp == null) {
+  //       print("❌ ECU Response is null");
+  //       return "No Resp From Dongle";
+  //     }
+
+  //     final status = resp.ecuResponseStatus ?? '';
+  //     final ecuResponse = resp.ecuResponse ?? '';
+
+  //     print("📥 ECU RAW RESPONSE: $ecuResponse");
+  //     print("📥 ECU STATUS: $status");
+
+  //     // ✅ Handle READAGAIN properly
+  //     if (status.contains("READAGAIN")) {
+  //       return "READAGAIN";
+  //     }
+
+  //     // ✅ Handle ECU error
+  //     if (status.contains("ECUERROR_NORESPONSEFROMECU")) {
+  //       return "ECUERROR_NORESPONSEFROMECU";
+  //     }
+
+  //     return status.isNotEmpty ? status : "UNKNOWN";
+  //   } catch (e) {
+  //     print("❌ checkEcuStatus ERROR: $e");
+  //     return "No Resp From Dongle";
+  //   }
+  // }
 
   List<SessionLogsModel> getLogs() {
     print("DLLFunctions.getLogs: Start");
@@ -652,103 +773,103 @@ class DLLFunctions {
   // }
 
   Future<List<ReadPidResponseModel>?> readPid(List<PidCode> pidList) async {
-  try {
-    print("🚀 readPid() called");
-    print("📌 Total PID requested: ${pidList.length}");
+    try {
+      print("🚀 readPid() called");
+      print("📌 Total PID requested: ${pidList.length}");
 
-    dynamic result;
+      dynamic result;
 
-    // Build ReadParameterPID list
-    List<ReadParameterPID> list = [];
+      // Build ReadParameterPID list
+      List<ReadParameterPID> list = [];
 
-    for (var item in pidList) {
-      print("➡️ Building PID: ${item.id}, Code: ${item.code}");
+      for (var item in pidList) {
+        print("➡️ Building PID: ${item.id}, Code: ${item.code}");
 
-      List<PidVariable> variables = [];
+        List<PidVariable> variables = [];
 
-      for (var vari in item.piCodeVariable ?? []) {
-        int startBit = vari.startBitPosition ?? 0;
-        int endBit = vari.endBitPosition ?? 0;
-        int noOfBits = endBit - startBit + 1;
+        for (var vari in item.piCodeVariable ?? []) {
+          int startBit = vari.startBitPosition ?? 0;
+          int endBit = vari.endBitPosition ?? 0;
+          int noOfBits = endBit - startBit + 1;
 
-        print(
-            "   🔹 Variable ID: ${vari.id}, StartBit: $startBit, EndBit: $endBit");
+          print(
+              "   🔹 Variable ID: ${vari.id}, StartBit: $startBit, EndBit: $endBit");
 
-        PidVariable pidVariable = PidVariable(
-          datatype: vari.messageType,
-          isBitcoded: vari.bitcoded ?? false,
-          noofBits: noOfBits,
-          noOfBytes: vari.length ?? 0,
-          offset: vari.offset?.toDouble() ?? 0.0,
-          resolution: vari.resolution?.toDouble() ?? 1.0,
-          startBit: startBit,
-          startByte: vari.bytePosition ?? 0,
-          pidNumber: vari.id ?? 0,
-          pidName: vari.shortName ?? "",
-          messages: (vari.messages as List<dynamic>?)?.map((mes) {
-                if (mes is SelectedParameterMessage) {
-                  return mes;
-                } else if (mes is Map<String, dynamic>) {
-                  return SelectedParameterMessage.fromJson(mes);
-                } else {
-                  return SelectedParameterMessage(
-                    code: mes['code'] ?? "",
-                    message: mes['message'] ?? "",
-                  );
-                }
-              }).toList() ??
-              [],
+          PidVariable pidVariable = PidVariable(
+            datatype: vari.messageType,
+            isBitcoded: vari.bitcoded ?? false,
+            noofBits: noOfBits,
+            noOfBytes: vari.length ?? 0,
+            offset: vari.offset?.toDouble() ?? 0.0,
+            resolution: vari.resolution?.toDouble() ?? 1.0,
+            startBit: startBit,
+            startByte: vari.bytePosition ?? 0,
+            pidNumber: vari.id ?? 0,
+            pidName: vari.shortName ?? "",
+            messages: (vari.messages as List<dynamic>?)?.map((mes) {
+                  if (mes is SelectedParameterMessage) {
+                    return mes;
+                  } else if (mes is Map<String, dynamic>) {
+                    return SelectedParameterMessage.fromJson(mes);
+                  } else {
+                    return SelectedParameterMessage(
+                      code: mes['code'] ?? "",
+                      message: mes['message'] ?? "",
+                    );
+                  }
+                }).toList() ??
+                [],
+          );
+
+          variables.add(pidVariable);
+        }
+
+        list.add(
+          ReadParameterPID(
+            pidId: item.id ?? 0,
+            variables: variables,
+            totalLen: (item.code?.length ?? 0) ~/ 2,
+            pid: item.code ?? "",
+          ),
         );
-
-        variables.add(pidVariable);
       }
 
-      list.add(
-        ReadParameterPID(
-          pidId: item.id ?? 0,
-          variables: variables,
-          totalLen: (item.code?.length ?? 0) ~/ 2,
-          pid: item.code ?? "",
-        ),
-      );
-    }
+      print("📤 Sending request to mUdsDiagnostic.readParameters...");
+      print("📦 Total packets: ${list.length}");
 
-    print("📤 Sending request to mUdsDiagnostic.readParameters...");
-    print("📦 Total packets: ${list.length}");
+      // Call readParameters
+      result = await mUdsDiagnostic.readParameters(list.length, list);
 
-    // Call readParameters
-    result = await mUdsDiagnostic.readParameters(list.length, list);
+      print("📥 Raw result from device: $result");
 
-    print("📥 Raw result from device: $result");
+      if (result == null) {
+        print("❌ Result is null from readParameters");
+        return null;
+      }
 
-    if (result == null) {
-      print("❌ Result is null from readParameters");
+      // Convert result
+      final String res = jsonEncode(result);
+      print("📄 Encoded JSON: $res");
+
+      final List<dynamic> resListDecoded = jsonDecode(res);
+      print("📊 Decoded response count: ${resListDecoded.length}");
+
+      final parsedList = resListDecoded
+          .map((json) => ReadPidResponseModel.fromJson(json))
+          .toList();
+
+      print("✅ Parsed ReadPidResponseModel count: ${parsedList.length}");
+
+      for (var item in parsedList) {
+        print("➡️ PID: ${item.pidId}, Status: ${item.status}");
+      }
+
+      return parsedList;
+    } catch (ex) {
+      print("🔥 Error reading PIDs: $ex");
       return null;
     }
-
-    // Convert result
-    final String res = jsonEncode(result);
-    print("📄 Encoded JSON: $res");
-
-    final List<dynamic> resListDecoded = jsonDecode(res);
-    print("📊 Decoded response count: ${resListDecoded.length}");
-
-    final parsedList = resListDecoded
-        .map((json) => ReadPidResponseModel.fromJson(json))
-        .toList();
-
-    print("✅ Parsed ReadPidResponseModel count: ${parsedList.length}");
-
-    for (var item in parsedList) {
-      print("➡️ PID: ${item.pidId}, Status: ${item.status}");
-    }
-
-    return parsedList;
-  } catch (ex) {
-    print("🔥 Error reading PIDs: $ex");
-    return null;
   }
-}
 
   // Future<List<WriteParameterStatus>?> writePid(
   //     String writePidIndex, List<WriteParameterPid> pidList) async {
@@ -822,147 +943,137 @@ class DLLFunctions {
   //   }
   // }
 
-
-Future<List<WriteParameterStatus>?> writePid(
-    String writePidIndex, List<WriteParameterPid> pidList) async {
-  try {
-
-    print("========== WRITE PID START ==========");
-    print("Incoming writePidIndex: $writePidIndex");
-    print("PID List Length: ${pidList.length}");
-
-    // Parse write parameter index
-    final WriteParameterIndex index = WriteParameterIndex.values
-        .firstWhere((e) => e.toString().split('.').last == writePidIndex);
-
-    print("Parsed WriteParameterIndex: $index");
-
-    List<WriteParameterPID> list = [];
-
-    for (var item in pidList) {
-
-      print("------------- PID ITEM -------------");
-      print("writePid: ${item.writePid}");
-      print("seedKeyIndex (raw): ${item.seedKeyIndex}");
-      print("writePamIndex (raw): ${item.writePamIndex}");
-      print("writeParaDataSize: ${item.writeParaDataSize}");
-      print("writeInput: ${item.writeInput}");
-      print("pid: ${item.pid}");
-      print("startByte: ${item.startByte}");
-      print("totalBytes: ${item.totalBytes}");
-
-      // Parse seed key index
-      final SEEDKEYINDEXTYPE seedIndex =
-          SEEDKEYINDEXTYPE.values.firstWhere(
-              (e) => e.toString().split('.').last == item.seedKeyIndex);
-
-      print("Parsed SeedKeyIndex Enum: $seedIndex");
+  Future<List<WriteParameterStatus>?> writePid(
+      String writePidIndex, List<WriteParameterPid> pidList) async {
+    try {
+      print("========== WRITE PID START ==========");
+      print("Incoming writePidIndex: $writePidIndex");
+      print("PID List Length: ${pidList.length}");
 
       // Parse write parameter index
-      final WriteParameterIndex writeIndex =
-          WriteParameterIndex.values.firstWhere(
-              (e) => e.toString().split('.').last == item.writePamIndex);
+      final WriteParameterIndex index = WriteParameterIndex.values
+          .firstWhere((e) => e.toString().split('.').last == writePidIndex);
 
-      print("Parsed WriteParamIndex Enum: $writeIndex");
+      print("Parsed WriteParameterIndex: $index");
 
-      // Build variant data list
-      List<VariantDataList> variantDataLists = [];
+      List<WriteParameterPID> list = [];
 
-      if (item.variantList != null) {
+      for (var item in pidList) {
+        print("------------- PID ITEM -------------");
+        print("writePid: ${item.writePid}");
+        print("seedKeyIndex (raw): ${item.seedKeyIndex}");
+        print("writePamIndex (raw): ${item.writePamIndex}");
+        print("writeParaDataSize: ${item.writeParaDataSize}");
+        print("writeInput: ${item.writeInput}");
+        print("pid: ${item.pid}");
+        print("startByte: ${item.startByte}");
+        print("totalBytes: ${item.totalBytes}");
 
-        print("Variant List Count: ${item.variantList!.length}");
+        // Parse seed key index
+        final SEEDKEYINDEXTYPE seedIndex = SEEDKEYINDEXTYPE.values.firstWhere(
+            (e) => e.toString().split('.').last == item.seedKeyIndex);
 
-        for (var v in item.variantList!) {
+        print("Parsed SeedKeyIndex Enum: $seedIndex");
 
-          print("  ---- Variant ----");
-          print("  pidId: ${v.pidId}");
-          print("  pidName: ${v.pidName}");
-          print("  datatype: ${v.datatype}");
-          print("  isBitcoded: ${v.isBitcoded}");
-          print("  noOfBits: ${v.noofBits}");
-          print("  noOfBytes: ${v.noOfBytes}");
-          print("  startByte: ${v.startByte}");
-          print("  startBit: ${v.startBit}");
-          print("  offset: ${v.offset}");
-          print("  resolution: ${v.resolution}");
-          print("  unit: ${v.unit}");
+        // Parse write parameter index
+        final WriteParameterIndex writeIndex = WriteParameterIndex.values
+            .firstWhere(
+                (e) => e.toString().split('.').last == item.writePamIndex);
 
-          variantDataLists.add(VariantDataList(
-            datatype: v.datatype,
-            isBitcoded: v.isBitcoded,
-            noofBits: v.noofBits,
-            noOfBytes: v.noOfBytes,
-            offset: v.offset,
-            pidId: v.pidId,
-            pidName: v.pidName,
-            resolution: v.resolution,
-            startBit: v.startBit,
-            startByte: v.startByte,
-            unit: v.unit,
-          ));
+        print("Parsed WriteParamIndex Enum: $writeIndex");
+
+        // Build variant data list
+        List<VariantDataList> variantDataLists = [];
+
+        if (item.variantList != null) {
+          print("Variant List Count: ${item.variantList!.length}");
+
+          for (var v in item.variantList!) {
+            print("  ---- Variant ----");
+            print("  pidId: ${v.pidId}");
+            print("  pidName: ${v.pidName}");
+            print("  datatype: ${v.datatype}");
+            print("  isBitcoded: ${v.isBitcoded}");
+            print("  noOfBits: ${v.noofBits}");
+            print("  noOfBytes: ${v.noOfBytes}");
+            print("  startByte: ${v.startByte}");
+            print("  startBit: ${v.startBit}");
+            print("  offset: ${v.offset}");
+            print("  resolution: ${v.resolution}");
+            print("  unit: ${v.unit}");
+
+            variantDataLists.add(VariantDataList(
+              datatype: v.datatype,
+              isBitcoded: v.isBitcoded,
+              noofBits: v.noofBits,
+              noOfBytes: v.noOfBytes,
+              offset: v.offset,
+              pidId: v.pidId,
+              pidName: v.pidName,
+              resolution: v.resolution,
+              startBit: v.startBit,
+              startByte: v.startByte,
+              unit: v.unit,
+            ));
+          }
         }
+
+        list.add(WriteParameterPID(
+          seedKeyIndex: seedIndex,
+          writePamIndex: writeIndex,
+          writeInputSize: item.writeParaDataSize,
+          writeInput: item.writeInput,
+          writePid: item.writePid,
+          readParameterPidDataType: item.readParameterPidDataType,
+          pid: item.pid,
+          startByte: item.startByte,
+          totalBytes: item.totalBytes,
+          variantList: variantDataLists,
+        ));
+
+        print("PID Added to Write List");
       }
 
-      list.add(WriteParameterPID(
-        seedKeyIndex: seedIndex,
-        writePamIndex: writeIndex,
-        writeInputSize: item.writeParaDataSize,
-        writeInput: item.writeInput,
-        writePid: item.writePid,
-        readParameterPidDataType: item.readParameterPidDataType,
-        pid: item.pid,
-        startByte: item.startByte,
-        totalBytes: item.totalBytes,
-        variantList: variantDataLists,
-      ));
+      print("Final WriteParameterPID List Length: ${list.length}");
 
-      print("PID Added to Write List");
-    }
+      print("Calling writeParameters()...");
+      print("Parameters:");
+      print("  PID Count: ${pidList.length}");
+      print("  Write Index: $index");
 
-    print("Final WriteParameterPID List Length: ${list.length}");
+      // Call UDS diagnostic write method
+      final result =
+          await mUdsDiagnostic.writeParameters(pidList.length, index, list);
 
-    print("Calling writeParameters()...");
-    print("Parameters:");
-    print("  PID Count: ${pidList.length}");
-    print("  Write Index: $index");
+      print("Raw Result from writeParameters(): $result");
 
-    // Call UDS diagnostic write method
-    final result =
-        await mUdsDiagnostic.writeParameters(pidList.length, index, list);
+      if (result == null) {
+        print("⚠ writeParameters returned NULL");
+        return null;
+      }
 
-    print("Raw Result from writeParameters(): $result");
+      print("Converting result to JSON...");
 
-    if (result == null) {
-      print("⚠ writeParameters returned NULL");
+      final resJson = jsonEncode(result);
+
+      print("JSON Result: $resJson");
+
+      final resList = (jsonDecode(resJson) as List)
+          .map((e) => WriteParameterStatus.fromJson(e))
+          .toList();
+
+      print("Parsed WriteParameterStatus List Length: ${resList.length}");
+
+      print("========== WRITE PID END ==========");
+
+      return resList;
+    } catch (e, stack) {
+      print("❌ Error in writePid: $e");
+      print("StackTrace: $stack");
+
       return null;
     }
-
-    print("Converting result to JSON...");
-
-    final resJson = jsonEncode(result);
-
-    print("JSON Result: $resJson");
-
-    final resList = (jsonDecode(resJson) as List)
-        .map((e) => WriteParameterStatus.fromJson(e))
-        .toList();
-
-    print("Parsed WriteParameterStatus List Length: ${resList.length}");
-
-    print("========== WRITE PID END ==========");
-
-    return resList;
-
-  } catch (e, stack) {
-
-    print("❌ Error in writePid: $e");
-    print("StackTrace: $stack");
-
-    return null;
   }
-}
-
-
 
   String byteArrayToString(List<int> bytes) {
     return bytes
@@ -1019,84 +1130,84 @@ Future<List<WriteParameterStatus>?> writePid(
   // }
 
   Future<String?> startECUFlashing(
-  String flashJson,
-  String interpreter,
-  Ecu2 ecu2,
-  String sklFN,
-  List<EcuMapFile> ecuMapFiles,
-) async {
-  try {
-    print("🚀 [FLASH] ===== START ECU FLASHING =====");
+    String flashJson,
+    String interpreter,
+    Ecu2 ecu2,
+    String sklFN,
+    List<EcuMapFile> ecuMapFiles,
+  ) async {
+    try {
+      print("🚀 [FLASH] ===== START ECU FLASHING =====");
 
-    print("📥 [INPUT] sklFN (raw): $sklFN");
-    print("📥 [INPUT] interpreter: $interpreter");
-    print("📥 [INPUT] ECU: ${ecu2.ecu}");
-    print("📥 [INPUT] flashJson length: ${flashJson.length}");
+      print("📥 [INPUT] sklFN (raw): $sklFN");
+      print("📥 [INPUT] interpreter: $interpreter");
+      print("📥 [INPUT] ECU: ${ecu2.ecu}");
+      print("📥 [INPUT] flashJson length: ${flashJson.length}");
 
-    // 🔄 Fix protocol string
-    sklFN = sklFN.replaceAll('-', '_');
-    print("🔄 [PROCESS] sklFN normalized: $sklFN");
+      // 🔄 Fix protocol string
+      sklFN = sklFN.replaceAll('-', '_');
+      print("🔄 [PROCESS] sklFN normalized: $sklFN");
 
-    // 📦 Parse JSON
-    final jsonMap = jsonDecode(flashJson);
-    print("📦 [JSON] Parsed successfully");
+      // 📦 Parse JSON
+      final jsonMap = jsonDecode(flashJson);
+      print("📦 [JSON] Parsed successfully");
 
-    final jsonData = FlashingMatrixData.fromJson(jsonMap);
-    print("📦 [JSON] noOfSectors: ${jsonData.noOfSectors}");
-    print("📦 [JSON] sectorData count: ${jsonData.sectorData?.length}");
+      final jsonData = FlashingMatrixData.fromJson(jsonMap);
+      print("📦 [JSON] noOfSectors: ${jsonData.noOfSectors}");
+      print("📦 [JSON] sectorData count: ${jsonData.sectorData?.length}");
 
-    // 🔐 Enum parsing
-    final seedkeyindx = SEEDKEYINDEXTYPE.values.firstWhere(
-      (e) {
-        final enumName = e.toString().split('.').last;
-        print("🔍 [ENUM CHECK] comparing $enumName with $sklFN");
-        return enumName.toUpperCase() == sklFN.toUpperCase();
-      },
-      orElse: () {
-        print("⚠️ [ENUM] No match found, using default");
-        return SEEDKEYINDEXTYPE.values.first;
-      },
-    );
+      // 🔐 Enum parsing
+      final seedkeyindx = SEEDKEYINDEXTYPE.values.firstWhere(
+        (e) {
+          final enumName = e.toString().split('.').last;
+          print("🔍 [ENUM CHECK] comparing $enumName with $sklFN");
+          return enumName.toUpperCase() == sklFN.toUpperCase();
+        },
+        orElse: () {
+          print("⚠️ [ENUM] No match found, using default");
+          return SEEDKEYINDEXTYPE.values.first;
+        },
+      );
 
-    print("✅ [ENUM] Selected: $seedkeyindx");
+      print("✅ [ENUM] Selected: $seedkeyindx");
 
-    final flashConfig = FlashConfig(
-      seedKeyIndex: seedkeyindx,
-    );
+      final flashConfig = FlashConfig(
+        seedKeyIndex: seedkeyindx,
+      );
 
-    print("⚙️ [CONFIG] FlashConfig created");
+      print("⚙️ [CONFIG] FlashConfig created");
 
-    // ▶️ Start tester present
-    print("📡 [UDS] Starting tester present...");
-    await startTesterPresent();
-    print("✅ [UDS] Tester present started");
+      // ▶️ Start tester present
+      print("📡 [UDS] Starting tester present...");
+      await startTesterPresent();
+      print("✅ [UDS] Tester present started");
 
-    // 🚀 Flash start
-    print("🚀 [FLASH] Calling flashInterpreter...");
-    final response = await mUdsDiagnostic.flashInterpreter(
-      flashConfig,
-      jsonData.noOfSectors ?? 0,
-      jsonData.sectorData!,
-      interpreter,
-    );
+      // 🚀 Flash start
+      print("🚀 [FLASH] Calling flashInterpreter...");
+      final response = await mUdsDiagnostic.flashInterpreter(
+        flashConfig,
+        jsonData.noOfSectors ?? 0,
+        jsonData.sectorData!,
+        interpreter,
+      );
 
-    print("📥 [FLASH RESPONSE]: $response");
+      print("📥 [FLASH RESPONSE]: $response");
 
-    // ⛔ Stop tester present
-    print("🛑 [UDS] Stopping tester present...");
-    await stopTesterPresent();
-    print("✅ [UDS] Tester present stopped");
+      // ⛔ Stop tester present
+      print("🛑 [UDS] Stopping tester present...");
+      await stopTesterPresent();
+      print("✅ [UDS] Tester present stopped");
 
-    print("🎉 [FLASH] ===== COMPLETED SUCCESS =====");
+      print("🎉 [FLASH] ===== COMPLETED SUCCESS =====");
 
-    return response;
-  } catch (e, stackTrace) {
-    print("❌ [ERROR] Flashing failed: $e");
-    print("📍 [STACKTRACE]: $stackTrace");
+      return response;
+    } catch (e, stackTrace) {
+      print("❌ [ERROR] Flashing failed: $e");
+      print("📍 [STACKTRACE]: $stackTrace");
 
-    return null;
+      return null;
+    }
   }
-}
 
   double? flashingPercent;
 
@@ -1199,36 +1310,35 @@ Future<List<WriteParameterStatus>?> writePid(
     }
   }
 
- Future<TestRoutineResponseModel?> setTestRoutineCommand(
-  String seedKey,
-  String writeParaIndex,
-  String startCommand,
-) async {
-  try {
-    // Convert string → enum
-    final seedIndex = SEEDKEYINDEXTYPE.values
-        .firstWhere((e) => e.name == seedKey);
+  Future<TestRoutineResponseModel?> setTestRoutineCommand(
+    String seedKey,
+    String writeParaIndex,
+    String startCommand,
+  ) async {
+    try {
+      // Convert string → enum
+      final seedIndex =
+          SEEDKEYINDEXTYPE.values.firstWhere((e) => e.name == seedKey);
 
-    final writeIndex = WriteParameterIndex.values
-        .firstWhere((e) => e.name == writeParaIndex);
+      final writeIndex = WriteParameterIndex.values
+          .firstWhere((e) => e.name == writeParaIndex);
 
-    // Call API / SDK method
-    final result = await mUdsDiagnostic.startIdIOR(
-      seedIndex,
-      writeIndex,
-      startCommand,
-    );
+      // Call API / SDK method
+      final result = await mUdsDiagnostic.startIdIOR(
+        seedIndex,
+        writeIndex,
+        startCommand,
+      );
 
-    // Convert result → JSON → Model
-    final json = jsonEncode(result);
-    final response =
-        TestRoutineResponseModel.fromJson(jsonDecode(json));
+      // Convert result → JSON → Model
+      final json = jsonEncode(result);
+      final response = TestRoutineResponseModel.fromJson(jsonDecode(json));
 
-    return response;
-  } catch (e) {
-    return null;
+      return response;
+    } catch (e) {
+      return null;
+    }
   }
-}
 
   Future<TestRoutineResponseModel?> continueIorTest(
     String seedKey,
@@ -1604,85 +1714,84 @@ Future<List<WriteParameterStatus>?> writePid(
   // }
 
   Future<List<ReadPidPresponseModel>?> setRoutineValue(
-  List<PidCode> pidList,
-  String? pidByAddrSeq,
-  List<int> actualResponse,
-) async {
-  try {
-    dynamic result;
+    List<PidCode> pidList,
+    String? pidByAddrSeq,
+    List<int> actualResponse,
+  ) async {
+    try {
+      dynamic result;
 
-    List<ReadParameterPID> list = [];
-    List<ReadParameterPID> listOfAddrPid = [];
+      List<ReadParameterPID> list = [];
+      List<ReadParameterPID> listOfAddrPid = [];
 
-    for (var item in pidList) {
-      List<PidVariable> variables = [];
+      for (var item in pidList) {
+        List<PidVariable> variables = [];
 
-      for (var vari in item.piCodeVariable ?? []) {
-        List<SelectedParameterMessage> messageValueList = [];
+        for (var vari in item.piCodeVariable ?? []) {
+          List<SelectedParameterMessage> messageValueList = [];
 
-        if (vari.messages != null) {
-          for (var messageItem in vari.messages!) {
-            messageValueList.add(
-              SelectedParameterMessage(
-                code: messageItem.code,
-                message: messageItem.message,
-              ),
-            );
+          if (vari.messages != null) {
+            for (var messageItem in vari.messages!) {
+              messageValueList.add(
+                SelectedParameterMessage(
+                  code: messageItem.code,
+                  message: messageItem.message,
+                ),
+              );
+            }
           }
+
+          int endBit = vari.endBitPosition ?? 0;
+          int startBit = vari.startBitPosition ?? 0;
+
+          PidVariable pidVariable = PidVariable(
+            datatype: vari.messageType,
+            isBitcoded: vari.bitcoded,
+            noofBits: (endBit - startBit + 1),
+            noOfBytes: vari.length,
+            offset: vari.offset,
+            resolution: vari.resolution,
+            startBit: startBit,
+            startByte: vari.bytePosition,
+            pidNumber: vari.id,
+            pidName: vari.shortName,
+            messages: messageValueList,
+          );
+
+          variables.add(pidVariable);
         }
 
-        int endBit = vari.endBitPosition ?? 0;
-        int startBit = vari.startBitPosition ?? 0;
-
-        PidVariable pidVariable = PidVariable(
-          datatype: vari.messageType,
-          isBitcoded: vari.bitcoded,
-          noofBits: (endBit - startBit + 1),
-          noOfBytes: vari.length,
-          offset: vari.offset,
-          resolution: vari.resolution,
-          startBit: startBit,
-          startByte: vari.bytePosition,
-          pidNumber: vari.id,
-          pidName: vari.shortName,
-          messages: messageValueList,
+        ReadParameterPID pidObj = ReadParameterPID(
+          pidId: item.id,
+          variables: variables,
+          totalLen: (item.code?.length ?? 0) ~/ 2,
+          pid: item.code,
         );
 
-        variables.add(pidVariable);
+        if (item.memoryAddress == false) {
+          list.add(pidObj);
+        } else {
+          listOfAddrPid.add(pidObj);
+        }
       }
 
-      ReadParameterPID pidObj = ReadParameterPID(
-        pidId: item.id,
-        variables: variables,
-        totalLen: (item.code?.length ?? 0) ~/ 2,
-        pid: item.code,
+      // API call (same as Task.Run)
+      result = await mUdsDiagnostic.setRoutineValue(
+        list.length,
+        list,
+        Uint8List.fromList(actualResponse),
       );
 
-      if (item.memoryAddress == false) {
-        list.add(pidObj);
-      } else {
-        listOfAddrPid.add(pidObj);
-      }
+      // Convert response
+      List<ReadPidPresponseModel> resList = (result as List)
+          .map((e) => ReadPidPresponseModel.fromJson(e))
+          .toList();
+
+      return resList;
+    } catch (e) {
+      return null;
     }
-
-    // API call (same as Task.Run)
-    result = await mUdsDiagnostic.setRoutineValue(
-      list.length,
-      list,
-      Uint8List.fromList(actualResponse),
-    );
-
-    // Convert response
-    List<ReadPidPresponseModel> resList =
-        (result as List)
-            .map((e) => ReadPidPresponseModel.fromJson(e))
-            .toList();
-
-    return resList;
-  } catch (e) {
-    return null;
   }
-}
 
   Future<bool> writeSSID(String routerSSID) async {
     try {

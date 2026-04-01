@@ -4,7 +4,6 @@ import 'package:ap_dongle_comm/utils/commController.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
 import 'package:ap_dongle_comm/utils/enums/connectivity.dart';
 import 'package:autopeepal/app.dart';
-import 'package:autopeepal/services/connectionWifiService.dart';
 import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:get/get.dart';
@@ -189,8 +188,12 @@ class ConnectionUSBWindows {
         channelId: channelId,
         isChannel: true,
       );
+      final comm = Get.find<CommController>();
+      if (!comm.isConnected.value) {
+        return ["false", "CommController: Serial port not connected"];
+      }
       dongleCommWin!.comm = comm;
-      dSDiagnostic = UDSDiagnostic(dongleCommWin!, dSDiagnostic);
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
       String fwVersion = "x.x.x";
 
       if (fwVersion.trim().isNotEmpty) {

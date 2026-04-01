@@ -566,7 +566,7 @@ class DashboardController extends GetxController {
         print("Setting DLL properties...");
         final status = vciType == VCIType.DOIP
             ? await App.dllFunctions!.setDoipRp1210Properties(doipConfigModel!)
-            : await App.dllFunctions!.setRp1210Properties();
+            : await App.dllFunctions!.setRP1210Properties();
 
         if (status != "Success") {
           print("❌ DLL Property error: $status");

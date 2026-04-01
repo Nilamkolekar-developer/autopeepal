@@ -60,7 +60,7 @@ class ConnectionWifi {
       print("Connecting to $ip:$port via WiFi...");
       await comm!.connectWifi(host: ip, port: port);
       print("WiFi connected.");
-      dSDiagnostic ??= UDSDiagnostic(dongleCommWin!,ECUCalculateSeedkey());
+      dSDiagnostic ??= UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
       print("UDSDiagnostic initialized.");
       print("Sending Security Access command...");
       await dongleCommWin!.securityAccess();
@@ -108,52 +108,73 @@ class ConnectionWifi {
   Future<List<String>> getRP1210FWVersion(
       String ipAddress, VCIType vciType, String channelId) async {
     try {
+      print("========== getRP1210FWVersion START ==========");
+
+      print("[STEP] Closing existing socket...");
       await _socket?.close();
 
       String host = ipAddress;
       int port = 6888;
+
       if (ipAddress.contains(':')) {
         final parts = ipAddress.split(':');
         host = parts[0];
         port = int.tryParse(parts[1]) ?? 6888;
       }
 
-      _socket =
-          await Socket.connect(host, port, timeout: const Duration(seconds: 5));
+      print("[INFO] Host: $host");
+      print("[INFO] Port: $port");
 
-      Connectivity connType;
+      print("[STEP] Selecting connectivity type...");
       switch (vciType) {
         case VCIType.RP1210:
-          connType = Connectivity.rp1210WiFi;
+          print("[INFO] Selected: RP1210 WiFi");
           break;
         case VCIType.CAN2xFD:
-          connType = Connectivity.canFdWiFi;
+          print("[INFO] Selected: CAN FD WiFi");
           break;
         case VCIType.DOIP:
-          connType = Connectivity.doipWiFi;
+          print("[INFO] Selected: DOIP WiFi");
           break;
         default:
+          print("[ERROR] Invalid VCI Type");
           return ["false", "Invalid VCI type selected"];
       }
-      comm = CommController()..connectivity.value = connType;
+
+      comm ??= CommController();
+      print("CommController initialized.");
       dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
       dongleCommWin!.comm = comm;
-     dSDiagnostic ??= UDSDiagnostic(
-  dongleCommWin!,
-  ECUCalculateSeedkey(),
-);
+      print(
+          "DongleComm initialized with channelId: $channelId and comm assigned");
+      print("Connecting to $host:$port via WiFi...");
+      await comm!.connectWifi(host: host, port: port);
+      print("WiFi connected.");
+      dSDiagnostic ??= UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
+      print("UDSDiagnostic initialized.");
 
+      print("[STEP] Sending Firmware Request (not implemented yet)");
       String fwVersion = "x.x.x";
 
-      if (fwVersion.isNotEmpty) {
-        App.dllFunctions = DLLFunctions(
-            dSDiagnostic! as DongleComm, dongleCommWin! as UDSDiagnostic);
+      print("[INFO] Firmware Version (dummy): $fwVersion");
 
+      if (fwVersion.isNotEmpty) {
+        print("[STEP] Initializing DLLFunctions...");
+        App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+
+        print("[SUCCESS] DLLFunctions initialized");
+
+        print("========== getRP1210FWVersion SUCCESS ==========");
         return ["true", fwVersion];
       } else {
+        print("[ERROR] Firmware version empty");
         return ["false", "Failed to read firmware version"];
       }
     } catch (e, stackTrace) {
+      print("========== ERROR in getRP1210FWVersion ==========");
+      print("[ERROR] $e");
+      print("[STACKTRACE] $stackTrace");
+
       return ["false", "Exception @getRP1210FWVersion(): $e \n $stackTrace"];
     }
   }

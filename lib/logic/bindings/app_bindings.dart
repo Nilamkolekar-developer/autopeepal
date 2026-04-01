@@ -55,6 +55,6 @@ class AppBinding extends Bindings {
       ),
     );
 
-    Get.put(DataSyncController());
+    Get.put(DataSyncController(),permanent: true);
   }
 }
