@@ -1,5 +1,6 @@
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class CustomPopup extends StatelessWidget {
   final String title;
@@ -93,6 +94,96 @@ class CustomPopup extends StatelessWidget {
                 ),
               ],
             )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CustomPopup2 extends StatelessWidget {
+  final String title;
+  final String message;
+  final String confirmText;
+  final String cancelText;
+  final bool showCancel;
+
+  const CustomPopup2({
+    Key? key,
+    required this.title,
+    required this.message,
+    this.confirmText = "OK",
+    this.cancelText = "Cancel",
+    this.showCancel = false,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.grey.shade800,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+      ),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (showCancel)
+                  TextButton(
+                    onPressed: () => Get.back(result: false), // returns false
+                    child: Text(
+                      cancelText,
+                      style: const TextStyle(
+                          color: Colors.white70, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                if (showCancel) const SizedBox(width: 8),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey.shade800,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                  ),
+                  onPressed: () => Get.back(result: true), // returns true
+                  child: Text(
+                    confirmText,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

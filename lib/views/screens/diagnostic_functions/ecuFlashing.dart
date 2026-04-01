@@ -3,6 +3,7 @@ import 'package:autopeepal/common_widgets/customDropdown.dart';
 import 'package:autopeepal/logic/controller/diagnosticFunctions/ecuFlashingController.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 
 class ECUFlashingScreen extends StatelessWidget {
@@ -12,36 +13,50 @@ class ECUFlashingScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.pagebgColor,
-      appBar: AppBar(
-        backgroundColor: AppColors.primaryColor,
-        title: const Text("ECU Flashing"),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: _ecuTabs(),
-        ),
-      ),
-      body: SafeArea(
-        child: Obx(() {
-          return Stack(
-            children: [
-              Column(
+    return Obx(() => WillPopScope(
+          onWillPop: () async {
+            if (controller.isBusy.value) {
+              Fluttertoast.showToast(
+                msg: "Flashing in progress. Please wait...",
+              );
+              return false; // ❌ block back
+            }
+            return true; // ✅ allow back
+          },
+          child: Scaffold(
+            backgroundColor: AppColors.pagebgColor,
+            appBar: AppBar(
+              backgroundColor: AppColors.primaryColor,
+              title: const Text("ECU Flashing"),
+              automaticallyImplyLeading:
+                  !controller.isBusy.value, // 👈 hides back button in AppBar
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(60),
+                child: _ecuTabs(),
+              ),
+            ),
+            body: SafeArea(
+              child: Stack(
                 children: [
-                  Expanded(child: _mainContent()),
+                  Column(
+                    children: [
+                      Expanded(child: _mainContent()),
+                    ],
+                  ),
+
+                  /// 🔹 Loader Overlay (blocks UI)
+                  if (controller.isBusy.value)
+                    Container(
+                      color: Colors.black45, // 👈 blocks touch
+                      child: const Center(
+                        child: CommonLoader(message: "Flashing..."),
+                      ),
+                    ),
                 ],
               ),
-
-              /// 🔹 Loader Overlay (BEST PRACTICE)
-              if (controller.isBusy.value)
-                const Center(
-                  child: CommonLoader(message: "Loading..."),
-                ),
-            ],
-          );
-        }),
-      ),
-    );
+            ),
+          ),
+        ));
   }
 
   Widget _ecuTabs() {
@@ -55,7 +70,18 @@ class ECUFlashingScreen extends StatelessWidget {
                     controller.selectedEcu.value?.ecu2 == ecu.ecu2;
 
                 return GestureDetector(
-                  onTap: () => controller.switchTab(ecu),
+                  // onTap: () {
+                  //   controller.switchTab(ecu);
+                  // },
+                  onTap: () {
+                    if (controller.isBusy.value) {
+                      // Optional: show message
+                      Fluttertoast.showToast(
+                          msg: "Cannot change ECU during flashing");
+                      return;
+                    }
+                    controller.switchTab(ecu);
+                  },
                   child: Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     padding: const EdgeInsets.symmetric(

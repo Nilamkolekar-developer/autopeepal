@@ -11,7 +11,7 @@ import 'package:autopeepal/utils/save_local_data.dart';
 class LiveParameterController extends GetxController {
   RxBool isBusy = false.obs;
   RxString loaderText = ''.obs;
-
+  RxBool showGroupOverlay = false.obs;
   Rx<EcuModel?> selectedEcu = Rx<EcuModel?>(null);
   RxList<EcuModel> ecusList = <EcuModel>[].obs;
 
@@ -66,18 +66,33 @@ class LiveParameterController extends GetxController {
       staticPidList.value = List<PidCode>.from(pidList);
 
       // Build groups from variables
-      if (StaticData.pidGroups.isEmpty) {
-        for (var pid in pidList) {
-          for (var vari in pid.piCodeVariable ?? []) {
-            for (var group in vari.group) {
-              if (group != null &&
-                  !StaticData.pidGroups.any((x) => x.id == group.id)) {
-                StaticData.pidGroups.add(PidGroupModel(
-                  id: group.id,
-                  groupName: group.value,
-                  isSelected: false,
-                ));
-              }
+      // if (StaticData.pidGroups.isEmpty) {
+      //   for (var pid in pidList) {
+      //     for (var vari in pid.piCodeVariable ?? []) {
+      //       for (var group in vari.group) {
+      //         if (group != null &&
+      //             !StaticData.pidGroups.any((x) => x.id == group.id)) {
+      //           StaticData.pidGroups.add(PidGroupModel(
+      //             id: group.id,
+      //             groupName: group.value,
+      //             isSelected: false,
+      //           ));
+      //         }
+      //       }
+      //     }
+      //   }
+      // }
+
+      for (var pid in pidList) {
+        for (var vari in pid.piCodeVariable ?? []) {
+          for (var group in vari.group ?? []) {
+            if (group != null &&
+                !StaticData.pidGroups.any((x) => x.id == group['id'])) {
+              StaticData.pidGroups.add(PidGroupModel(
+                id: group['id'],
+                groupName: group['value'],
+                isSelected: false,
+              ));
             }
           }
         }
@@ -162,25 +177,88 @@ class LiveParameterController extends GetxController {
     }
   }
 
-  /// Group checkbox logic
-  void onGroupCheckBoxChanged(PidGroupModel grp) {
-    grp.isSelected.value = !grp.isSelected.value;
+ /// Group checkbox logic (Select All or individual group)
+void handleGroupCheckboxChanged(PidGroupModel group) {
+  if (group.id == 1000) {
+    // Select All tapped
+    bool newValue = !group.isSelected.value;
+    group.isSelected.value = newValue;
 
-    if (grp.id == 1000) {
-      grp.groupName.value =
-          grp.isSelected.value ? "Unselect All" : "Select All";
+    // Update all groups
+    for (var g in groupList) {
+      g.isSelected.value = newValue;
     }
 
+    // Update all PIDs
     for (var pid in pidList) {
-      for (var variable in pid.piCodeVariable ?? []) {
-        if (grp.id == 1000 ||
-            variable.group.any((g) => g.value == grp.groupName.value)) {
-          handlePidCheckboxTap(variable, byGroup: true);
+      if (pid.piCodeVariable != null) {
+        for (var v in pid.piCodeVariable!) {
+          v.selected = newValue;
         }
       }
     }
-  }
 
+    // Update selectedPidList
+    selectedPidList.value = newValue ? List<PidCode>.from(pidList) : <PidCode>[];
+  } else {
+    // Normal group selection
+    group.isSelected.value = !group.isSelected.value;
+
+    for (var pid in pidList) {
+      if (pid.piCodeVariable != null) {
+        for (var v in pid.piCodeVariable!) {
+          if (v.group.any((g) => g['id'] == group.id)) {
+            v.selected = group.isSelected.value;
+          }
+        }
+      }
+    }
+
+    // Refresh selectedPidList
+    selectedPidList.value = pidList
+        .where((p) =>
+            p.piCodeVariable != null &&
+            p.piCodeVariable!.any((v) => v.selected))
+        .toList();
+  }
+}
+
+  // Future<void> onTabClicked(EcuModel tappedEcu) async {
+  //   print("🔹 ECU TAB CLICKED: ${tappedEcu.ecuName}");
+
+  //   isBusy.value = true;
+  //   loaderText.value = "Loading...";
+
+  //   await Future.delayed(const Duration(milliseconds: 100));
+
+  //   /// ✅ Set selected ECU
+  //   selectedEcu.value = tappedEcu;
+  //   selectedEcu.refresh();
+
+  //   print("✅ Selected ECU set: ${selectedEcu.value?.ecuName}");
+
+  //   /// ✅ Update PID list properly
+  //   pidList.clear();
+  //   pidList.addAll(tappedEcu.pidList);
+
+  //   staticPidList.clear();
+  //   staticPidList.addAll(tappedEcu.pidList);
+
+  //   pidList.refresh();
+  //   staticPidList.refresh();
+
+  //   print("📦 PID LIST LOADED: ${pidList.length} items");
+
+  //   /// ✅ Set dongle properties
+  //   print("📡 Setting dongle properties...");
+  //   await setDongleProperties();
+  //   print("✅ Dongle properties set");
+
+  //   isBusy.value = false;
+  //   loaderText.value = "";
+
+  //   print("🏁 ECU TAB PROCESS COMPLETED\n");
+  // }
   Future<void> onTabClicked(EcuModel tappedEcu) async {
   print("🔹 ECU TAB CLICKED: ${tappedEcu.ecuName}");
 
@@ -189,33 +267,32 @@ class LiveParameterController extends GetxController {
 
   await Future.delayed(const Duration(milliseconds: 100));
 
-  /// 🔹 Set selected ECU
+  /// ✅ Set ECU
   selectedEcu.value = tappedEcu;
-  print("✅ Selected ECU set: ${selectedEcu.value?.ecuName}");
+  selectedEcu.refresh();
 
-  /// 🔹 Clear old PID list
- 
+  /// 🚨 RESET ALL STATE
+  selectedPidList.clear();
+  searchKey = "";
+  showGroupOverlay.value = false;
 
-  for (var ecu in ecusList) {
-    print("➡️ Checking ECU: ${ecu.ecuName}");
+  /// ✅ Load fresh PID list
+  pidList.value = List<PidCode>.from(tappedEcu.pidList);
+  staticPidList.value = List<PidCode>.from(tappedEcu.pidList);
 
-    
-
-    if (ecu.ecuName == tappedEcu.ecuName) {
-      print("🎯 MATCH FOUND: ${ecu.ecuName}");
-
-
-      pidList.value = List<PidCode>.from(ecu.pidList);
-      staticPidList.value = List<PidCode>.from(ecu.pidList);
-
-      print("📦 PID LIST LOADED: ${pidList.length} items");
-    }
+  /// 🚨 CLEAR GROUP FILTER SELECTION
+  for (var g in groupList) {
+    g.isSelected.value = false;
   }
 
-  /// 🔹 Set dongle properties
-  print("📡 Setting dongle properties...");
+  /// Refresh UI
+  pidList.refresh();
+  staticPidList.refresh();
+
+  print("📦 PID LIST LOADED: ${pidList.length} items");
+
+  /// ✅ Set dongle properties
   await setDongleProperties();
-  print("✅ Dongle properties set");
 
   isBusy.value = false;
   loaderText.value = "";
@@ -236,8 +313,6 @@ class LiveParameterController extends GetxController {
       print("Error setting dongle properties: $e");
     }
   }
-
-  
 
   final IFileSaver saveFile =
       IFileSaver(); // Create this at the top of your widget/class
@@ -262,12 +337,11 @@ class LiveParameterController extends GetxController {
   void searchPid() {
     if (searchKey.isNotEmpty) {
       pidList.value = staticPidList
-          .where((t) => t.piCodeVariable!.any((s) => (s.shortName)
-              .toLowerCase()
-              .contains(searchKey.toLowerCase())))
+          .where((t) => t.piCodeVariable!.any((s) =>
+              (s.shortName).toLowerCase().contains(searchKey.toLowerCase())))
           .toList();
     } else {
       pidList.value = List.from(staticPidList);
     }
-    }
+  }
 }

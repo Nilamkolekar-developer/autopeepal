@@ -263,7 +263,7 @@ class JobCardDetailsController extends GetxController {
 
         final status = vciType == VCIType.DOIP
             ? await App.dllFunctions!.setDoipRp1210Properties(doipConfigModel!)
-            : await App.dllFunctions!.setRp1210Properties();
+            : await App.dllFunctions!.setRP1210Properties();
 
         App.connectedVia = "USB";
         if (status != "Success") {
