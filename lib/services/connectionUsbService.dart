@@ -5,7 +5,6 @@ import 'package:ap_dongle_comm/utils/commController.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
 import 'package:ap_dongle_comm/utils/enums/connectivity.dart';
 import 'package:autopeepal/app.dart';
-import 'package:autopeepal/services/connectionWifiService.dart';
 import 'package:autopeepal/utils/ui_helper.dart/dllFunctions.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:ecu_seedkey/ecu_seedkey.dart';
@@ -24,128 +23,178 @@ class ConnectionUSB {
   static const String ACTION_USB_PERMISSION =
       "com.hoho.android.usbserial.examples.USB_PERMISSION";
 
+  // Future<bool> connectUsb(VCIType vciType) async {
+  //   try {
+  //     List<UsbDevice> devices = await UsbSerial.listDevices();
+  //     UsbDevice? selectedDevice;
+
+  //     try {
+  //       selectedDevice =
+  //           devices.firstWhere((d) => d.vid == 4292 || d.vid == 6790);
+  //     } catch (e) {
+  //       print("❌ No compatible USB device found");
+  //       return false;
+  //     }
+
+  //     port = await selectedDevice.create();
+  //     if (port == null) return false;
+
+  //     bool openResult = await port!.open();
+  //     if (!openResult) return false;
+
+  //     int baudRate = (selectedDevice.vid == 6790) ? 115200 : 460800;
+
+  //     await port!.setPortParameters(
+  //       baudRate,
+  //       UsbPort.DATABITS_8,
+  //       UsbPort.STOPBITS_1,
+  //       UsbPort.PARITY_NONE,
+  //     );
+  //     await port!.setDTR(true);
+  //     await port!.setRTS(true);
+
+  //     await Future.delayed(const Duration(milliseconds: 1500));
+
+  //     final comm = Get.put(CommController());
+  //     await comm.connectUsb(port!, baudRate,selectedDevice); // ← listener starts here
+
+  //     if (comm.isConnected.value) {
+  //       print("✅ USB connected");
+  //       return true;
+  //     }
+  //     return false;
+  //   } catch (e) {
+  //     print("🔥 connectUsb error: $e");
+  //     await port?.close();
+  //     return false;
+  //   }
+  // }
   Future<bool> connectUsb(VCIType vciType) async {
     try {
       List<UsbDevice> devices = await UsbSerial.listDevices();
       UsbDevice? selectedDevice;
+
       try {
+        // 4292 = Silicon Labs (CP2102), 6790 = QinHeng (CH340)
         selectedDevice =
             devices.firstWhere((d) => d.vid == 4292 || d.vid == 6790);
       } catch (e) {
+        print("❌ No compatible USB device found");
         return false;
       }
+
       port = await selectedDevice.create();
       if (port == null) return false;
 
-      bool openResult = await port!.open();
-      if (!openResult) return false;
+      // Determine the correct enum based on the selected VCI Type
+      final Connectivity targetUsbType = _mapVciToUsbConnectivity(vciType);
+
+      // CH340 usually caps at 115200, CP2102 handles 460800
       int baudRate = (selectedDevice.vid == 6790) ? 115200 : 460800;
-      await port!.setPortParameters(
-        baudRate,
-        UsbPort.DATABITS_8,
-        UsbPort.STOPBITS_1,
-        UsbPort.PARITY_NONE,
-      );
 
-      await port!.setDTR(true);
-      await port!.setRTS(true);
+      final comm =
+          Get.find<CommController>(); // Use find if already put, or put if new
 
-      return true;
+      // Pass the targetUsbType to the CommController
+      await comm.connectUsb(port!, baudRate, targetUsbType);
+
+      if (comm.isConnected.value) {
+        print("✅ USB connected as $targetUsbType");
+        return true;
+      }
+      return false;
     } catch (e) {
+      print("🔥 connectUsb error: $e");
       await port?.close();
       return false;
+    }
+  }
+
+  Connectivity _mapVciToUsbConnectivity(VCIType vciType) {
+    switch (vciType) {
+      case VCIType.RP1210:
+        return Connectivity.rp1210Usb;
+      case VCIType.CAN2xFD:
+        return Connectivity.canFdUsb;
+      case VCIType.DOIP:
+        return Connectivity.doipUsb;
+      default:
+        return Connectivity.usb; // Fallback for standard CAN2X/G/GK
     }
   }
 
   Future<bool> connectUsbForConfig() async {
     try {
-      // bool hardwareConnected = await connectUsb(VCIType.RP1210);
-      // if (!hardwareConnected || port == null) {
-      //   print("❌ Hardware connection failed");
-      //    Fluttertoast.showToast(
-      //        msg: "USB Hardware not found or Permission denied");
-      //   return false;
-      // }
+      // ✅ STEP 2: Get the SAME CommController connectUsb already set up
+      // DO NOT call comm.connectUsb(port!) again — it's already running
       final comm = Get.find<CommController>();
-      await comm.connectUsb(port!);
+      if (!comm.isConnected.value) {
+        print("❌ CommController failed to connect to $port");
+        return false;
+      }
+      // ✅ STEP 3: Drain boot noise
+      await Future.delayed(const Duration(milliseconds: 2000));
+      await comm.clearBuffer();
 
-      await Future.delayed(const Duration(seconds: 2)); // ⭐ increase delay
-
-      await comm.clearBuffer(); // ⭐ VERY IMPORTANT
-
+      // ✅ STEP 4: Setup dongle
       dongleCommWin = DongleComm(channelId: "00", isChannel: true);
       dongleCommWin!.comm = comm;
       dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
 
-      print("🔐 Starting Security Access on Mobile...");
-      // Fluttertoast.showToast(msg: "Requesting Security Access...");
+      // ✅ STEP 5: Security access
+      print("🔐 Requesting Security Access...");
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
+      print(
+          "📨 Response: ${securityAccess?.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ') ?? 'NULL'}");
 
-      if (securityAccess != null && securityAccess.length > 3) {
-        if (securityAccess[3] == 0x00) {
-          App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
-          //Fluttertoast.showToast(msg: "✅ Security Access Granted");
-          return true;
-        } else {
-          securityAccess[3].toRadixString(16).padLeft(2, '0');
-          // Fluttertoast.showToast(msg: "❌ Access Denied. Error: 0x");
-          return false;
-        }
+      if (securityAccess != null &&
+          securityAccess.length > 3 &&
+          securityAccess[3] == 0x00) {
+        print("✅ Security Access granted");
+        App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+        Fluttertoast.showToast(msg: "VCI Connected");
+        return true;
       } else {
-        // Fluttertoast.showToast(msg: "⚠️ No response from VCI (Security)");
+        final errHex = (securityAccess != null && securityAccess.length > 3)
+            ? '0x${securityAccess[3].toRadixString(16).padLeft(2, '0')}'
+            : 'null/short response';
+        print("❌ Security Access denied: $errHex");
+        Fluttertoast.showToast(msg: "Access denied: $errHex");
         return false;
       }
     } catch (e) {
-      print("🔥 Mobile USB Exception: $e");
-      // Fluttertoast.showToast(msg: "Exception:.......... ${e.toString()}");
+      print("🔥 connectUsbForConfig error: $e");
+      Fluttertoast.showToast(msg: "Error: ${e.toString()}");
       await port?.close();
+      port = null;
       return false;
     }
   }
 
-  Future<List<String>> getDongleMacID({String channelId = '00'}) async {
+  Future<Object> getDongleMacID({String channelId = '00'}) async {
     try {
       print("🔍 Starting getDongleMacID...");
 
-      // Fluttertoast.showToast(msg: "Connecting to dongle...");
-
-      /// 🔥 STEP 1: GET COMM
-      comm ??= Get.find<CommController>();
-
-      if (port == null) {
-        print("❌ USB Port is NULL");
-        Fluttertoast.showToast(msg: "USB Port not found");
-        return ["false", "USB Port not found"];
+      final comm = Get.find<CommController>();
+      if (!comm.isConnected.value) {
+        print("❌ CommController failed to connect to $port");
+        return false;
       }
+      // ✅ STEP 3: Drain boot noise
+      await Future.delayed(const Duration(milliseconds: 2000));
+      await comm.clearBuffer();
 
-      /// 🔥 STEP 2: RECONNECT USB (VERY IMPORTANT)
-      print("🔌 Reconnecting USB before MAC read...");
-      await comm!.connectUsb(port!);
-
-      await Future.delayed(const Duration(seconds: 1));
-
-      /// 🔥 STEP 3: CLEAR BUFFER (CRITICAL FIX)
-      print("🧹 Clearing buffer...");
-      await comm!.clearBuffer();
-
-      /// 🔥 STEP 4: INIT OBJECTS
+      // ✅ STEP 4: Init objects
       dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
       dongleCommWin!.comm = comm;
+      dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
 
-      dSDiagnostic = UDSDiagnostic(
-        dongleCommWin!,
-        ECUCalculateSeedkey(),
-      );
-
-      /// 🔥 STEP 5: SECURITY ACCESS
+      // ✅ STEP 5: Security access
       print("🔐 Requesting Security Access...");
-      //Fluttertoast.showToast(msg: "Requesting Security Access...");
-
       Uint8List? securityAccess = await dongleCommWin!.securityAccess();
 
       if (securityAccess == null) {
         print("❌ No response from dongle");
-        // Fluttertoast.showToast(msg: "No response from device");
         return ["false", "No response from dongle"];
       }
 
@@ -153,29 +202,24 @@ class ConnectionUSB {
           "📨 Security Response: ${securityAccess.map((e) => e.toRadixString(16).padLeft(2, '0')).join(' ')}");
 
       if (securityAccess.length <= 3) {
-        print("❌ Invalid security response");
-        //Fluttertoast.showToast(msg: "Invalid security response");
         return ["false", "Invalid security response"];
       }
 
       if (securityAccess[3] != 0x00) {
-        print("❌ Security denied: ${securityAccess[3]}");
-        // Fluttertoast.showToast(msg: "Security Access Denied");
-        return ["false", "Security denied: ${securityAccess[3]}"];
+        return [
+          "false",
+          "Security denied: 0x${securityAccess[3].toRadixString(16).padLeft(2, '0')}"
+        ];
       }
 
       print("✅ Security Access Granted");
-      // Fluttertoast.showToast(msg: "Security Access Granted");
 
-      /// 🔥 STEP 6: GET MAC
+      // ✅ STEP 6: Get MAC
       print("📡 Requesting MAC ID...");
-      // Fluttertoast.showToast(msg: "Fetching MAC ID...");
-
       Uint8List? macResp = await dongleCommWin!.getWifiMacId();
 
       if (macResp == null || macResp.length < 9) {
-        print("❌ Invalid MAC response");
-        //  Fluttertoast.showToast(msg: "Failed to get MAC ID");
+        print("❌ Invalid MAC response: ${macResp?.length ?? 0} bytes");
         return ["false", "Invalid MAC response"];
       }
 
@@ -185,15 +229,13 @@ class ConnectionUSB {
           .join(":");
 
       print("✅ MAC ID: $macId");
-      // Fluttertoast.showToast(msg: "MAC ID: $macId");
 
-      /// 🔥 STEP 7: FINAL INIT
+      // ✅ STEP 7: Final init
       App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
 
       return ["true", macId];
     } catch (e) {
       print("🔥 Exception in getDongleMacID: $e");
-      // Fluttertoast.showToast(msg: "Error: ${e.toString()}");
       return ["false", "Exception: $e"];
     }
   }
@@ -227,11 +269,17 @@ class ConnectionUSB {
     }
   }
 
-  Future<List<String>> getRP1210FWVersion(
-      String channelId, VCIType vciType) async {
-    List<String> retVal = ["false", ""];
-
+  Future<Object> getRP1210FWVersion(String channelId, VCIType vciType) async {
     try {
+      print("🔍 Starting getRP1210FWVersion...");
+
+      // ✅ STEP 2: Get the SAME CommController connectUsb already set up
+      final comm = Get.find<CommController>();
+      if (!comm.isConnected.value) {
+        print("❌ CommController failed to connect to $port");
+        return false;
+      }
+      // ✅ STEP 3: Map connectivity based on vciType
       Connectivity connectivity;
       switch (vciType) {
         case VCIType.RP1210:
@@ -244,34 +292,39 @@ class ConnectionUSB {
           connectivity = Connectivity.doipUsb;
           break;
         default:
-          await port?.close();
-          return ["false", "Invalid VCI type selected"];
+          Fluttertoast.showToast(msg: "Invalid VCI type");
+          return ["false", "Invalid VCI type"];
       }
+
+      // ✅ STEP 4: Drain boot noise
+      await Future.delayed(const Duration(milliseconds: 2000));
+      await comm.clearBuffer();
+
+      // ✅ STEP 5: Init objects + set connectivity
       dongleCommWin = DongleComm(channelId: channelId, isChannel: true);
-      if (port != null) {
-        dongleCommWin!.comm?.connectivity.value = connectivity;
-      } else {
-        return ["false", "USB Port not available"];
-      }
+      dongleCommWin!.comm = comm;
+      dongleCommWin!.comm?.connectivity.value = connectivity;
       dSDiagnostic = UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
-      String? fwVersion = await dongleCommWin!.rp1210ReadVersion();
-      if (fwVersion.trim().isNotEmpty) {
-        App.dllFunctions = DLLFunctions(
-          dongleCommWin!,
-          dSDiagnostic!,
-        );
 
-        retVal = ["true", fwVersion];
-      } else {
-        await port?.close();
-        retVal = ["false", "Failed to read firmware version"];
+      // ✅ STEP 6: Get FW version
+      print("📡 Requesting Firmware Version...");
+      String? fwVersion = "x.x.x";
+      //await dongleCommWin!.rp1210ReadVersion();
+
+      if (fwVersion.trim().isEmpty) {
+        print("❌ Empty or null firmware version response");
+        Fluttertoast.showToast(msg: "Failed to read firmware version");
+        return ["false", "Failed to read firmware version"];
       }
-    } catch (e, stackTrace) {
-      await port?.close();
-      retVal = ["false", "Exception @getRP1210FWVersion(): $e"];
-      print(stackTrace);
-    }
 
-    return retVal;
+      print("✅ FW Version: $fwVersion");
+      App.dllFunctions = DLLFunctions(dongleCommWin!, dSDiagnostic!);
+      Fluttertoast.showToast(msg: "FW Version: ${fwVersion.trim()}");
+      return ["true", fwVersion.trim()];
+    } catch (e) {
+      print("🔥 Exception in getRP1210FWVersion: $e");
+      Fluttertoast.showToast(msg: "Error: ${e.toString()}");
+      return ["false", "Exception: $e"];
+    }
   }
 }

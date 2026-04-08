@@ -28,7 +28,9 @@ class ConnectionWifi {
     late StreamSubscription sub;
     sub = mdns.discoveredServices.listen((service) {
       final name = service.name.toLowerCase();
-      if (name.contains("obd2") || name.startsWith("ap")) {
+      if (name.contains("obd2") ||
+          name.startsWith("ap") ||
+          name.startsWith("vocom")) {
         if (!devices.any((d) => d.ip == service.ip)) {
           devices.add(service);
         }
@@ -48,8 +50,12 @@ class ConnectionWifi {
     return completer.future;
   }
 
-  Future<String> getDongleMacID(String ip,
-      {String channelId = "00", int port = 6888}) async {
+  Future<String> getDongleMacID(
+    String ip, {
+    String channelId = "00",
+    int port = 6888,
+    required Connectivity selectedType,
+  }) async {
     try {
       comm ??= CommController();
       print("CommController initialized.");
@@ -58,7 +64,7 @@ class ConnectionWifi {
       print(
           "DongleComm initialized with channelId: $channelId and comm assigned");
       print("Connecting to $ip:$port via WiFi...");
-      await comm!.connectWifi(host: ip, port: port);
+      await comm!.connectWifi(host: ip, port: port, selectedType: selectedType);
       print("WiFi connected.");
       dSDiagnostic ??= UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
       print("UDSDiagnostic initialized.");
@@ -114,27 +120,34 @@ class ConnectionWifi {
       await _socket?.close();
 
       String host = ipAddress;
-      int port = 6888;
+      // int port = 6888;
+      int port = 27015;
 
       if (ipAddress.contains(':')) {
         final parts = ipAddress.split(':');
         host = parts[0];
-        port = int.tryParse(parts[1]) ?? 6888;
+        port = int.tryParse(parts[1]) ?? 27015
+            //6888
+            ;
       }
 
       print("[INFO] Host: $host");
       print("[INFO] Port: $port");
 
       print("[STEP] Selecting connectivity type...");
+      Connectivity connectivityType;
       switch (vciType) {
         case VCIType.RP1210:
           print("[INFO] Selected: RP1210 WiFi");
+          connectivityType = Connectivity.rp1210WiFi;
           break;
         case VCIType.CAN2xFD:
           print("[INFO] Selected: CAN FD WiFi");
+          connectivityType = Connectivity.canFdWiFi;
           break;
         case VCIType.DOIP:
           print("[INFO] Selected: DOIP WiFi");
+          connectivityType = Connectivity.doipWiFi;
           break;
         default:
           print("[ERROR] Invalid VCI Type");
@@ -148,7 +161,8 @@ class ConnectionWifi {
       print(
           "DongleComm initialized with channelId: $channelId and comm assigned");
       print("Connecting to $host:$port via WiFi...");
-      await comm!.connectWifi(host: host, port: port);
+      await comm!
+          .connectWifi(host: host, port: port, selectedType: connectivityType);
       print("WiFi connected.");
       dSDiagnostic ??= UDSDiagnostic(dongleCommWin!, ECUCalculateSeedkey());
       print("UDSDiagnostic initialized.");

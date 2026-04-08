@@ -19,6 +19,7 @@ import 'package:autopeepal/services/local_storage_services/localStorage_service.
 import 'package:autopeepal/utils/save_local_data.dart';
 import 'package:autopeepal/utils/ui_helper.dart/enums.dart';
 import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:get/get.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -514,6 +515,7 @@ class DashboardController extends GetxController {
         );
         return;
       }
+
       if (vciType == VCIType.CAN2X ||
           vciType == VCIType.CAN2XG ||
           vciType == VCIType.CAN2XGK) {
@@ -524,7 +526,7 @@ class DashboardController extends GetxController {
 
         if (macResult[0] != "true") {
           print("❌ MAC ID error: ${macResult[1]}");
-          closeLoader(); // ⭐ CLOSE LOADER FIRST
+          closeLoader();
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -537,21 +539,40 @@ class DashboardController extends GetxController {
         }
 
         print("Setting Dongle Properties...");
-        await App.dllFunctions!.setDongleProperties1();
+        final firmware = await App.dllFunctions!.setDongleProperties1();
 
-        await AppPreferences.setConnectedVia("USB");
-        print("USB connection complete for CAN2X family");
+        if (firmware.isNotEmpty) {
+          await AppPreferences.setConnectedVia("USB");
+          App.firmwareVersion = firmware;
+          App.connectedVia = "USB"; // ✅ Changed from "WIFI" to "USB"
+
+          print("Navigating to Diagnostic Screen");
+
+          // ⭐ CRITICAL: Close the loader BEFORE navigating
+          closeLoader();
+
+          Get.toNamed(Routes.diagnosticScreen, arguments: {
+            'firmwareVersion': firmware,
+            'sessionId': App.sessionId,
+          });
+        } else {
+          print("Firmware not found");
+          closeLoader(); // ✅ Close loader if firmware fails
+          Fluttertoast.showToast(msg: "Firmware version not found");
+        }
       } else if (vciType == VCIType.RP1210 ||
           vciType == VCIType.CAN2xFD ||
           vciType == VCIType.DOIP) {
         print("Getting firmware version...");
+
         final fwResult =
             await connectionUSB.getRP1210FWVersion(channelId, vciType);
+
         print("Firmware result: $fwResult");
 
         if (fwResult[0] != "true") {
           print("❌ Firmware error: ${fwResult[1]}");
-          closeLoader(); // ⭐ CLOSE LOADER FIRST
+          closeLoader();
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -563,14 +584,17 @@ class DashboardController extends GetxController {
           return;
         }
 
+        String firmware = fwResult[1]; // ✅ extract once
+
         print("Setting DLL properties...");
+
         final status = vciType == VCIType.DOIP
             ? await App.dllFunctions!.setDoipRp1210Properties(doipConfigModel!)
             : await App.dllFunctions!.setRP1210Properties();
 
         if (status != "Success") {
           print("❌ DLL Property error: $status");
-          closeLoader(); // ⭐ CLOSE LOADER FIRST
+          closeLoader();
           showDialog(
             context: context,
             builder: (context) => CustomPopup(
@@ -583,7 +607,19 @@ class DashboardController extends GetxController {
         }
 
         await AppPreferences.setConnectedVia("USB");
+
         print("USB connection complete for RP1210/CAN2xFD/DOIP");
+
+        // ✅ Navigate AFTER everything is OK
+        closeLoader();
+
+        App.firmwareVersion = firmware;
+        App.connectedVia = "USB";
+
+        Get.toNamed(Routes.diagnosticScreen, arguments: {
+          'firmwareVersion': firmware,
+          'sessionId': App.sessionId,
+        });
       } else {
         print("❌ Invalid VCI Type Selected");
         closeLoader(); // ⭐ CLOSE LOADER FIRST
@@ -596,37 +632,6 @@ class DashboardController extends GetxController {
           ),
         );
         return;
-      }
-      final firmware = await App.dllFunctions?.setDongleProperties1() ?? '';
-      print("Firmware version: $firmware");
-
-      if (firmware.isNotEmpty) {
-        closeLoader();
-        App.firmwareVersion = firmware;
-        App.connectedVia = "USB";
-       // await Future.delayed(const Duration(milliseconds: 800));
-        print("Navigating to Diagnostic Screen");
-        Get.toNamed(Routes.diagnosticScreen, arguments: {
-          'firmwareVersion': firmware,
-          'sessionId': App.sessionId,
-        });
-      } else {
-        if (!isConnected) {
-          print("❌ Failed to connect dongle");
-
-          closeLoader(); // ⭐ CLOSE LOADER FIRST
-
-          showDialog(
-            context: context,
-            builder: (context) => CustomPopup(
-              title: "Alert",
-              message: "Failed to connect dongle",
-              onButtonPressed: () => Get.back(),
-            ),
-          );
-
-          return;
-        }
       }
     } catch (e, stack) {
       print("❌ USB Connect error: $e");

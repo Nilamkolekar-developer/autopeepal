@@ -119,11 +119,12 @@ class CustomDrawer extends StatelessWidget {
                     ),
                     onTap: () async {
                       // Clear shared preferences
-                      AppPreferences.clearAll();
+                     // AppPreferences.clearAll();
+                     await AppPreferences.clearExceptCredentials();
                       await clearLocalData();
                       // Delete controllers to remove previous user data
-                      Get.delete<DashboardController>();
-                      Get.delete<DataSyncController>();
+                      // Get.delete<DashboardController>();
+                      // Get.delete<DataSyncController>();
 
                       // Navigate to login
                       Get.offAllNamed(Routes.loginScreen);

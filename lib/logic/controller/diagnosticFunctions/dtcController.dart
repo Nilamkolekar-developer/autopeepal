@@ -33,7 +33,7 @@ class Dtccontroller extends GetxController {
       isReadDtc.value = args['onlyActive'];
       print("✅ isReadDtc set to: ${isReadDtc.value}");
     }
-    getDTCList();
+    await getDTCList();
   }
 
   Future<void> switchTab(DtcEcusModel arg) async {
@@ -434,131 +434,131 @@ class Dtccontroller extends GetxController {
   // }
 
   Future<void> getDTCList() async {
-  DTCFoundOrNotMessage.value = "Looking for DTC Record";
-  emptyViewText.value = "Loading...";
+    DTCFoundOrNotMessage.value = "Looking for DTC Record";
+    emptyViewText.value = "Loading...";
 
-  int count = 0;
+    int count = 0;
 
-  ecusList.clear();
-  staticDtcList.clear();
-  dtcList.clear();
-  storedDtcList = [];
+    ecusList.clear();
+    staticDtcList.clear();
+    dtcList.clear();
+    storedDtcList = [];
 
-  try {
-    isBusy.value = true;
+    try {
+      isBusy.value = true;
 
-    await Future.delayed(const Duration(milliseconds: 50));
+      await Future.delayed(const Duration(milliseconds: 50));
 
-    for (var ecu in StaticData.ecuInfo) {
-      count++;
+      for (var ecu in StaticData.ecuInfo) {
+        count++;
 
-      int dtcDataset = ecu.dtcDatasetId ?? 0;
+        int dtcDataset = ecu.dtcDatasetId ?? 0;
 
-      /// 🔹 Load Local DTC Data
-      String? dtcLocalData =
-          await SaveLocalData().getData("DtcDataset_$dtcDataset");
+        /// 🔹 Load Local DTC Data
+        String? dtcLocalData =
+            await SaveLocalData().getData("DtcDataset_$dtcDataset");
 
-      DtcResults? dtcLocal;
+        DtcResults? dtcLocal;
 
-      if (dtcLocalData.isNotEmpty) {
-        dtcLocal = DtcResults.fromJson(jsonDecode(dtcLocalData));
-      }
-
-      /// ❌ If no DTC from server
-      if (dtcLocal == null ||
-          dtcLocal.dtcCode == null ||
-          dtcLocal.dtcCode!.isEmpty) {
-        Get.dialog(
-          CustomPopup(
-            title: "Failed",
-            message: "DTC not found from server",
-            onButtonPressed: () => Get.back(),
-          ),
-        );
-      }
-
-      /// 🔹 Load Stored DTCs
-      String? storedList =
-          await SaveLocalData().getData("StoredDtcList_${ecu.ecuName}");
-
-      if (storedList.isNotEmpty) {
-        storedDtcList = (jsonDecode(storedList) as List)
-            .map((e) => DtcCode.fromJson(e))
-            .toList();
-      }
-
-      /// 🔹 Server list (LOCAL VARIABLE - IMPORTANT)
-      List<DtcCode> dtcServerList = dtcLocal?.dtcCode ?? [];
-
-      /// 🔹 Create ECU Model
-      DtcEcusModel dtcEcusModel = DtcEcusModel(
-        ecuName: ecu.ecuName,
-        ecuId: ecu.ecuID,
-        opacity: count == 1 ? 1.0 : 0.5,
-        txHeader: ecu.txHeader,
-        rxHeader: ecu.rxHeader,
-        protocol: ecu.protocol,
-        clearDtcIndex: ecu.clearDtcIndex,
-        ffSet: ecu.ffSet,
-        dtcList: [],
-      );
-
-      print(
-          "Dtc View Model : ECU NAME = ${ecu.ecuName}, DTC DATASET ID = $dtcDataset");
-
-      /// 🔹 If Read DTC from ECU
-      if (isReadDtc.value) {
-        if (count < 2) {
-          dtcEcusModel = (await getDtc(dtcEcusModel, ecu))!;
+        if (dtcLocalData.isNotEmpty) {
+          dtcLocal = DtcResults.fromJson(jsonDecode(dtcLocalData));
         }
 
-        ecusList.add(dtcEcusModel);
+        /// ❌ If no DTC from server
+        if (dtcLocal == null ||
+            dtcLocal.dtcCode == null ||
+            dtcLocal.dtcCode!.isEmpty) {
+          Get.dialog(
+            CustomPopup(
+              title: "Failed",
+              message: "DTC not found from server",
+              onButtonPressed: () => Get.back(),
+            ),
+          );
+        }
 
-        /// 🔹 Empty handling
-        if (ecusList.first.dtcList!.isEmpty) {
-          if (readDtc.value != null) {
-            if (readDtc.value!.status != null &&
-                readDtc.value!.status != "NO_ERROR") {
-              emptyViewText.value = readDtc.value!.status!;
-            } else if (readDtc.value!.status == "NO_ERROR") {
-              emptyViewText.value = "Dtc not found.";
+        /// 🔹 Load Stored DTCs
+        String? storedList =
+            await SaveLocalData().getData("StoredDtcList_${ecu.ecuName}");
+
+        if (storedList.isNotEmpty) {
+          storedDtcList = (jsonDecode(storedList) as List)
+              .map((e) => DtcCode.fromJson(e))
+              .toList();
+        }
+
+        /// 🔹 Server list (LOCAL VARIABLE - IMPORTANT)
+        List<DtcCode> dtcServerList = dtcLocal?.dtcCode ?? [];
+
+        /// 🔹 Create ECU Model
+        DtcEcusModel dtcEcusModel = DtcEcusModel(
+          ecuName: ecu.ecuName,
+          ecuId: ecu.ecuID,
+          opacity: count == 1 ? 1.0 : 0.5,
+          txHeader: ecu.txHeader,
+          rxHeader: ecu.rxHeader,
+          protocol: ecu.protocol,
+          clearDtcIndex: ecu.clearDtcIndex,
+          ffSet: ecu.ffSet,
+          dtcList: [],
+        );
+
+        print(
+            "Dtc View Model : ECU NAME = ${ecu.ecuName}, DTC DATASET ID = $dtcDataset");
+
+        /// 🔹 If Read DTC from ECU
+        if (isReadDtc.value) {
+          if (count < 2) {
+            dtcEcusModel = (await getDtc(dtcEcusModel, ecu))!;
+          }
+
+          ecusList.add(dtcEcusModel);
+
+          /// 🔹 Empty handling
+          if (ecusList.first.dtcList!.isEmpty) {
+            if (readDtc.value != null) {
+              if (readDtc.value!.status != null &&
+                  readDtc.value!.status != "NO_ERROR") {
+                emptyViewText.value = readDtc.value!.status!;
+              } else if (readDtc.value!.status == "NO_ERROR") {
+                emptyViewText.value = "Dtc not found.";
+              } else {
+                emptyViewText.value = "ECU_COMMUNICATION_ERROR";
+              }
             } else {
               emptyViewText.value = "ECU_COMMUNICATION_ERROR";
             }
           } else {
-            emptyViewText.value = "ECU_COMMUNICATION_ERROR";
+            emptyViewText.value = "Looking for DTC Record...";
           }
         } else {
-          emptyViewText.value = "Looking for DTC Record...";
+          /// 🔹 If NOT reading from ECU → use server data
+          dtcEcusModel.dtcList = dtcServerList
+              .map((item) => DtcCode(
+                    description: item.description,
+                    id: item.id,
+                    isActive: item.isActive,
+                    code: item.code,
+                  ))
+              .toList();
+
+          ecusList.add(dtcEcusModel);
         }
-      } else {
-        /// 🔹 If NOT reading from ECU → use server data
-        dtcEcusModel.dtcList = dtcServerList
-            .map((item) => DtcCode(
-                  description: item.description,
-                  id: item.id,
-                  isActive: item.isActive,
-                  code: item.code,
-                ))
-            .toList();
-
-        ecusList.add(dtcEcusModel);
       }
-    }
 
-    /// 🔹 Assign first ECU data
-    if (ecusList.isNotEmpty) {
-      staticDtcList.assignAll(ecusList.first.dtcList ?? []);
-      dtcList.assignAll(ecusList.first.dtcList ?? []);
-      selectedEcu.value = ecusList.first;
+      /// 🔹 Assign first ECU data
+      if (ecusList.isNotEmpty) {
+        staticDtcList.assignAll(ecusList.first.dtcList ?? []);
+        dtcList.assignAll(ecusList.first.dtcList ?? []);
+        selectedEcu.value = ecusList.first;
+      }
+    } catch (e) {
+      emptyViewText.value = "Failed to read DTC";
+      print("❌ getDTCList error: $e");
+    } finally {
+      isBusy.value = false;
     }
-  } catch (e) {
-    emptyViewText.value = "Failed to read DTC";
-    print("❌ getDTCList error: $e");
-  } finally {
-    isBusy.value = false;
   }
-}
 
   Future<DtcEcusModel?> getDtc(
       DtcEcusModel dtcEcusModel, EcuDataSet ecu) async {

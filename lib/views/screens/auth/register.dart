@@ -2,6 +2,7 @@ import 'package:autopeepal/common_widgets/customDropdown.dart';
 import 'package:autopeepal/common_widgets/popup.dart';
 import 'package:autopeepal/common_widgets/ui_helper_widgets.dart';
 import 'package:autopeepal/logic/controller/auth/registerController.dart';
+import 'package:autopeepal/routes/routes_string.dart';
 import 'package:autopeepal/themes/app_colors.dart';
 import 'package:autopeepal/themes/app_textstyles.dart';
 import 'package:flutter/material.dart';
@@ -17,10 +18,17 @@ class RegisterScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: AppColors.primaryColor,
-        elevation: 0,
+        // Change this line in your AppBar:
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Get.back(),
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              // If there is no back stack, go to a specific route
+              Get.offAllNamed(Routes.loginScreen);
+            }
+          },
         ),
         title: Text('Register', style: TextStyles.appBarTitle),
       ),
@@ -155,63 +163,65 @@ class RegisterScreen extends StatelessWidget {
                           title: '',
                         )),
                     C15(),
-                  Obx(() => CustomDropdownTextField1(
-  selectedValue: controller.selectedWorkshop,
-  items: controller.workshopList
-      .map((e) => e.name ?? "")
-      .toList(),
-  label: "Select Workshop",
-  dialogTitle: "Select Workshop",
-  hint: "Select Workshop",
+                    Obx(() => CustomDropdownTextField1(
+                          selectedValue: controller.selectedWorkshop,
+                          items: controller.workshopList
+                              .map((e) => e.name ?? "")
+                              .toList(),
+                          label: "Select Workshop",
+                          dialogTitle: "Select Workshop",
+                          hint: "Select Workshop",
 
-  // 🔥 SAME VALIDATION LIKE CITY
-  onBeforeTap: () async {
-    if (controller.selectedWorkshopGroup.value.isEmpty) {
-      Get.dialog(
-        CustomPopup(
-          title: "Alert",
-          message: "Please select Workshop Group first.",
-          onButtonPressed: () => Get.back(),
-        ),
-        barrierDismissible: false,
-      );
-      return false;
-    }
+                          // 🔥 SAME VALIDATION LIKE CITY
+                          onBeforeTap: () async {
+                            if (controller
+                                .selectedWorkshopGroup.value.isEmpty) {
+                              Get.dialog(
+                                CustomPopup(
+                                  title: "Alert",
+                                  message:
+                                      "Please select Workshop Group first.",
+                                  onButtonPressed: () => Get.back(),
+                                ),
+                                barrierDismissible: false,
+                              );
+                              return false;
+                            }
 
-    if (controller.selectedCity.value.isEmpty) {
-      Get.dialog(
-        CustomPopup(
-          title: "Alert",
-          message: "Please select City first.",
-          onButtonPressed: () => Get.back(),
-        ),
-        barrierDismissible: false,
-      );
-      return false;
-    }
+                            if (controller.selectedCity.value.isEmpty) {
+                              Get.dialog(
+                                CustomPopup(
+                                  title: "Alert",
+                                  message: "Please select City first.",
+                                  onButtonPressed: () => Get.back(),
+                                ),
+                                barrierDismissible: false,
+                              );
+                              return false;
+                            }
 
-    if (controller.workshopList.isEmpty) {
-      Get.dialog(
-        CustomPopup(
-          title: "Alert",
-          message: "No workshops available.",
-          onButtonPressed: () => Get.back(),
-        ),
-        barrierDismissible: false,
-      );
-      return false;
-    }
+                            if (controller.workshopList.isEmpty) {
+                              Get.dialog(
+                                CustomPopup(
+                                  title: "Alert",
+                                  message: "No workshops available.",
+                                  onButtonPressed: () => Get.back(),
+                                ),
+                                barrierDismissible: false,
+                              );
+                              return false;
+                            }
 
-    return true; // ✅ allow open
-  },
+                            return true; // ✅ allow open
+                          },
 
-  onItemSelected: (name) {
-    final selected = controller.workshopList
-        .firstWhere((e) => e.name == name);
-    controller.workShopListCommand(selected);
-  },
-  title: '',
-)),
+                          onItemSelected: (name) {
+                            final selected = controller.workshopList
+                                .firstWhere((e) => e.name == name);
+                            controller.workShopListCommand(selected);
+                          },
+                          title: '',
+                        )),
                     C25(),
                   ],
                 ),

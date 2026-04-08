@@ -1,3 +1,4 @@
+import 'package:ap_dongle_comm/utils/enums/connectivity.dart';
 import 'package:autopeepal/AppPreferences/app_areferences.dart';
 import 'package:autopeepal/app.dart';
 import 'package:autopeepal/models/doipConfigFile_model.dart';
@@ -96,6 +97,7 @@ class DrawerViewController extends GetxController {
         final macId = await connectionWifi.getDongleMacID(
           device.ip!,
           channelId: channelId,
+          selectedType: _mapVciToUsbConnectivity(selectedVCIType),
         );
         print("MAC ID: $macId");
 
@@ -163,6 +165,18 @@ class DrawerViewController extends GetxController {
     } finally {
       isLoading.value = false;
       print("=== connectDevice END ===");
+    }
+  }
+    Connectivity _mapVciToUsbConnectivity(VCIType vciType) {
+    switch (vciType) {
+      case VCIType.RP1210:
+        return Connectivity.rp1210WiFi;
+      case VCIType.CAN2xFD:
+        return Connectivity.canFdWiFi;
+      case VCIType.DOIP:
+        return Connectivity.doipWiFi;
+      default:
+        return Connectivity.wiFi; // Fallback for standard CAN2X/G/GK
     }
   }
 }
