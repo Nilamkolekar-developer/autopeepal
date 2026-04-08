@@ -15,7 +15,7 @@ class ECUFlashingScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() => WillPopScope(
           onWillPop: () async {
-            if (controller.isBusy.value) {
+            if (controller.isNavigate.value) {
               Fluttertoast.showToast(
                 msg: "Flashing in progress. Please wait...",
               );
@@ -25,11 +25,30 @@ class ECUFlashingScreen extends StatelessWidget {
           },
           child: Scaffold(
             backgroundColor: AppColors.pagebgColor,
+            // appBar: AppBar(
+            //   backgroundColor: AppColors.primaryColor,
+            //   title: const Text("ECU Flashing"),
+            //   automaticallyImplyLeading:
+            //       !controller.isNavigate.value, // 👈 hides back button in AppBar
+            //   bottom: PreferredSize(
+            //     preferredSize: const Size.fromHeight(60),
+            //     child: _ecuTabs(),
+            //   ),
+            // ),
             appBar: AppBar(
               backgroundColor: AppColors.primaryColor,
               title: const Text("ECU Flashing"),
-              automaticallyImplyLeading:
-                  !controller.isBusy.value, // 👈 hides back button in AppBar
+              // 👇 INVERTED LOGIC: Hide when isNavigate is true, show when false
+              automaticallyImplyLeading: !controller.isNavigate.value,
+
+              // 🔹 Optional: Explicitly show/hide the back button for Windows compatibility
+              leading: controller.isNavigate.value
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => Get.back(),
+                    ),
+
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(60),
                 child: _ecuTabs(),
@@ -74,7 +93,7 @@ class ECUFlashingScreen extends StatelessWidget {
                   //   controller.switchTab(ecu);
                   // },
                   onTap: () {
-                    if (controller.isBusy.value) {
+                    if (controller.isNavigate.value) {
                       // Optional: show message
                       Fluttertoast.showToast(
                           msg: "Cannot change ECU during flashing");

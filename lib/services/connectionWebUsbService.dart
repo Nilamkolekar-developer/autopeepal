@@ -40,7 +40,7 @@ class ConnectionUSBWindows {
         print("❌ No compatible USB port found.");
         return false;
       }
-
+      final Connectivity targetUsbType = _mapVciToUsbConnectivity(vciType);
       final isCH340 =
           (SerialPort(targetPortName).description ?? "").contains("CH340");
       int baudRate = isCH340 ? 115200 : 460800;
@@ -48,7 +48,7 @@ class ConnectionUSBWindows {
 
       final comm = Get.put(CommController());
       print("🔌 Attempting to connect via CommController...");
-      await comm.connectDesktopUsb(targetPortName, baudRate);
+      await comm.connectDesktopUsb(targetPortName, baudRate, targetUsbType);
 
       if (comm.isConnected.value) {
         print("✅ Serial device linked to CommController on $targetPortName.");
@@ -61,6 +61,19 @@ class ConnectionUSBWindows {
     } catch (e) {
       print("🔥 Error connecting: $e");
       return false;
+    }
+  }
+
+  Connectivity _mapVciToUsbConnectivity(VCIType vciType) {
+    switch (vciType) {
+      case VCIType.RP1210:
+        return Connectivity.rp1210Usb;
+      case VCIType.CAN2xFD:
+        return Connectivity.canFdUsb;
+      case VCIType.DOIP:
+        return Connectivity.doipUsb;
+      default:
+        return Connectivity.usb; // Fallback for standard CAN2X/G/GK
     }
   }
 
@@ -88,11 +101,11 @@ class ConnectionUSBWindows {
         print("❌ No serial device found for config.");
         return false;
       }
-
+      //  final Connectivity targetUsbType = _mapVciToUsbConnectivity(vciType);
       final comm = Get.put(CommController());
       print(
           "🔌 Attempting to connect via CommController to $targetPortName...");
-      await comm.connectDesktopUsb(targetPortName, 460800);
+      //  await comm.connectDesktopUsb(targetPortName, 460800, targetUsbType);
 
       if (!comm.isConnected.value) {
         print("❌ CommController failed to connect to $targetPortName");

@@ -43,7 +43,6 @@ class Ecuflashingcontroller extends GetxController {
   RxBool isNavigate = false.obs;
   RxBool isLocalFile = false.obs;
 
-
   int count1 = 0;
   @override
   void onInit() {
@@ -415,52 +414,51 @@ class Ecuflashingcontroller extends GetxController {
   //   }
   // }
   Future<void> browseFile() async {
-  try {
-    final result = await _pickerService.pickFileAsync();
+    try {
+      final result = await _pickerService.pickFileAsync();
 
-    if (result != null &&
-        result.fileName.isNotEmpty &&
-        result.fileContent.isNotEmpty) {
+      if (result != null &&
+          result.fileName.isNotEmpty &&
+          result.fileContent.isNotEmpty) {
+        final newFile = File(
+          dataFileName: result.fileName,
+          dwnldDataFile: result.fileContent,
+          dataFile: '',
+        );
 
-      final newFile = File(
-        dataFileName: result.fileName,
-        dwnldDataFile: result.fileContent,
-        dataFile: '',
-      );
+        selectedFlashFile.value = newFile;
 
-      selectedFlashFile.value = newFile;
+        // ✅ ADD FILE TO DROPDOWN LIST
+        final exists = flashFileList.any(
+          (e) => e.dataFileName == result.fileName,
+        );
 
-      // ✅ ADD FILE TO DROPDOWN LIST
-      final exists = flashFileList.any(
-        (e) => e.dataFileName == result.fileName,
-      );
+        if (!exists) {
+          flashFileList.add(newFile);
+        }
 
-      if (!exists) {
-        flashFileList.add(newFile);
+        // ✅ SET SELECTED VALUE IN DROPDOWN
+        selectedFlashFileString.value = result.fileName;
+
+        flashFileViewVisible.value = false;
+        isLocalFile.value = true;
+        isFlashBtnVisible.value = true;
+
+        print('[FLASH] File picked: ${newFile.dataFileName}');
+      } else {
+        await Get.dialog(
+          CustomPopup(
+            title: "Alert!",
+            message: "No Data File pick",
+            onButtonPressed: () => Get.back(),
+          ),
+          barrierDismissible: false,
+        );
       }
-
-      // ✅ SET SELECTED VALUE IN DROPDOWN
-      selectedFlashFileString.value = result.fileName;
-
-      flashFileViewVisible.value = false;
-      isLocalFile.value = true;
-      isFlashBtnVisible.value = true;
-
-      print('[FLASH] File picked: ${newFile.dataFileName}');
-    } else {
-      await Get.dialog(
-        CustomPopup(
-          title: "Alert!",
-          message: "No Data File pick",
-          onButtonPressed: () => Get.back(),
-        ),
-        barrierDismissible: false,
-      );
+    } catch (e) {
+      print('[FLASH][ERROR] $e');
     }
-  } catch (e) {
-    print('[FLASH][ERROR] $e');
   }
-}
 
   Future<String> readJson(
       String interpreterData, Uint8List flashFileBytes) async {
@@ -621,10 +619,11 @@ class Ecuflashingcontroller extends GetxController {
       print("[FLASH] Back navigation disabled");
       print("[FLASH] flashData.ecu2: ${flashData?.ecu2}");
       print("[FLASH] selectedEcu.value: ${selectedEcu.value}");
-      print("[FLASH] selectedEcu.value?.ecuMapFile: ${selectedEcu.value?.ecuMapFile}");
+      print(
+          "[FLASH] selectedEcu.value?.ecuMapFile: ${selectedEcu.value?.ecuMapFile}");
       if (flashData?.ecu2 == null || selectedEcu.value?.ecuMapFile == null) {
         print("[FLASH] Error: Required ECU data missing");
-        print("[FLASH] flashData?.ecu2 is null? ${flashData?.ecu2 == null}"); 
+        print("[FLASH] flashData?.ecu2 is null? ${flashData?.ecu2 == null}");
         print(
             "[FLASH] selectedEcu?.ecuMapFile is null? ${selectedEcu.value?.ecuMapFile == null}");
         _resetFlags(showFlashBtn: true);
@@ -705,6 +704,7 @@ class Ecuflashingcontroller extends GetxController {
         barrierDismissible: false,
       );
     } finally {
+      isNavigate.value = false;
       isFlashBtnVisible.value = true;
       print("[FLASH] Flash button re-enabled");
     }

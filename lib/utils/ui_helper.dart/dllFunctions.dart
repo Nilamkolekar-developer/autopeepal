@@ -17,6 +17,7 @@ import 'package:ap_dongle_comm/utils/commController.dart';
 import 'package:ap_dongle_comm/utils/dongleComm.dart';
 import 'package:ap_dongle_comm/utils/enums/command_ids.dart';
 import 'package:ap_dongle_comm/utils/enums/connectivity.dart';
+import 'package:ap_dongle_comm/utils/enums/protocol.dart';
 import 'package:ap_dongle_comm/utils/model/responseArrayStatusModel.dart';
 import 'package:ap_dongle_comm/utils/model/sessionLogModel.dart';
 import 'package:autopeepal/models/doipConfigFile_model.dart';
@@ -44,29 +45,61 @@ class DLLFunctions {
   String rxHeaderTemp = '';
   int protocolValue = 0;
 
+  // Future<String> setDongleProperties1() async {
+  //   try {
+  //     final ecu = StaticData.ecuInfo.first;
+  //     final String protocolNameValue = ecu.protocol!.name!;
+  //     protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
+  //     protocolNameValue.replaceAll('-', '_');
+  //     txHeaderTemp = ecu.txHeader!;
+  //     rxHeaderTemp = ecu.rxHeader!;
+  //     await mDongleComm.dongleSetProtocol(protocolValue);
+  //     await mDongleComm.canSetTxHeader(txHeaderTemp);
+  //     await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
+  //     await mDongleComm.canStartPadding("00");
+  //     final Uint8List? firmwareBytes = await mDongleComm.getFirmwareVersion();
+
+  //     final firmwareVersion = "${firmwareBytes![3].toString().padLeft(2, '0')}."
+  //         "${firmwareBytes[4].toString().padLeft(2, '0')}."
+  //         "${firmwareBytes[5].toString().padLeft(2, '0')}";
+
+  //     return firmwareVersion;
+  //   } catch (e) {
+  //     return "";
+  //   }
+  // }
   Future<String> setDongleProperties1() async {
-    try {
-      final ecu = StaticData.ecuInfo.first;
-      final String protocolNameValue = ecu.protocol!.name!;
-      protocolValue = int.parse(ecu.protocol!.autopeepal!, radix: 16);
-      protocolNameValue.replaceAll('-', '_');
-      txHeaderTemp = ecu.txHeader!;
-      rxHeaderTemp = ecu.rxHeader!;
-      await mDongleComm.dongleSetProtocol(protocolValue);
-      await mDongleComm.canSetTxHeader(txHeaderTemp);
-      await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
-      await mDongleComm.canStartPadding("00");
-      final Uint8List? firmwareBytes = await mDongleComm.getFirmwareVersion();
+  try {
+    final firstEcu = StaticData.ecuInfo.first;
+    String value = firstEcu.protocol!.name!.replaceAll("-", "_");
+    
+    // Exact mapping without hardcoded names
+    mDongleComm.protocol = Protocol.values.firstWhere(
+      (e) => e.name == value,
+      orElse: () => Protocol.values.first, 
+    );
 
-      final firmwareVersion = "${firmwareBytes![3].toString().padLeft(2, '0')}."
-          "${firmwareBytes[4].toString().padLeft(2, '0')}."
-          "${firmwareBytes[5].toString().padLeft(2, '0')}";
+    protocolValue = int.parse(firstEcu.protocol!.autopeepal!, radix: 16);
+    txHeaderTemp = firstEcu.txHeader!;
+    rxHeaderTemp = firstEcu.rxHeader!;
 
-      return firmwareVersion;
-    } catch (e) {
-      return "";
+    await mDongleComm.dongleSetProtocol(protocolValue);
+    await mDongleComm.canSetTxHeader(txHeaderTemp);
+    await mDongleComm.canSetRxHeaderMask(rxHeaderTemp);
+    await mDongleComm.canStartPadding("00");
+
+    final dynamic firmwareResult = await mDongleComm.getFirmwareVersion();
+    
+    if (firmwareResult != null && firmwareResult is Uint8List) {
+      return "${firmwareResult[3].toString().padLeft(2, '0')}."
+             "${firmwareResult[4].toString().padLeft(2, '0')}."
+             "${firmwareResult[5].toString().padLeft(2, '0')}";
     }
+    return "";
+  } catch (e) {
+    return "";
   }
+}
 
   Future<void> setDongleProperties(
       String protocolName, String txHeaderTemp, String rxHeaderTemp) async {
@@ -167,26 +200,35 @@ class DLLFunctions {
       String status = "";
 
       // 1. Get the primary ECU info
-      // Assuming StaticData.ecuInfo is a List of your ECU data objects
-      if (StaticData.ecuInfo.isEmpty) return "No ECU info found.";
+      if (StaticData.ecuInfo.isEmpty) {
+        print("⚠️ No ECU info found in StaticData.");
+        return "No ECU info found.";
+      }
 
       var primaryEcu = StaticData.ecuInfo.first;
       String protocolNameValue = primaryEcu.protocol!.name ?? '';
 
-      // Convert hex headers to 4-byte lists (Big Endian)
-      // This replaces C#'s BitConverter + Array.Reverse
       Uint8List txArray = _hexTo4ByteList(primaryEcu.txHeader ?? '');
       Uint8List rxArray = _hexTo4ByteList(primaryEcu.rxHeader ?? '');
 
       // 2. Attempt RP1210 Client Connect
+      print("🔗 Attempting RP1210 Client Connect for: $protocolNameValue");
       bool connected = await mDongleComm.rp1210ClientConnect(protocolNameValue);
 
       if (connected) {
+        // 🔥 STABILIZATION DELAY: Give the VCI 300ms to initialize the CAN controller
+        print("⏳ Connection successful. Stabilizing for 300ms...");
+        await Future.delayed(const Duration(milliseconds: 300));
+
         // 3. Set Flow Control for the primary ECU
+        print("⚙️ Setting Flow Control...");
         bool flowCtrlSuccess = await mDongleComm.rp1210SendCommand(
             txArray, rxArray, SubCommandId.setFlowControl);
 
         if (flowCtrlSuccess) {
+          // 🔥 SMALL DELAY: Ensure Flow Control table is updated
+          await Future.delayed(const Duration(milliseconds: 100));
+
           // 4. Handle multiple ECUs if they exist
           if (StaticData.ecuInfo.length > 1) {
             for (int i = 1; i < StaticData.ecuInfo.length; i++) {
@@ -194,130 +236,49 @@ class DLLFunctions {
               Uint8List txArray1 = _hexTo4ByteList(ecu.txHeader ?? '');
               Uint8List rxArray1 = _hexTo4ByteList(ecu.rxHeader ?? '');
 
+              print("⚙️ Setting Flow Control for secondary ECU $i...");
               bool multiFlowSuccess = await mDongleComm.rp1210SendCommand(
                   txArray1, rxArray1, SubCommandId.setFlowControl);
 
               if (!multiFlowSuccess) {
+                print("❌ Failed Flow Control for ECU $i");
                 return "Failed to set flow control for ECU $i.";
               }
+              await Future.delayed(const Duration(milliseconds: 50));
             }
           }
 
           // 5. Finally set the Message Filter
+          print("🛡️ Setting Message Filter...");
           bool filterSuccess = await mDongleComm.rp1210SendCommand(
               txArray, rxArray, SubCommandId.setMsgFilter);
 
           if (filterSuccess) {
             status = "Success";
+            print("✅ RP1210 Properties Set Successfully");
           } else {
+            print("❌ Message Filter Setup Failed");
             await mDongleComm.comm?.disconnectVCI();
             status = "Failed to set message filter.";
           }
         } else {
+          print(
+              "❌ Flow Control Setup Failed (Likely Zero Response from Dongle)");
           await mDongleComm.comm?.disconnectVCI();
           status = "Failed to set flow control.";
         }
       } else {
+        print("❌ Client Connection Failed");
         await mDongleComm.comm?.disconnectVCI();
         status = "Failed to connect client.";
       }
 
       return status;
-    } catch (ex, stack) {
-      await mDongleComm.comm?.disconnectVCI();
-      print("❌ Exception @setRP1210Properties(): $ex");
-      return "Exception @setRP1210Properties() : ${ex.toString()}";
-    }
-  }
-
-  Future<String> setRP1210Properties1() async {
-    print("==> [DEBUG] Entering setRP1210Properties");
-    try {
-      String status = "";
-
-      if (StaticData.ecuInfo.isEmpty) {
-        print("==> [ERROR] StaticData.ecuInfo is empty!");
-        return "Error: No ECU Data";
-      }
-
-      // 1. Check if comm exists before doing anything
-      if (mDongleComm.comm == null) {
-        print("==> [CRITICAL] comm object is NULL. Initialization failed.");
-        return "Error: Communication not initialized";
-      }
-
-      final firstEcu = StaticData.ecuInfo.first;
-      String protocolNameValue = firstEcu.protocol?.name ?? '';
-
-      // Convert hex string to int safely
-      int.parse(firstEcu.protocol?.autopeepal ?? '0', radix: 16);
-
-      Uint8List txArray = _getReversedByteArray(firstEcu.txHeader ?? '0');
-      Uint8List rxArray = _getReversedByteArray(firstEcu.rxHeader ?? '0');
-
-      // 2. Connect Client
-      print("==> [DEBUG] Attempting rp1210ClientConnect...");
-      bool isConnected =
-          await mDongleComm.rp1210ClientConnect(protocolNameValue);
-
-      if (isConnected) {
-        // 3. Set Flow Control
-        bool flowControlSuccess = await mDongleComm.rp1210SendCommand(
-            txArray, rxArray, SubCommandId.setFlowControl);
-
-        if (flowControlSuccess) {
-          // Handle additional ECUs
-          if (StaticData.ecuInfo.length > 1) {
-            for (int i = 1; i < StaticData.ecuInfo.length; i++) {
-              var ecu = StaticData.ecuInfo[i];
-              Uint8List tx = _getReversedByteArray(ecu.txHeader ?? '');
-              Uint8List rx = _getReversedByteArray(ecu.rxHeader ?? '');
-
-              bool success = await mDongleComm.rp1210SendCommand(
-                  tx, rx, SubCommandId.setFlowControl);
-
-              if (!success) {
-                return "Failed to set flow control for ECU index $i";
-              }
-            }
-          }
-
-          // 4. Set Message Filter
-          bool filterSuccess = await mDongleComm.rp1210SendCommand(
-              txArray, rxArray, SubCommandId.setMsgFilter);
-
-          if (filterSuccess) {
-            status = "Success";
-          } else {
-            status = "Failed to set message filter.";
-          }
-        } else {
-          status = "Failed to set flow control.";
-        }
-      } else {
-        status = "Failed to connect client.";
-      }
-
-      // Only disconnect if we didn't succeed
-      if (status != "Success") {
-        print("==> [INFO] Cleaning up connection due to: $status");
-        mDongleComm.comm?.disconnectVCI(); // USE ?. NOT !.
-      }
-
-      return status;
     } catch (ex) {
-      print("==> [CRITICAL] Exception in setRP1210Properties: $ex");
-      // Safely disconnect without crashing
-      comm?.disconnectVCI();
+      print("❌ Exception @setRP1210Properties(): $ex");
+      await mDongleComm.comm?.disconnectVCI();
       return "Exception @setRP1210Properties() : ${ex.toString()}";
     }
-  }
-
-  Uint8List _getReversedByteArray(String hexString) {
-    int val = int.parse(hexString, radix: 16);
-    ByteData data = ByteData(4);
-    data.setUint32(0, val, Endian.big);
-    return data.buffer.asUint8List();
   }
 
   Uint8List hexToBytes(String hex) {
@@ -432,33 +393,37 @@ class DLLFunctions {
 
   Future<void> disconnectVCI1() async {
     try {
-      // ✅ Null check before accessing comm
-      if (mDongleComm.comm == null) {
+      final comm = mDongleComm.comm;
+
+      if (comm == null) {
         print("⚠️ comm is null, skipping VCI disconnect");
         return;
       }
 
-      // ✅ Use .value to get actual enum
-      final connectivity = mDongleComm.comm!.connectivity.value;
+      final connectivity = comm.connectivity.value;
 
-      if ([
+      // ✅ Define supported RP1210-based connections
+      const rp1210Connections = {
         Connectivity.rp1210WiFi,
         Connectivity.rp1210Usb,
         Connectivity.canFdUsb,
         Connectivity.canFdWiFi,
         Connectivity.doipUsb,
         Connectivity.doipWiFi,
-      ].contains(connectivity)) {
+      };
+
+      if (rp1210Connections.contains(connectivity)) {
         print("🔌 Sending RP1210 ClientDisconnect...");
         await mDongleComm.rp1210ClientDisconnect();
+      } else {
+        print("🔄 Sending Dongle Reset...");
+        await comm.disconnectVCI();
       }
 
-      print("🔄 Sending Dongle Reset...");
-      await mDongleComm.resetDongle();
-
       print("✅ VCI disconnected successfully");
-    } catch (e) {
+    } catch (e, stack) {
       print("❌ Error disconnecting VCI: $e");
+      print(stack);
     }
   }
 
@@ -470,40 +435,6 @@ class DLLFunctions {
       return '';
     }
   }
-
-  // Future<String> checkEcuStatus() async {
-  //   try {
-  //     final resp = await mDongleComm
-  //         .can2xTxRx(2, '1003')
-  //         .timeout(const Duration(seconds: 3));
-
-  //     if (resp == null) {
-  //       print("❌ ECU Response is null");
-  //       return "No Resp From Dongle";
-  //     }
-
-  //     final status = resp.ecuResponseStatus ?? '';
-  //     final ecuResponse = resp.ecuResponse ?? '';
-
-  //     print("📥 ECU RAW RESPONSE: $ecuResponse");
-  //     print("📥 ECU STATUS: $status");
-
-  //     // ✅ Handle READAGAIN properly
-  //     if (status.contains("READAGAIN")) {
-  //       return "READAGAIN";
-  //     }
-
-  //     // ✅ Handle ECU error
-  //     if (status.contains("ECUERROR_NORESPONSEFROMECU")) {
-  //       return "ECUERROR_NORESPONSEFROMECU";
-  //     }
-
-  //     return status.isNotEmpty ? status : "UNKNOWN";
-  //   } catch (e) {
-  //     print("❌ checkEcuStatus ERROR: $e");
-  //     return "No Resp From Dongle";
-  //   }
-  // }
 
   List<SessionLogsModel> getLogs() {
     print("DLLFunctions.getLogs: Start");

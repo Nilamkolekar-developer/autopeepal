@@ -40,14 +40,22 @@ class LoginController extends GetxController {
       String savedUser = prefs.getString("user_id") ?? "";
       String savedPass = prefs.getString("password") ?? "";
 
-      if (savedUser.isNotEmpty && savedPass.isNotEmpty) {
-        // 2. Update the text controllers
-        usernameController.value.text = savedUser;
-        passwordController.value.text = savedPass;
+      // if (savedUser.isNotEmpty && savedPass.isNotEmpty) {
+      //   // 2. Update the text controllers
+      //   usernameController.value.text = savedUser;
+      //   passwordController.value.text = savedPass;
 
-        // 3. Set the checkbox to true since we have saved data
+      //   // 3. Set the checkbox to true since we have saved data
+      //   isRememberMeChecked.value = true;
+      //   print("[LOGIN] Credentials loaded for: $savedUser");
+      // }
+      if (savedUser.isNotEmpty) {
+        usernameController.value.text = savedUser;
+      }
+
+      if (savedPass.isNotEmpty) {
+        passwordController.value.text = savedPass;
         isRememberMeChecked.value = true;
-        print("[LOGIN] Credentials loaded for: $savedUser");
       }
     } catch (e) {
       print("[LOGIN] Error loading saved credentials: $e");
@@ -194,8 +202,10 @@ class LoginController extends GetxController {
             print("[LOGIN] Warning: saveLocalData is null!");
           }
         } else {
-          await prefs.setString("user_id", "");
-          await prefs.setString("password", "");
+          // await prefs.setString("user_id", "");
+          // await prefs.setString("password", "");
+          await prefs.remove("user_id");
+          await prefs.remove("password");
 
           if (saveLocalData != null) {
             await saveLocalData!.saveData(
